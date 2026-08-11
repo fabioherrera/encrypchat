@@ -1,0 +1,47 @@
+---
+description: Ruteo de subagentes Cursor Encrypchat (frontend/backend/orquestador/auditor/legal/seo)
+alwaysApply: true
+---
+
+# Ruteo de subagentes Cursor (Encrypchat)
+
+Los MDs en `.cursor/agents/` son especialistas de **desarrollo/revisión** del producto Encrypchat.
+
+## Cuándo delegar
+
+| Brief | Agente | Notas |
+| --- | --- | --- |
+| UI Flutter, adaptive móvil/desktop, a11y, permisos OS | `/frontend` | `apps/client` — Android, iOS, Linux, Windows |
+| Landing, packaging visual, assets de marca en web | `/frontend` | Con `/seo` si es página pública |
+| P2P, crypto, FFI, SQLCipher, relay, WebRTC nativo | `/backend` | `crates/core`, `services/relay` |
+| Tarea multi-capa o multi-plataforma | `/orquestador` | Parte y coordina; no sustituye expertise |
+| Review seguridad / invariantes / pre-release | `/auditor` | **readonly** — no implementa |
+| ToS, privacy, claims, stores, compliance | `/legal` | **readonly** |
+| **encrypchat.com**, metadata, sitemap, OG, AEO, copy indexable | `/seo` | Prioridad alta — solo superficie pública |
+
+## Orden seguro
+
+1. Diff grande o duda de seguridad → `/auditor` primero (solo informe).
+2. Especialista que escribe (`/backend`, `/frontend`, `/orquestador`).
+3. Copy o páginas en **encrypchat.com** → `/seo` obligatorio; `/legal` si hay claims (zero-cloud, E2EE, “100%”).
+4. Tras cambios en crypto, relay, FFI, auth de dispositivo → `/auditor` otra vez.
+5. Brief por plataforma (Fedora package, Windows installer, App Store / Play) → `/frontend` + `/backend` si toca nativo; `/legal` para políticas de store.
+
+## Anti-solapes
+
+```text
+❌ /orquestador maquetando widgets Flutter
+❌ /frontend tocando crypto/FFI “de paso”
+❌ /backend inventando landing SEO sin /seo
+❌ /seo prometiendo features que el core no cumple
+❌ Tratar chat web como producto (el chat es la app Flutter)
+❌ Inventar un séptimo subagente sin actualizar AGENTS.md
+```
+
+## Checklist pre-merge
+
+- [ ] Invariantes de `.cursor/rules/encrypchat.mdc` intactos
+- [ ] Paridad o gap documentado en Android / iOS / Linux / Windows
+- [ ] Si tocó `apps/web` / encrypchat.com → pase `/seo`
+- [ ] Si tocó claims o privacy → pase `/legal`
+- [ ] Si tocó crypto/relay/FFI → pase `/auditor`

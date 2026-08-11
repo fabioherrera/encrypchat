@@ -1,0 +1,73 @@
+---
+description: Reglas de producto Encrypchat — multiplataforma, P2P, zero-cloud, marca y dominio
+alwaysApply: true
+---
+
+# Reglas Encrypchat
+
+## Producto
+
+**Encrypchat** es mensajería P2P cifrada de extremo a extremo. Cada dispositivo es cliente + mini-servidor local. Los datos (chats, media, claves) viven en el dispositivo — **zero-cloud de contenido**.
+
+El producto canónico es la **app multiplataforma**, no un chat web:
+
+| Target | Rol |
+| --- | --- |
+| Android | Cliente + nodo local |
+| iOS | Cliente + nodo local |
+| Linux (Fedora) | Cliente desktop + nodo local |
+| Windows | Cliente desktop + nodo local |
+
+Paridad funcional entre móvil y desktop. No degradar desktop ni asumir solo móvil.
+
+## Dominio y naming
+
+- Marca y dominio primario: **Encrypchat** / **https://encrypchat.com** (raíz *encrypt* con **y**).
+- Variante `encripchat.com` (con *i*): solo redirect al primario si se registra.
+- Nunca renombrar la marca en copy o código de producto.
+- Tagline: `DECENTRALIZED P2P CHAT | ZERO-CLOUD`.
+- Logo: escudo + bocadillos + candado, azul marino, fondo blanco (`encrypchat logo.png`).
+- UI light aprobada: `docs/design/design-system.md` (tokens navy `#0F2744`, canvas `#F4F6F8`, bubble-out `#E6ECF4`). Landing y Flutter deben reutilizarlos. Dark pendiente.
+
+## Invariantes (no negociables)
+
+1. **Zero-cloud de contenido**: chats, media y claves privadas nunca en claro en servidores propios ni de terceros.
+2. **E2EE real**: cifrar en origen con clave del destinatario; relays solo ven ciphertext.
+3. **Identidad por token** (hash de clave pública). No directorio telefónico central como fuente de verdad.
+4. **Cada dispositivo = cliente + nodo local**.
+5. **Relay ciego** (opcional, offline): TTL, borrado post-entrega, sin plaintext ni metadatos de contenido.
+6. **P2P preferido** para media/llamadas si ambos online; relay solo si hace falta.
+7. **Claims honestos**: no “imposible de hackear”, no zero-knowledge absoluto si hay metadata de red/relay.
+8. **Paridad multiplataforma** Android / iOS / Linux / Windows.
+
+## Stack objetivo
+
+| Capa | Tecnología |
+| --- | --- |
+| Cliente | Flutter — `apps/client` (Android, iOS, Linux, Windows) |
+| Core P2P/crypto | Rust + libp2p — `crates/core` (FFI) |
+| DB local | SQLCipher / almacenamiento cifrado en dispositivo |
+| A/V | WebRTC P2P + señalización mínima |
+| Relay | `services/relay` — ciego |
+| Marketing/SEO | Next.js — `apps/web` en **encrypchat.com** (landing, no chat) |
+
+## SEO (prioridad alta)
+
+- `apps/web` / **encrypchat.com** es la superficie indexable: metadata, sitemap, OG, schema, AEO.
+- Toda landing, blog o página pública pasa por `/seo` (y `/legal` si hay claims).
+- La app Flutter **no** es sitio indexable.
+
+## Layout monorepo objetivo
+
+```text
+apps/client/     # Flutter multiplataforma
+apps/web/        # Landing SEO encrypchat.com
+crates/core/     # Rust + libp2p + crypto
+services/relay/  # Relay ciego
+```
+
+## Antes de cerrar
+
+- ¿Rompe zero-cloud / E2EE / token identity?
+- ¿Funciona (o se documenta el gap) en Android, iOS, Linux Fedora y Windows?
+- ¿Copy público revisado por SEO + legal si aplica?

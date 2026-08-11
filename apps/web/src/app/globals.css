@@ -1,0 +1,228 @@
+:root {
+  /* Approved light tokens — docs/design/design-system.md */
+  --navy: #0f2744;
+  --navy-mid: #1a365d;
+  --ink: #14233a;
+  --muted: #5a6b7d;
+  --paper: #ffffff;
+  --canvas: #f4f6f8;
+  --bubble-out: #e6ecf4;
+  --p2p: #1b7f4e;
+  --relay: #c47b1a;
+  --offline: #8a94a0;
+  --max: 68rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--font-sans), "Manrope", system-ui, sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(1100px 520px at 12% -8%, #dce6f2 0%, transparent 55%),
+    radial-gradient(900px 480px at 92% 0%, #e8eef5 0%, transparent 48%),
+    linear-gradient(180deg, var(--canvas) 0%, #eef2f6 50%, #e8edf3 100%);
+  line-height: 1.55;
+}
+
+a {
+  color: inherit;
+}
+
+.shell {
+  width: min(100% - 2rem, var(--max));
+  margin: 0 auto;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display), "Manrope", system-ui, sans-serif;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--navy);
+  font-weight: 700;
+}
+
+p {
+  margin: 0 0 1rem;
+}
+
+.prose {
+  max-width: 42rem;
+}
+
+.prose ul {
+  padding-left: 1.2rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.25rem;
+  background: var(--navy);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+  border-radius: 999px;
+}
+
+.btn:hover {
+  background: var(--navy-mid);
+}
+
+.btnGhost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--navy) 28%, transparent);
+  color: var(--navy);
+  text-decoration: none;
+  font-weight: 600;
+  background: color-mix(in srgb, white 78%, transparent);
+  border-radius: 999px;
+}
+
+.btnGhost:hover {
+  border-color: var(--navy);
+}
+
+/* —— Hero: brand + product mockup —— */
+.heroBleed {
+  position: relative;
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  padding: 2rem 1rem 0;
+  overflow: hidden;
+  background:
+    radial-gradient(900px 420px at 70% 20%, #d5e0ee 0%, transparent 60%),
+    linear-gradient(165deg, #f7f9fb 0%, var(--canvas) 45%, #e4ebf3 100%);
+}
+
+.heroInner {
+  width: min(100% - 0rem, var(--max));
+  margin: 0 auto;
+  display: grid;
+  gap: 1.5rem;
+  align-items: end;
+  min-height: calc(100vh - 5.5rem);
+}
+
+@media (min-width: 900px) {
+  .heroInner {
+    grid-template-columns: 1fr 1.05fr;
+    gap: 2rem;
+    align-items: center;
+    padding-bottom: 0;
+  }
+}
+
+.heroCopy {
+  padding: 1rem 0 2rem;
+  max-width: 32rem;
+}
+
+.heroBrand {
+  font-family: var(--font-display), "Manrope", system-ui, sans-serif;
+  font-size: clamp(2.75rem, 8vw, 4.75rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+  margin: 0 0 1rem;
+  color: var(--navy);
+}
+
+.heroLead {
+  font-size: 1.15rem;
+  color: var(--muted);
+  margin: 0 0 1.75rem;
+  max-width: 28rem;
+}
+
+.heroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.heroVisual {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  margin: 0;
+}
+
+.heroPhone {
+  width: min(100%, 360px);
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 28px 48px color-mix(in srgb, var(--navy) 22%, transparent));
+}
+
+@media (min-width: 900px) {
+  .heroPhone {
+    width: min(100%, 420px);
+  }
+}
+
+.section {
+  padding: 2.5rem 0;
+}
+
+.section h2 {
+  margin: 0 0 0.75rem;
+  font-size: clamp(1.6rem, 3vw, 2rem);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.grid2 {
+  display: grid;
+  gap: 1.5rem;
+}
+
+@media (min-width: 720px) {
+  .grid2 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.platformList {
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.platformList li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--navy) 12%, transparent);
+}
+
+.faq dt {
+  font-weight: 700;
+  color: var(--navy);
+  margin-top: 1.25rem;
+}
+
+.faq dd {
+  margin: 0.35rem 0 0;
+}

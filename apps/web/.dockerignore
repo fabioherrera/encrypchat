@@ -1,0 +1,8 @@
+# Context for Docker image builds (Dokploy / CI)
+# Build from apps/web:
+#   docker build -t encrypchat-web .
+node_modules
+.next
+out
+README.md
+wrangler.jsonc
