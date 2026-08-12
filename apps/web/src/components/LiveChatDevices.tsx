@@ -65,10 +65,11 @@ type CallMsg = {
 };
 
 type Msg = TextMsg | ImageMsg | VideoMsg | CallMsg;
+type Variant = "phone" | "tablet" | "desktop";
 
 const PEER_AVATAR = "/demo/avatar-maria.jpg";
 
-function buildPhoneMessages(t: DemoCopy): Msg[] {
+function buildMessages(t: DemoCopy): Msg[] {
   return [
     {
       id: "m1",
@@ -138,6 +139,21 @@ function buildPhoneMessages(t: DemoCopy): Msg[] {
       delay: "g",
     },
   ];
+}
+
+/**
+ * El hilo es el mismo en los tres equipos, pero tablet e iMac tienen una
+ * pantalla ancha y baja: sólo entran los últimos mensajes sin recortarlos.
+ */
+const THREAD_BY_VARIANT: Record<Variant, string[]> = {
+  phone: ["m1", "m2", "m3", "m4", "m5", "m6", "m7"],
+  tablet: ["m2", "m5", "m6"],
+  desktop: ["m4", "m6", "m7"],
+};
+
+function buildThread(t: DemoCopy, variant: Variant): Msg[] {
+  const ids = THREAD_BY_VARIANT[variant];
+  return buildMessages(t).filter((m) => ids.includes(m.id));
 }
 
 function buildSidebar(t: DemoCopy) {
@@ -266,11 +282,11 @@ function ChatChrome({
   showVideoCall,
   copy,
 }: {
-  variant: "phone" | "tablet" | "desktop";
+  variant: Variant;
   showVideoCall: boolean;
   copy: DemoCopy;
 }) {
-  const thread = buildPhoneMessages(copy);
+  const thread = buildThread(copy, variant);
   const sidebar = buildSidebar(copy);
   const withSidebar = variant === "tablet" || variant === "desktop";
 
@@ -331,7 +347,9 @@ function ChatChrome({
         </header>
 
         <div className={styles.thread}>
-          <div className={styles.day}>{copy.dayToday}</div>
+          {variant === "phone" ? (
+            <div className={styles.day}>{copy.dayToday}</div>
+          ) : null}
           <p className={styles.e2ee}>
             <span className={styles.lock} />
             {copy.e2eeBanner}
@@ -396,7 +414,9 @@ export function LiveChatDevices({ copy }: { copy: DemoCopy }) {
         {/* Phone — abre el hilo */}
         <div className={`${styles.device} ${styles.phone} ${styles.revealPhone}`}>
           <div className={styles.notch} />
-          <ChatChrome variant="phone" showVideoCall={false} copy={copy} />
+          <div className={styles.phoneBody}>
+            <ChatChrome variant="phone" showVideoCall={false} copy={copy} />
+          </div>
         </div>
       </div>
     </div>

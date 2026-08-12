@@ -109,7 +109,6 @@
   aspect-ratio: 9 / 19.2;
   border-radius: 1.35rem;
   background: linear-gradient(160deg, #1a2333 0%, #0b1220 100%);
-  padding: 0.32rem;
   box-shadow:
     0 2px 0 color-mix(in srgb, white 12%, transparent) inset,
     0 14px 24px color-mix(in srgb, var(--navy) 22%, transparent),
@@ -120,6 +119,14 @@
   .phone {
     width: 210px;
   }
+}
+
+/* Bisel en % para que la pantalla mantenga su proporción a cualquier tamaño */
+.phoneBody {
+  width: 100%;
+  height: 100%;
+  padding: 2.4%;
+  container-type: size;
 }
 
 .notch {
@@ -152,7 +159,8 @@
   aspect-ratio: 4 / 3;
   border-radius: 0.85rem;
   background: linear-gradient(160deg, #1a2333 0%, #0b1220 100%);
-  padding: 0.38rem;
+  padding: 1.6%;
+  container-type: size;
   box-shadow:
     0 1px 0 color-mix(in srgb, white 10%, transparent) inset,
     0 12px 28px color-mix(in srgb, var(--navy) 26%, transparent),
@@ -191,6 +199,7 @@
   border-radius: 0.28rem;
   overflow: hidden;
   background: #0b1220;
+  container-type: size;
   box-shadow: 0 0 0 1px color-mix(in srgb, #0b1220 55%, transparent);
 }
 
@@ -240,12 +249,30 @@
 .screen {
   position: relative;
   display: flex;
+  width: 100%;
   height: 100%;
   overflow: hidden;
   background: var(--canvas);
 }
 
+/**
+ * Cada equipo maqueta el chat a un tamaño lógico fijo (--w × --h, en px) y lo
+ * escala hasta llenar el bisel. Así el hilo se ve idéntico en cualquier
+ * viewport: no se recortan burbujas ni se solapan mensajes en pantallas chicas.
+ * tan(atan2()) es la división de longitudes: 100cqw ÷ --w.
+ */
+@supports (width: calc(1px * tan(atan2(2px, 1px)))) {
+  .screen {
+    width: calc(var(--w) * 1px);
+    height: calc(var(--h) * 1px);
+    transform: scale(tan(atan2(100cqw, calc(var(--w) * 1px))));
+    transform-origin: 0 0;
+  }
+}
+
 .screen_phone {
+  --w: 200;
+  --h: 438.1;
   flex-direction: column;
   border-radius: 1.1rem;
 }
@@ -256,7 +283,13 @@
 }
 
 .screen_tablet {
-  height: 100%;
+  --w: 368;
+  --h: 273;
+}
+
+.screen_desktop {
+  --w: 426;
+  --h: 266.25;
 }
 
 .pane {
@@ -502,6 +535,18 @@
   gap: 0;
   padding: 0.4rem 0.4rem 0.3rem;
   overflow: hidden;
+  /* Si el hilo crece más que la pantalla, lo viejo se va por arriba como al
+     hacer scroll, en vez de aplastar las burbujas. */
+  mask-image: linear-gradient(to bottom, transparent 0, #000 0.7rem);
+}
+
+.thread > * {
+  flex-shrink: 0;
+}
+
+.screen_tablet .thread,
+.screen_desktop .thread {
+  padding: 0.3rem 0.45rem 0.28rem;
 }
 
 .day {
@@ -600,8 +645,17 @@
 }
 
 .mediaBubble {
-  max-width: 78%;
+  max-width: 68%;
   padding: 0.22rem;
+}
+
+/* Pantallas anchas y bajas: media más chica para que entre el hilo completo */
+.screen_tablet .mediaBubble {
+  max-width: 52%;
+}
+
+.screen_desktop .mediaBubble {
+  max-width: 46%;
 }
 
 .mediaBubble p {
@@ -616,10 +670,15 @@
 .mediaThumb {
   position: relative;
   width: 100%;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 16 / 10;
   border-radius: 0.4rem;
   overflow: hidden;
   background: color-mix(in srgb, var(--navy) 12%, var(--canvas));
+}
+
+.screen_tablet .mediaThumb,
+.screen_desktop .mediaThumb {
+  aspect-ratio: 16 / 9;
 }
 
 .mediaImg {
@@ -1075,6 +1134,30 @@
   transform: translateX(1px);
 }
 
+/* Composer más bajo en tablet/iMac: la pantalla es ancha y de poca altura */
+.screen_tablet .composer,
+.screen_desktop .composer {
+  padding: 0.25rem 0.35rem 0.3rem;
+}
+
+.screen_tablet .field,
+.screen_desktop .field {
+  min-height: 1.15rem;
+}
+
+.screen_tablet .send,
+.screen_desktop .send {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.screen_tablet .send::before,
+.screen_desktop .send::before {
+  border-left-width: 0.32rem;
+  border-top-width: 0.18rem;
+  border-bottom-width: 0.18rem;
+}
+
 /* Bubble keyframes — hilo continuo phone → tablet → iMac (28s) */
 @keyframes bubbleA {
   0%,
@@ -1089,7 +1172,7 @@
   4%,
   88% {
     opacity: 1;
-    max-height: 4rem;
+    max-height: 5rem;
     padding: 0.32rem 0.4rem 0.22rem;
     margin: 0 0 0.28rem;
     transform: translateY(0) scale(1);
@@ -1118,7 +1201,7 @@
   8%,
   88% {
     opacity: 1;
-    max-height: 3.5rem;
+    max-height: 5rem;
     padding: 0.32rem 0.4rem 0.22rem;
     margin: 0 0 0.28rem;
     transform: translateY(0) scale(1);
@@ -1146,7 +1229,7 @@
   15%,
   88% {
     opacity: 1;
-    max-height: 7.5rem;
+    max-height: 12rem;
     padding: 0.22rem;
     margin: 0 0 0.28rem;
     transform: translateY(0) scale(1);
@@ -1173,7 +1256,7 @@
   23%,
   88% {
     opacity: 1;
-    max-height: 7.5rem;
+    max-height: 12rem;
     padding: 0.22rem;
     margin: 0 0 0.28rem;
     transform: translateY(0) scale(1);
@@ -1200,7 +1283,7 @@
   38%,
   88% {
     opacity: 1;
-    max-height: 7.5rem;
+    max-height: 12rem;
     padding: 0.22rem;
     margin: 0 0 0.28rem;
     transform: translateY(0) scale(1);
@@ -1228,7 +1311,7 @@
   48%,
   88% {
     opacity: 1;
-    max-height: 4rem;
+    max-height: 5rem;
     padding: 0.32rem 0.4rem 0.22rem;
     margin: 0 0 0.28rem;
     transform: translateY(0) scale(1);
@@ -1257,7 +1340,7 @@
   56%,
   88% {
     opacity: 1;
-    max-height: 2.8rem;
+    max-height: 3.6rem;
     padding: 0.32rem 0.5rem 0.32rem 0.4rem;
     margin: 0 0 0.28rem;
     transform: translateY(0) scale(1);
@@ -1345,13 +1428,6 @@
 
   .imacChin {
     height: 1.25rem;
-  }
-
-
-  .sidebarCopy em,
-  .sidebarItem time,
-  .sidebarItemActive time {
-    display: none;
   }
 }
 
