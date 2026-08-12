@@ -2,6 +2,13 @@
 
 Readonly re-audit after EH01 (2026-08-12).
 
+> **Corrección (2026-08-12, pase de core).** Este informe da por buena la autenticación de
+> EH01, y es falso. "Descifrar la prueba del par con el secreto local" **no** prueba posesión
+> de la clave ofrecida: la prueba se cifraba hacia el verificador, así que bastaba la clave
+> pública de la víctima para construirla (F-1 de [audit-f10.md](audit-f10.md)). Todo lo que
+> esta página marca como cerrado por EH01 estuvo abierto hasta EH02 (`0.8.0`), incluido el
+> bind del `sender_token` de `EC04`, que ataba la trama a una sesión que no estaba autenticada.
+
 **Verdict:** PASS WITH NOTES — DoD “framing + handshake” **CLOSED for demo**.
 Core `0.5.0+`: EH01 auth hello + EC04 `sender_token` bound to authenticated peer.
 Peer unregister on reader exit (reconnect) applied in core after this pass.

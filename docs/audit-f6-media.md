@@ -17,7 +17,7 @@ Readonly audit (2026-08-12). Scope: `media_envelope.dart`, `media_store.dart`,
 
 | Sev | Item |
 | --- | --- |
-| High | Relay media JSON `from` unauthenticated (same class as F5 text) |
+| ~~High~~ | ~~Relay media JSON `from` unauthenticated (same class as F5 text)~~ — core fix landed (`ECS1` sealed sender, `api_version` `0.8.0`); pending the client wiring, same as F5 |
 | Medium | Inbound EM01 size — capped in decode (post-audit fix) |
 | Low | `looksLike` magic-only; decode fail drops frame |
 | Low | Gallery picker temps not explicitly wiped |
@@ -33,7 +33,8 @@ Readonly audit (2026-08-12). Scope: `media_envelope.dart`, `media_store.dart`,
 
 ## P0 before production
 
-1. Bind/sign sender on relay media (and text) payloads
+1. ~~Bind/sign sender on relay media (and text) payloads~~ — core side done; media blobs
+   must go through `encrypchat_sealed_seal` like text ([audit-f5-relay.md](audit-f5-relay.md))
 2. Carry F5 public-relay P0s (TLS, challenge rate-limit)
 
 ## Demo vs release

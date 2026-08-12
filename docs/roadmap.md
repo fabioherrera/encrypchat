@@ -196,7 +196,7 @@ npx wrangler pages deploy out --project-name encrypchat
 
 - UI: onboarding, “mi token”, contactos vacío, lista de chats vacía.
 - FFI mínimo (identity create/load, get token).
-- Almacenamiento local para perfil/contactos/mensajes. **Entregado:** SQLite con cuerpos sellados con AEAD (clave en el almacén seguro del SO); SQLCipher de fichero completo queda diferido a F10 — metadatos legibles en disco ([audit-f3-storage.md](audit-f3-storage.md)).
+- Almacenamiento local para perfil/contactos/mensajes. **Entregado:** SQLite con cuerpos sellados con AEAD (clave en el almacén seguro del SO); el cifrado de fichero completo se difirió a F10 y **ya está hecho** ([audit-f3-storage.md](audit-f3-storage.md)).
 - Tema marca (azul marino, logo).
 
 ### DoD
@@ -374,6 +374,11 @@ Checklist: [phase-3.md](phase-3.md). FFI `0.3.0`. `make build-ffi` / `make build
 
 ### Alcance
 
+- DB local cifrada de fichero completo (SQLCipher), con migración de las bases planas que ya existen.
+- Autenticación real de remitente en las dos rutas (`ECS1` en relay, EH02 en P2P) y anti-replay
+  del lado del cliente — hallazgos F-2/F-3/F-4 de [audit-f10.md](audit-f10.md).
+- Política para no-contactos con bandeja acotada y cuota de disco (F-6), zeroización del puente
+  FFI (F-10) y llamadas bloqueantes fuera del isolate de UI (F-11).
 - Threat model en `docs/threat-model.md`.
 - Pase `/auditor` completo; tests/fuzz de relay y crypto.
 - Beta: invitaciones, feedback, crash reporting **sin** contenido de chats.
@@ -381,6 +386,11 @@ Checklist: [phase-3.md](phase-3.md). FFI `0.3.0`. `make build-ffi` / `make build
 
 ### DoD
 
+- [x] SQLCipher en las cuatro plataformas + migración verificada antes de borrar la base plana ([audit-f3-storage.md](audit-f3-storage.md)) — iOS y Windows pendientes de build en su host (F8)
+- [x] Remitente autenticado por relay (`ECS1` cableado, sin `from` declarado) + anti-replay por `msg_id` persistido y podado con la ventana de frescura
+- [x] Bloquear corta una llamada en curso (F-4)
+- [x] Nada de un no-contacto se guarda invisible: bandeja de solicitudes de solo texto con cuota, y techo de disco por par y global (F-6)
+- [x] El puente FFI zeroiza cada buffer con clave o texto plano, y las llamadas bloqueantes del nodo corren en su propio isolate (F-10, F-11)
 - [ ] Threat model publicado
 - [ ] Hallazgos P0/P1 cerrados o aceptados por escrito
 - [ ] Beta en ≥2 plataformas con chat + relay + 1 tipo de media

@@ -15,8 +15,15 @@
 ## Flujo
 
 1. Preferir P2P (`node_send`).  
-2. Si `PeerOffline` y hay URL de relay: `encrypt(JSON{from,body})` → `POST /v1/enqueue` (solo ciphertext).  
-3. Receptor: poll challenge → `pop_proof` → pull → decrypt → UI (`viaRelay`).
+2. Si `PeerOffline` y hay URL de relay: `sealed_seal(payload)` → `POST /v1/enqueue` (blob `ECS1`,
+   solo ciphertext). El payload es el mismo que lleva P2P y **no** declara remitente.  
+3. Receptor: `POST /v1/challenge` (sin cuerpo) → `pop_proof` → `POST /v1/pull` con el
+   `challenge_id` recibido → `sealed_open` (remitente autenticado) → anti-replay por `msg_id`
+   → UI (`viaRelay`).
+
+El desafío ya no se pide "para un token": iba indexado por destinatario y cualquiera podía
+sobreescribir el tuyo y dejarte el buzón inaccesible ([audit-f10.md](audit-f10.md) F-8).
+Cambia el contrato HTTP; el cliente Dart tiene que actualizarse.
 
 ```bash
 cargo run -p encrypchat_relay
@@ -30,7 +37,15 @@ cargo run -p encrypchat_relay
 | `dest_token`, tamaño blob, tiempos, TTL | Plaintext del mensaje |
 | | Claves privadas |
 
-**Limitación conocida (pre-prod):** el campo `from` va *dentro* del ciphertext (solo el destinatario lo lee) pero **no** está firmado como EH01; un atacante que conoce la pubkey del destinatario podría forjar un blob. Mitigación futura: firma / AAD con identidad del remitente. Para demos de confianza LAN es aceptable; no claim “imposible spoofear remitente vía relay”.
+**Limitación cerrada (2026-08-12).** El campo `from` declarado dentro del ciphertext dejaba forjar
+un blob a cualquiera con la pubkey del destinatario ([audit-f10.md](audit-f10.md) F-2). Ya no
+existe: el remitente sale del criptograma (`ECS1`, [ffi-contract.md](ffi-contract.md)) y solo el
+destinatario puede verificarlo, así que tampoco es un recibo público de autoría. Lo que sigue
+siendo cierto: el relay ve `dest_token`, tamaños y tiempos, y un blob capturado se puede reencolar
+— lo corta el conjunto de `msg_id` vistos del cliente, no el relay.
+
+**Un metadato menos (2026-08-12).** `/v1/challenge` ya no lleva `dest_token`, así que pedir
+desafío deja de decirle al relay qué buzón está a punto de leerse. Sigue viéndolo en el pull.
 
 ## DoD
 

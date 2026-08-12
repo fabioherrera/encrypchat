@@ -23,16 +23,17 @@ Cada afirmación está contrastada con el código, no con la intención:
 | --- | --- |
 | Clave privada X25519 en el almacén seguro del SO | `identity_service.dart` sobre `flutter_secure_storage` |
 | Cuerpos de mensaje y media sellados con AEAD | `local_seal` / `MediaStore` |
-| Metadatos locales **sin cifrar** en el fichero de base de datos | `local_database.dart`; SQLCipher pendiente ([audit-f3-storage.md](audit-f3-storage.md)) |
+| Fichero de base de datos cifrado (SQLCipher), pero legible por quien tenga el dispositivo desbloqueado y acceso al llavero | `local_database.dart` ([audit-f3-storage.md](audit-f3-storage.md)) |
+| El directorio `media/` revela cuántos ficheros hay, su tamaño y su fecha (el contenido va sellado) | `media_store.dart` |
 | El relay ve `dest_token`, tamaño, timestamps, TTL e IP; nunca plaintext | `services/relay` + [audit-f5-relay.md](audit-f5-relay.md) |
-| Remitente forjable en la ruta de relay | P0 abierto de F5/F6; se declara en la propia política |
+| Remitente forjable en **todas** las rutas: relay y P2P directo | F-1 y F-7 de [audit-f10.md](audit-f10.md). La política lo declara sin acotarlo al relay y avisa también en la sección de llamadas |
 | Llamadas P2P DTLS-SRTP, sin SFU ni media server | [audit-f7-calls.md](audit-f7-calls.md) |
 | STUN público de Google ve IP y timing | `call_service.dart` (`stun.l.google.com`, `stun1`) |
 | Sin analítica ni publicidad | `pubspec.yaml` sin SDK de métricas; `apps/web/src` sin scripts de terceros |
 | Sin backup en la nube | `allowBackup="false"` en el manifest |
 | Android no pide permiso de galería; la fototeca solo se pide en iOS | `AndroidManifest.xml` sin `READ_MEDIA_IMAGES`/`READ_EXTERNAL_STORAGE` + `media_picker.dart`; `NSPhotoLibraryUsageDescription` en `Info.plist` |
 | Desinstalar borra el historial de forma irreversible; la clave privada solo se va con la app en Android | Sin servidor de contenido ni recuperación de cuenta; el llavero del sistema (Keychain, libsecret, Credential Manager) sobrevive a desinstalar — `/privacy` lo declara por plataforma y `/terms` ya no promete que la identidad desaparezca |
-| Foto sin bytes en claro en disco, pero metadatos locales en claro | El temporal del picker se borra tras sellar (móvil); en Linux y Windows no se toca el fichero original del usuario. El fichero SQLite sigue sin cifrar hasta F10 y `/privacy` lo distingue de forma explícita |
+| Foto sin bytes en claro en disco; los metadatos locales viven dentro del fichero cifrado | El temporal del picker se borra tras sellar (móvil); en Linux y Windows no se toca el fichero original del usuario. Desde F10 el fichero de base de datos está cifrado con SQLCipher, y `/privacy` distingue esa capa de la de los cuerpos sellados y declara lo que el cifrado de fichero no cubre |
 
 ## Claims deshonestos corregidos
 
@@ -44,6 +45,8 @@ Cada afirmación está contrastada con el código, no con la intención:
 | `/privacy` (F1) | Stub de 5 párrafos que solo hablaba de intenciones | Política completa: qué existe, dónde vive, qué ven relay y STUN, permisos, retención, derechos, limitaciones |
 | `/privacy` contacto | `privacy@encrypchat.com` anunciado sin buzón activo (hallazgo Medium de [legal-f1-landing.md](legal-f1-landing.md)) | Retirado; se declara que no hay canal de contacto y queda como pendiente del operador |
 | `/terms` (F1) | Stub de 4 párrafos | Términos completos con estado pre-1.0, sin recuperación de claves, propiedad intelectual, exportación y limitación de responsabilidad |
+
+**Actualización 2026-08-12 (F10).** Las tres primeras filas describen el estado de F9. Con el cifrado de fichero entregado en F10, `AGENTS.md`, `.cursor/rules/encrypchat.mdc` y el copy público ya pueden afirmar **SQLCipher**, siempre con su alcance real: protege el fichero leído del disco, no un dispositivo desbloqueado con el llavero accesible, y no cubre el listado del directorio `media/`. La prohibición de la palabra queda levantada — ver [legal-f9-stores.md](legal-f9-stores.md). En sentido contrario, el párrafo que acotaba el remitente sin autenticar "a la ruta de relay" se reescribió para cubrir las dos rutas (F-7 de [audit-f10.md](audit-f10.md)).
 
 Verificado además que **no** aparece en ninguna superficie pública: "zero metadata", "imposible de hackear", "100 % privado", "zero-knowledge" ni "nada sale de tu dispositivo". La landing ya no promete descargas inexistentes (corregido en F8) y el sitio no carga analítica.
 
@@ -84,7 +87,7 @@ Verificado además que **no** aparece en ninguna superficie pública: "zero meta
 | Sin buzón de contacto | El correo del stub se retiró en lugar de mantener una dirección muerta |
 | Sitio no live | `https://encrypchat.com` sigue pendiente de DNS y token de Cloudflare (F1); las tiendas exigen URL accesible |
 | Enlaces legales a un sitio que aún no responde | La app abre `https://encrypchat.com/{es,en}/{privacy,terms}` en el navegador del sistema; hasta que el sitio esté live esas URLs dan 404. Si no hay navegador (desktop restringido) la app copia el enlace en vez de fallar |
-| Bloqueo por identidad declarada | Dos capas: el core rechaza al par tras EH01 (identidad probada) y el cliente descarta por el token que declara el frame. Lo que ninguna de las dos arregla: el relay no autentica al remitente (P0 de F5/F6) y cualquiera puede crear un token nuevo. Documentado en el propio copy de la app |
+| Bloqueo por identidad declarada | Dos capas: el core rechaza al par tras el handshake y el cliente descarta por el token que declara el frame. **Corrección (0.8.0):** hasta EH02 la identidad del handshake no estaba probada (F-1), así que esa primera capa filtraba por un valor que el atacante elegía; ahora sí. Lo que sigue sin arreglar: el fix de remitente en relay (`ECS1`) y EH02 no están en vigor hasta que el cliente se cablee, y cualquiera puede crear un token nuevo. Documentado en el propio copy de la app |
 | Reporte sin destinatario | Es un informe local: no hay servidor que lo reciba y no incluye el contenido de la conversación. Si una tienda exige un canal humano, hace falta el buzón del operador |
 | Photo Picker en Android antiguo sin Play Services | Se cae a `ACTION_OPEN_DOCUMENT`: se puede adjuntar la foto, pero con el explorador de documentos en vez de la cuadrícula de galería. Verificado leyendo `image_picker_android` y `androidx.activity`, no en hardware ([legal-f9-stores.md](legal-f9-stores.md#fotos-sin-permiso-de-galería-android)) |
 | ~~Privacidad web desalineada~~ | Corregido: `/privacy` ya no lista `READ_MEDIA_IMAGES` ni `READ_EXTERNAL_STORAGE`, describe el Photo Picker (con la caída a explorador de ficheros) y añade la fototeca de iOS. Reconciliado contra `AndroidManifest.xml` e `Info.plist` en ES y EN, más una FAQ nueva sobre acceso a fotos |

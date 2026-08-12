@@ -21,6 +21,7 @@
 - “Media never leaves the device” (packets go to peer)
 - Impossible to intercept / 100% private / zero-knowledge calls
 - Equating “no SFU” with “no servers at all”
+- Verified caller identity. The peer **is** cryptographically authenticated now — EH02 proves possession of the identity key on the direct route (core `0.8.0`, wired in the client), and signaling from a token that is not a contact is dropped without ringing — so “only your contacts can ring you” is accurate as a description of this device's behaviour. What is still **not** claimable is *verified* in the human sense: authentication binds a call to a key, not a key to a person, and there are no safety numbers and no key-change warning in the app yet (limitation 13 of [threat-model.md](threat-model.md)). Do not imply that a ringing contact has been identity-checked
 
 ## Store stubs (F9)
 

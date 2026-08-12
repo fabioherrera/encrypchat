@@ -18,7 +18,7 @@
 ## Modelo at-rest
 
 1. **Secreto de identidad (32 bytes)** solo en OS secure storage.
-2. **SQLite** en directorio privado; archivo sin `PRAGMA key` (SQLCipher aún no).
+2. **SQLite** en directorio privado; archivo sin `PRAGMA key` (SQLCipher llegó en F10 — [audit-f3-storage.md](audit-f3-storage.md)).
 3. **Contactos / perfil:** material público (token + pubkey + nombre).
 4. **Mensajes:** `body_sealed` con `local_seal(db_key)` (F4+).
 5. **`db_key`** en secure storage; fingerprint = SHA-256 truncado.

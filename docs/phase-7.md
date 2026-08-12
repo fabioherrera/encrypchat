@@ -26,8 +26,19 @@
 Señalización de llamada es **P2P-only** hasta auth de remitente en relay (F5). ICE nunca por relay.
 
 Se aplica en los dos sentidos: `sendCallSignal` no tiene rama de relay y el inbound de
-relay descarta `kind == 'call'` (el relay no autentica al remitente, así que un `from`
-forjado podría hacer sonar la llamada como un contacto conocido).
+relay descarta las señales de llamada.
+
+**Corrección (0.8.0).** Esta política nunca protegió de la suplantación: el camino P2P tenía
+el mismo agujero, porque EH01 tampoco probaba posesión de la clave (F-1 de
+[audit-f10.md](audit-f10.md)). Con EH02 y `ECS1` las dos rutas autentican al remitente.
+
+**Estado con el cliente cableado.** El anti-replay por `msg_id` ya está (relay), así que el
+motivo original de la política dejó de aplicar. Sigue P2P-only por una razón distinta y no
+criptográfica: un `invite` sellado se puede pull-ear horas después y sonaría por una llamada que
+ya no existe, y contestarlo entregaría micro y cámara hacia un par que no está conectado.
+Habilitarlo pide expirar la señal por su `sent_at` (segundos, no días), descartar todo lo que no
+sea `invite`/`reject` fuera de una llamada viva, y decidir qué hace la UI con un timbre perdido.
+Se valora aparte; no se activó en el mismo cambio.
 
 ## DoD
 

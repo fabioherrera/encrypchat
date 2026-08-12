@@ -19,12 +19,18 @@
 | --- | --- |
 | P2P | ciphertext ≤ ~16 MiB (frame core) |
 | Relay | blob ≤ **256 KiB** (mismo tope del servicio) |
+| Disco entrante | 512 MiB por par y **2 GiB** en total (`MediaStore.ensureRoomFor`, F-10) |
+| Remitente | solo contactos: un adjunto de quien no está agendado se rechaza antes de escribirse ([audit-f10.md](audit-f10.md) F-6) |
 
 ## Flujo
 
 1. Pick imagen → resize → `EM01` → `encrypt` → EC04 P2P.  
-2. Offline + relay: JSON v2 `{kind:media,data_b64,…}` cifrado; si supera 256KiB → error claro.  
-3. Destino: decrypt → sellar archivo local → mostrar.
+2. Offline + relay: el mismo `EM01` sellado con `encrypchat_sealed_seal` (`ECS1`,
+   desde el cableado de F-2); el blob mide `136 + EM01`, y si supera 256KiB → error
+   claro antes de sellar. El JSON `{kind:media,data_b64,…}` con `from` declarado
+   quedó fuera: base64 costaba un tercio del cupo y el remitente ahora sale del
+   criptograma.  
+3. Destino: `sealed_open` (remitente autenticado) → sellar archivo local → mostrar.
 
 ## Verificar
 
@@ -39,10 +45,11 @@ make build-ffi && make check-client
 - [x] Fallo claro si supera límite relay
 - [x] Archivos at-rest sellados (no plaintext en disco) — incluida la copia que deja el picker: se borra tras sellar y se barren los restos al arrancar (`core/media_picker.dart`)
 - [x] `/auditor` file handling — [audit-f6-media.md](audit-f6-media.md)
+- [x] Cuota de disco por par y global, comprobada antes de escribir el fichero, con aviso en la UI al rechazar
 
 ## Gaps (no bloquean F7)
 
 - Sin chunking multi-parte
 - Sin video/docs genéricos en UI (API `sendMedia` sirve)
 - Linux: `image_picker` puede pedir portal/xdg
-- Auth `from` en relay = mismo gap F5 (pre-prod) 
+- ~~Auth `from` en relay~~ cerrado con `ECS1` — [audit-f10.md](audit-f10.md) F-2 

@@ -82,7 +82,7 @@ legítimo hasta 5 s (sin cuota por IP en el puerto P2P). Es una degradación aco
 
 | Hallazgo | Estado | Cómo |
 | --- | --- | --- |
-| Media — `enqueue` sin cuota por destino | **cerrado** | 200 blobs / 8 MiB pendientes por `dest_token`, contados bajo el mismo lock que el insert → `507` opaco (sin contadores ni límites en la respuesta). Vaciar el buzón libera cuota |
+| Media — `enqueue` sin cuota por destino | **cerrado** | 200 blobs / 8 MiB pendientes por `dest_token`, contados bajo el mismo lock que el insert. El rechazo ya no es observable: desde B-3 un buzón sobre cuota descarta el blob y responde igual que una aceptación, porque un `507` por destinatario delataba su presencia a cualquiera que conociera el token. `507` queda solo para el techo global de disco, que no depende de nadie en concreto |
 | Media — sin rate-limit por IP; P0 de challenges de F5 | **cerrado** | Token bucket en memoria por IP y por endpoint: 60/min `enqueue`, 30/min `challenge` y `pull` → `429`. Todo configurable con `ENCRYPCHAT_RELAY_MAX_MSGS/MAX_BYTES/ENQUEUE_RPM/CHALLENGE_RPM` |
 | Media — `_cache` sin límite retiene plaintext y `mediaBytes` | **cerrado** | `mediaBytes` desapareció de `ChatMessage`: la UI pide los bytes con `mediaBytesFor` y los guarda solo mientras la burbuja está en pantalla. Caché de 200 mensajes por conversación y 3 conversaciones (LRU); `_pushCache` ya no siembra conversaciones frías |
 | Media — timers sin guarda de reentrada | **cerrado** | Flags `_draining` / `_pulling` liberados en `finally` |

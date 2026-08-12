@@ -41,6 +41,14 @@ Medido en el mismo host, versión 1.0.0 (con WebRTC F7 dentro):
 
 Descomprimido en disco: APK 34,8 MB de libs extraídas; bundle Linux 47 MiB (antes 55 MiB).
 
+**Nota F10 (SQLCipher):** cifrar el fichero de la base cambió `libsqlite3.so`
+por `libsqlcipher.so`, que trae OpenSSL enlazado estáticamente. Es una sola
+librería, no dos (no hay dos copias de SQLite en el proceso), y el coste es
+**+3,3 MB** sin comprimir en Linux (1,70 → 4,99 MB tras el strip) y **+2,0 MB**
+de descarga en el APK (5,08 MB extraídos en el dispositivo, donde antes no
+viajaba ninguna librería SQLite porque se usaba la del sistema). Las cifras de
+la tabla son de antes de ese cambio.
+
 ### Android — de dónde sale la reducción
 
 | Cambio | Efecto |
@@ -56,7 +64,7 @@ Los 18 símbolos FFI exportados sobreviven al strip (viven en `.dynsym`); compro
 
 | Cambio | Efecto |
 | --- | --- |
-| `strip --strip-unneeded` sobre la copia staged (`scripts/package-linux.sh`) | 57,6 MB → 50,4 MB sin comprimir. `libwebrtc.so` (24,5 → 19,5 MB) y `libsqlite3.so` llegan con símbolos de debug del paquete prebuilt. Se hace **solo en el stage**, el bundle de `build/` queda depurable |
+| `strip --strip-unneeded` sobre la copia staged (`scripts/package-linux.sh`) | 57,6 MB → 50,4 MB sin comprimir. `libwebrtc.so` (24,5 → 19,5 MB) y `libsqlcipher.so` (5,42 → 4,99 MB) llegan con símbolos de debug del paquete prebuilt. Se hace **solo en el stage**, el bundle de `build/` queda depurable |
 | Borrar `flutter_assets/NOTICES` duplicado | −1,3 MB. El engine desktop lee `NOTICES.Z` (gzip); el `NOTICES` plano es un residuo de builds viejos en `build/flutter_assets` que nunca se carga |
 | `gzip -9` en el tarball | ~1 % extra |
 | `tar --owner=0 --group=0 --numeric-owner` | No adelgaza, pero evita que la extracción como root intente `chown` al uid del builder y aborte |
@@ -65,7 +73,7 @@ Los 18 símbolos FFI exportados sobreviven al strip (viven en `.dynsym`); compro
 
 | Idea | Decisión |
 | --- | --- |
-| R8/ProGuard (`isMinifyEnabled`, `isShrinkResources`) | **No aplicado.** El dex es 1,4 MB de 34,8 MB (≈0,5 MB comprimido de ganancia potencial) y el riesgo real está en reflexión/JNI de `flutter_webrtc`, `flutter_secure_storage` y `sqflite`. Sin dispositivo para regresión completa no compensa. Si se activa: reglas keep para los plugins nativos + probar llamada, fotos y keystore |
+| R8/ProGuard (`isMinifyEnabled`, `isShrinkResources`) | **No aplicado.** El dex es 1,4 MB de 34,8 MB (≈0,5 MB comprimido de ganancia potencial) y el riesgo real está en reflexión/JNI de `flutter_webrtc` y `flutter_secure_storage` (el plugin nativo de `sqflite` ya no está: la base va por FFI desde F10). Sin dispositivo para regresión completa no compensa. Si se activa: reglas keep para los plugins nativos + probar llamada, fotos y keystore |
 | `--split-per-abi` | Innecesario: con un único ABI produce el mismo APK con nombre distinto y rompe rutas en docs/scripts |
 | Font subsetting en desktop (`--tree-shake-icons`) | El flag ya se pasa, pero **es no-op en desktop** en Flutter 3.44.9: `flutter_tools/bin/tool_backend.dart` manda `-dTreeShakeIcons="true"` con comillas literales, y `IconTreeShaker.enabled` compara con `'true'`. Resultado: `MaterialIcons-Regular.otf` viaja completo (1,6 MB) en Linux, mientras en Android sí se reduce a 4,4 KB. No se parchea el SDK vendored |
 | `lto`/`opt-level="z"` en Cargo | Ganancia marginal (<0,3 MB sobre 34,8 MB) a cambio de tiempos de build y de tocar el perfil de crypto. No se hizo |

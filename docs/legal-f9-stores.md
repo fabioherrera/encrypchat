@@ -190,7 +190,9 @@ Si en revisión Apple exige un canal donde un humano reciba el reporte, la únic
 
 ## Exportación y criptografía
 
-Encrypchat implementa cifrado propio de la aplicación: X25519 + ChaCha20-Poly1305 (mensajes y media) y DTLS-SRTP (llamadas).
+Encrypchat implementa cifrado propio de la aplicación: X25519 + ChaCha20-Poly1305 (mensajes y media), DTLS-SRTP (llamadas) y, desde F10, AES-256-CBC + HMAC-SHA256 para el fichero de base de datos local.
+
+**Cambio de supuesto (2026-08-12), para el abogado:** el cifrado de la base de datos local llegó con **SQLCipher**, que trae **OpenSSL enlazado estáticamente** dentro de `libsqlcipher` ([phase-8.md](phase-8.md), [audit-f3-storage.md](audit-f3-storage.md)). Dos consecuencias que no existían cuando se escribió este apartado: la app ya no solo incorpora criptografía propia, sino una **biblioteca criptográfica de terceros empaquetada** en el binario, y el inventario declarable cambia. Eso hace más urgente resolver `ITSAppUsesNonExemptEncryption`, que sigue ausente del `Info.plist`. **El valor de esa clave y la conclusión de exención los decide el abogado**; aquí solo queda constancia de que el supuesto de partida cambió.
 
 - [ ] `ITSAppUsesNonExemptEncryption` en `Info.plist`. **Hoy la clave no está declarada**, así que App Store Connect la pedirá en cada envío
 - [ ] Determinar con abogado si aplica exención: una app de mensajería E2EE con cifrado no estándar-exento suele requerir autoclasificación anual ante BIS (ECCN 5D992.c) y número de exportación en la ficha de Apple
@@ -207,8 +209,22 @@ Reglas para el texto corto y largo de ambas tiendas:
 | "Zero-cloud de contenido: los chats viven en tu dispositivo" | "Nada sale nunca de tu dispositivo" |
 | "Relay ciego opcional: solo guarda el sobre cifrado hasta la entrega" | "Cero metadatos" |
 | "Llamadas P2P sin servidor de media de Encrypchat" | "Llamadas 100 % privadas / zero-knowledge" |
-| "Sin cuentas, sin agenda telefónica, sin analítica" | "SQLCipher" o "base de datos cifrada" (pendiente F10) |
+| "Sin cuentas, sin agenda telefónica, sin analítica" | "Cero metadatos en el dispositivo" |
+| "Base de datos local cifrada con SQLCipher (AES-256), clave derivada del almacén seguro del SO" | "Nadie puede leer tus datos ni con el dispositivo en la mano" |
 | "Identidad por token criptográfico" | Cifras de usuarios, valoraciones o premios inventados |
+| — | "El remitente está autenticado" / "protegido contra suplantación" (F-1 y F-2 de [audit-f10.md](audit-f10.md) siguen abiertos) |
+
+Sobre la fila de SQLCipher: **la palabra ya se puede usar** (dejó de estar prohibida el 2026-08-12,
+cuando aterrizó el cifrado de fichero completo), pero nunca sola. Donde se afirme, acompañarla del
+alcance real: protege el fichero leído del disco —equipo robado, móvil apagado, backup recuperado,
+otra cuenta del sistema— y **no** protege un dispositivo desbloqueado con el llavero accesible, ni
+cubre el listado del directorio `media/`, cuyo número de ficheros, tamaños y fechas son metadatos
+del sistema de ficheros. Redacción de referencia (aún sin desplegar) en
+`apps/web/src/i18n/{es,en}.ts`: FAQ «¿Están cifrados mis datos dentro del dispositivo?» y
+`privacy.datos`.
+
+Sobre la última fila: hasta que se cierre F-1, la ficha no puede insinuar autenticación de
+identidad del par. La política ya lo declara como límite abierto en las dos rutas.
 
 El copy de la ficha debe pasar por `/seo` y `/legal` antes de enviarse, igual que la landing.
 
