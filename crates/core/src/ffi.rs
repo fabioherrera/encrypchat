@@ -18,6 +18,7 @@ use crate::identity::{Identity, PublicIdentity};
 use crate::local_aead::{open_local, seal_local};
 use crate::net::NodeHandle;
 use crate::pop::{pop_proof, POP_PROOF_LEN};
+use crate::sealed::{open_sealed, seal_sender, SEALED_MSG_ID_LEN};
 
 fn write_cstr(out: *mut c_char, cap: usize, s: &str) -> Result<(), CoreError> {
     let needed = s.len().checked_add(1).ok_or(CoreError::BufferTooSmall)?;
@@ -67,13 +68,13 @@ where
     }
 }
 
-/// Writes semver of the FFI surface, e.g. `"0.7.0"`.
+/// Writes semver of the FFI surface, e.g. `"0.8.1"`.
 ///
 /// # Safety
 ///
 /// `out` must be null or valid for writes of `cap` bytes until this call returns; null is
 /// rejected with `NullPointer` (7) before any write happens. Writes the version string plus
-/// a NUL terminator (6 bytes for `"0.7.0"`); a smaller `cap` writes nothing and returns
+/// a NUL terminator (6 bytes for `"0.8.1"`); a smaller `cap` writes nothing and returns
 /// `BufferTooSmall` (6). Nothing is allocated and no state is shared, so any thread may call
 /// this concurrently.
 #[no_mangle]
@@ -202,7 +203,7 @@ pub unsafe extern "C" fn encrypchat_encrypt(
         }
         let mut pub_bytes = [0u8; 32];
         ptr::copy_nonoverlapping(recipient_pub, pub_bytes.as_mut_ptr(), 32);
-        let recipient = PublicIdentity::from_public_key_bytes(pub_bytes);
+        let recipient = PublicIdentity::try_from_public_key_bytes(pub_bytes)?;
         let pt = if plaintext_len == 0 {
             &[][..]
         } else {
@@ -508,7 +509,7 @@ pub unsafe extern "C" fn encrypchat_node_try_recv(
 /// Replace the local blocklist with `count` tokens read from `tokens`.
 ///
 /// Defence in depth behind the Dart-side block list: a blocked peer is refused a P2P session
-/// after EH01, has any live session closed on its next frame, and cannot be sent to.
+/// after EH02, has any live session closed on its next frame, and cannot be sent to.
 ///
 /// # Safety
 ///
@@ -618,7 +619,7 @@ pub unsafe extern "C" fn encrypchat_node_listen_addr(
 /// terminator inside the caller's allocation; the string is only read during the call. Either
 /// being null returns `NullPointer` (7); non-UTF-8 input and addresses this build cannot resolve
 /// to a socket (only `/ip4` or `/ip6` plus `/tcp`) return `Internal` (255). Blocks up to 10 s
-/// while dialing and completing the EH01 hello. Nothing is allocated for the caller.
+/// while dialing and completing the EH02 handshake. Nothing is allocated for the caller.
 #[no_mangle]
 pub unsafe extern "C" fn encrypchat_node_connect(
     handle: *mut NodeHandle,
@@ -694,12 +695,179 @@ pub unsafe extern "C" fn encrypchat_pop_proof(
     })
 }
 
+/// Seal `plaintext` for `recipient_pub` binding the sender to the content (relay path).
+///
+/// Produces an `ECS1` blob: the sender's identity is authenticated by a static-static
+/// X25519 DH that only the recipient can verify, and travels encrypted, so the relay
+/// learns no more than it does from a plain [`encrypchat_encrypt`] blob. Use this —
+/// never [`encrypchat_encrypt`] — for anything enqueued on a relay, and stop putting a
+/// `from` field in the payload: the authenticated sender comes out of
+/// [`encrypchat_sealed_open`].
+///
+/// # Safety
+///
+/// `sender_secret` and `recipient_pub` must each be valid for reads of exactly 32 bytes.
+/// `plaintext` must be valid for reads of `plaintext_len` bytes, or null when
+/// `plaintext_len` is 0 — an empty plaintext is rejected with `EmptyPlaintext` (5). All
+/// inputs are only read during the call. `out_blob` must be a non-null slot aligned for
+/// `*mut u8`, `out_len` a non-null slot aligned for `usize`, `out_msg_id` valid for
+/// writes of exactly 16 bytes and `out_sent_at` a non-null slot aligned for `u64`; none
+/// of them may overlap the inputs. On success `*out_blob` receives a `malloc`ed buffer of
+/// `136 + plaintext_len` bytes that the caller owns and must release with exactly one
+/// [`encrypchat_free`], and the other three receive the message id and the Unix timestamp
+/// bound inside the blob. On any error no out-slot is written. A null required pointer
+/// returns `NullPointer` (7); a degenerate `recipient_pub` (small-order point) returns
+/// `InvalidPublicKey` (2). `sender_secret` is long-term key material — never log it.
+/// Callable from any thread.
+// Eight parameters is the price of an out-parameter C ABI: the alternative is a struct
+// whose layout the Dart binding would have to mirror exactly.
+#[allow(clippy::too_many_arguments)]
+#[no_mangle]
+pub unsafe extern "C" fn encrypchat_sealed_seal(
+    sender_secret: *const u8,
+    recipient_pub: *const u8,
+    plaintext: *const u8,
+    plaintext_len: usize,
+    out_blob: *mut *mut u8,
+    out_len: *mut usize,
+    out_msg_id: *mut u8,
+    out_sent_at: *mut u64,
+) -> i32 {
+    run_ffi(|| {
+        if sender_secret.is_null()
+            || recipient_pub.is_null()
+            || out_blob.is_null()
+            || out_len.is_null()
+            || out_msg_id.is_null()
+            || out_sent_at.is_null()
+            || (plaintext.is_null() && plaintext_len != 0)
+        {
+            return Err(CoreError::NullPointer);
+        }
+        let mut secret_bytes = Zeroizing::new([0u8; 32]);
+        ptr::copy_nonoverlapping(sender_secret, secret_bytes.as_mut_ptr(), 32);
+        let sender = Identity::from_secret_bytes(*secret_bytes);
+
+        let mut pub_bytes = [0u8; 32];
+        ptr::copy_nonoverlapping(recipient_pub, pub_bytes.as_mut_ptr(), 32);
+        let recipient = PublicIdentity::try_from_public_key_bytes(pub_bytes)?;
+
+        let pt = if plaintext_len == 0 {
+            &[][..]
+        } else {
+            slice::from_raw_parts(plaintext, plaintext_len)
+        };
+
+        let sealed = seal_sender(&sender, &recipient, pt)?;
+        let buf = alloc_bytes(&sealed.blob)?;
+        ptr::copy_nonoverlapping(sealed.msg_id.as_ptr(), out_msg_id, SEALED_MSG_ID_LEN);
+        *out_sent_at = sealed.sent_at_unix;
+        *out_blob = buf;
+        *out_len = sealed.blob.len();
+        Ok(())
+    })
+}
+
+/// Open an `ECS1` blob and recover the **authenticated** sender.
+///
+/// `now_unix_secs` is the caller's wall clock in seconds since the Unix epoch; pass `0`
+/// to skip the freshness window entirely. With a clock, a blob whose bound `sent_at` is
+/// more than 300 s in the future or more than 7 days (the relay's max TTL) in the past is
+/// rejected with `Expired` (13) *after* its sender has been authenticated.
+///
+/// The blob is not replay-proof by itself: `out_msg_id` exists so the caller can drop a
+/// duplicate, and the freshness window is what bounds how long that set of seen ids has
+/// to live.
+///
+/// # Safety
+///
+/// `recipient_secret` must be valid for reads of exactly 32 bytes. `blob` must be valid
+/// for reads of `blob_len` bytes, or null when `blob_len` is 0; input that does not start
+/// with `ECS1` returns `InvalidFrame` (10) and a truncated `ECS1` blob (137 bytes is the
+/// minimum) returns `CiphertextTooShort` (4). The blob is only read during the call.
+/// `out_sender_pub` must be valid for writes of exactly 32 bytes, `out_sender_token` for
+/// writes of `token_cap` bytes (at least 68, else `BufferTooSmall` (6)), `out_msg_id` for
+/// writes of exactly 16 bytes, `out_sent_at_unix` must be a non-null slot aligned for
+/// `u64`, `out_plaintext` a non-null slot aligned for `*mut u8` and `out_len` a non-null
+/// slot aligned for `usize`; none may overlap. On success `*out_plaintext` holds a
+/// `malloc`ed buffer the caller owns and must release with exactly one
+/// [`encrypchat_free`]. On any error — including `BufferTooSmall`, where the internal
+/// allocation is released before returning — no out-slot is written and nothing leaks. A
+/// null required pointer returns `NullPointer` (7). Callable from any thread.
+///
+/// `DecryptionFailed` (3) means the blob is not addressed to this identity or its header
+/// is corrupt; `AuthFailed` (11) means it *is* addressed to us but the sender binding does
+/// not hold — a forged sender or a tampered body. Never fall back to a declared sender
+/// after `AuthFailed`.
+// Ten parameters for the same reason as `encrypchat_sealed_seal`.
+#[allow(clippy::too_many_arguments)]
+#[no_mangle]
+pub unsafe extern "C" fn encrypchat_sealed_open(
+    recipient_secret: *const u8,
+    blob: *const u8,
+    blob_len: usize,
+    now_unix_secs: u64,
+    out_sender_pub: *mut u8,
+    out_sender_token: *mut c_char,
+    token_cap: usize,
+    out_msg_id: *mut u8,
+    out_sent_at_unix: *mut u64,
+    out_plaintext: *mut *mut u8,
+    out_len: *mut usize,
+) -> i32 {
+    run_ffi(|| {
+        if recipient_secret.is_null()
+            || out_sender_pub.is_null()
+            || out_sender_token.is_null()
+            || out_msg_id.is_null()
+            || out_sent_at_unix.is_null()
+            || out_plaintext.is_null()
+            || out_len.is_null()
+            || (blob.is_null() && blob_len != 0)
+        {
+            return Err(CoreError::NullPointer);
+        }
+        let mut secret_bytes = Zeroizing::new([0u8; 32]);
+        ptr::copy_nonoverlapping(recipient_secret, secret_bytes.as_mut_ptr(), 32);
+        let recipient = Identity::from_secret_bytes(*secret_bytes);
+
+        let blob_slice = if blob_len == 0 {
+            &[][..]
+        } else {
+            slice::from_raw_parts(blob, blob_len)
+        };
+        let now = if now_unix_secs == 0 {
+            None
+        } else {
+            Some(now_unix_secs)
+        };
+        let opened = open_sealed(&recipient, blob_slice, now)?;
+
+        // Allocate first, then the only other fallible write: a too-small token buffer
+        // must not leave the caller with a buffer it does not know it owns.
+        let buf = alloc_bytes(&opened.plaintext)?;
+        if let Err(e) = write_cstr(out_sender_token, token_cap, opened.sender.token().as_str()) {
+            libc::free(buf as *mut libc::c_void);
+            return Err(e);
+        }
+
+        let sender_pub = opened.sender.public_key_bytes();
+        ptr::copy_nonoverlapping(sender_pub.as_ptr(), out_sender_pub, 32);
+        ptr::copy_nonoverlapping(opened.msg_id.as_ptr(), out_msg_id, SEALED_MSG_ID_LEN);
+        *out_sent_at_unix = opened.sent_at_unix;
+        *out_plaintext = buf;
+        *out_len = opened.plaintext.len();
+        Ok(())
+    })
+}
+
 /// Free a buffer returned by encrypt/decrypt/seal/open/try_recv.
 ///
 /// # Safety
 ///
 /// `ptr` must be null (no-op) or the exact pointer written by [`encrypchat_encrypt`],
-/// [`encrypchat_decrypt`], [`encrypchat_local_seal`], [`encrypchat_local_open`] or
+/// [`encrypchat_decrypt`], [`encrypchat_local_seal`], [`encrypchat_local_open`],
+/// [`encrypchat_sealed_seal`], [`encrypchat_sealed_open`] or
 /// [`encrypchat_node_try_recv`], passed exactly once and never dereferenced afterwards. Those
 /// buffers come from `malloc`, so passing an interior offset, a pointer from another allocator,
 /// or a [`NodeHandle`] (which needs [`encrypchat_node_stop`]) is undefined behaviour. The buffer
@@ -723,12 +891,12 @@ mod tests {
     const TOKEN_CAP: usize = 68;
 
     #[test]
-    fn api_version_writes_0_7_0() {
+    fn api_version_writes_0_8_1() {
         let mut buf = [0u8; 16];
         let rc = unsafe { encrypchat_api_version(buf.as_mut_ptr() as *mut c_char, buf.len()) };
         assert_eq!(rc, 0);
         let s = unsafe { CStr::from_ptr(buf.as_ptr() as *const c_char) };
-        assert_eq!(s.to_str().unwrap(), "0.7.0");
+        assert_eq!(s.to_str().unwrap(), "0.8.1");
     }
 
     #[test]
@@ -1042,6 +1210,254 @@ mod tests {
             &out
         )
         .unwrap());
+    }
+
+    /// Helper mirroring the Dart binding: every out-parameter allocated, nothing shared.
+    #[allow(clippy::type_complexity)]
+    fn sealed_open_ffi(
+        secret: &[u8; 32],
+        blob: &[u8],
+        now: u64,
+    ) -> Result<(String, [u8; 32], [u8; 16], u64, Vec<u8>), i32> {
+        let mut sender_pub = [0u8; 32];
+        let mut token = [0u8; TOKEN_CAP];
+        let mut msg_id = [0u8; 16];
+        let mut sent_at: u64 = 0;
+        let mut out: *mut u8 = ptr::null_mut();
+        let mut out_len: usize = 0;
+        let rc = unsafe {
+            encrypchat_sealed_open(
+                secret.as_ptr(),
+                blob.as_ptr(),
+                blob.len(),
+                now,
+                sender_pub.as_mut_ptr(),
+                token.as_mut_ptr() as *mut c_char,
+                TOKEN_CAP,
+                msg_id.as_mut_ptr(),
+                &mut sent_at,
+                &mut out,
+                &mut out_len,
+            )
+        };
+        if rc != 0 {
+            return Err(rc);
+        }
+        let plaintext = unsafe { slice::from_raw_parts(out, out_len) }.to_vec();
+        unsafe { encrypchat_free(out as *mut _) };
+        let token = unsafe { CStr::from_ptr(token.as_ptr() as *const c_char) }
+            .to_str()
+            .unwrap()
+            .to_string();
+        Ok((token, sender_pub, msg_id, sent_at, plaintext))
+    }
+
+    fn sealed_seal_ffi(secret: &[u8; 32], recipient_pub: &[u8; 32], plaintext: &[u8]) -> Vec<u8> {
+        let mut out: *mut u8 = ptr::null_mut();
+        let mut out_len: usize = 0;
+        let mut msg_id = [0u8; 16];
+        let mut sent_at: u64 = 0;
+        let rc = unsafe {
+            encrypchat_sealed_seal(
+                secret.as_ptr(),
+                recipient_pub.as_ptr(),
+                plaintext.as_ptr(),
+                plaintext.len(),
+                &mut out,
+                &mut out_len,
+                msg_id.as_mut_ptr(),
+                &mut sent_at,
+            )
+        };
+        assert_eq!(rc, 0);
+        assert!(sent_at > 0, "seal must bind a real timestamp");
+        assert_ne!(msg_id, [0u8; 16]);
+        let blob = unsafe { slice::from_raw_parts(out, out_len) }.to_vec();
+        unsafe { encrypchat_free(out as *mut _) };
+        blob
+    }
+
+    #[test]
+    fn sealed_roundtrip_reports_authenticated_sender() {
+        let alice = Identity::generate();
+        let bob = Identity::generate();
+        let blob = sealed_seal_ffi(
+            &alice.to_secret_bytes(),
+            &bob.public_key_bytes(),
+            b"hola por relay",
+        );
+
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let (token, sender_pub, _msg_id, sent_at, plaintext) =
+            sealed_open_ffi(&bob.to_secret_bytes(), &blob, now).unwrap();
+        assert_eq!(token, alice.token().as_str());
+        assert_eq!(sender_pub, alice.public_key_bytes());
+        assert_eq!(plaintext, b"hola por relay");
+        assert!(sent_at.abs_diff(now) < 60);
+    }
+
+    /// The relay P0 seen from the caller's side: a forged sender must surface as
+    /// `AuthFailed`, never as a successful open with a wrong token.
+    #[test]
+    fn sealed_forged_and_tampered_blobs_rejected() {
+        let bob = Identity::generate();
+        let mallory = Identity::generate();
+        let alice = Identity::generate();
+
+        let mut blob = sealed_seal_ffi(
+            &mallory.to_secret_bytes(),
+            &bob.public_key_bytes(),
+            b"soy alice, mandame plata",
+        );
+
+        // Swapping in Alice's key where the sender identity lives cannot help: the
+        // field is encrypted, so this only corrupts it.
+        blob[48..80].copy_from_slice(&alice.public_key_bytes());
+        assert_eq!(
+            sealed_open_ffi(&bob.to_secret_bytes(), &blob, 0).unwrap_err(),
+            CoreError::DecryptionFailed.as_code()
+        );
+
+        let mut tampered = sealed_seal_ffi(
+            &alice.to_secret_bytes(),
+            &bob.public_key_bytes(),
+            b"nos vemos a las 8",
+        );
+        let last = tampered.len() - 1;
+        tampered[last] ^= 0xff;
+        assert_eq!(
+            sealed_open_ffi(&bob.to_secret_bytes(), &tampered, 0).unwrap_err(),
+            CoreError::AuthFailed.as_code()
+        );
+    }
+
+    /// F-10 at the C ABI: the two calls that take a raw recipient key must refuse an alias,
+    /// because whatever the caller stores next to that key is keyed by its token.
+    #[test]
+    fn non_canonical_recipient_key_rejected_by_the_abi() {
+        let alice = Identity::generate();
+        let bob = Identity::generate();
+        let alias = crate::pubkey::test_vectors::high_bit_alias(&bob.public_key_bytes());
+
+        let mut out: *mut u8 = ptr::null_mut();
+        let mut out_len: usize = 0;
+        let rc = unsafe {
+            encrypchat_encrypt(alias.as_ptr(), b"hola".as_ptr(), 4, &mut out, &mut out_len)
+        };
+        assert_eq!(rc, CoreError::InvalidPublicKey.as_code());
+        assert!(out.is_null());
+
+        let mut msg_id = [0u8; 16];
+        let mut sent_at: u64 = 0;
+        let rc = unsafe {
+            encrypchat_sealed_seal(
+                alice.to_secret_bytes().as_ptr(),
+                alias.as_ptr(),
+                b"hola".as_ptr(),
+                4,
+                &mut out,
+                &mut out_len,
+                msg_id.as_mut_ptr(),
+                &mut sent_at,
+            )
+        };
+        assert_eq!(rc, CoreError::InvalidPublicKey.as_code());
+        assert!(out.is_null());
+
+        // The canonical spelling of the same key is untouched.
+        assert_eq!(
+            unsafe {
+                encrypchat_encrypt(
+                    bob.public_key_bytes().as_ptr(),
+                    b"hola".as_ptr(),
+                    4,
+                    &mut out,
+                    &mut out_len,
+                )
+            },
+            0
+        );
+        unsafe { encrypchat_free(out as *mut _) };
+    }
+
+    #[test]
+    fn sealed_open_rejects_legacy_blob_and_small_token_buffer() {
+        let alice = Identity::generate();
+        let bob = Identity::generate();
+
+        let legacy = crate::crypto::encrypt(&bob.public_identity(), b"v1").unwrap();
+        assert_eq!(
+            sealed_open_ffi(&bob.to_secret_bytes(), legacy.as_bytes(), 0).unwrap_err(),
+            CoreError::InvalidFrame.as_code()
+        );
+
+        let blob = sealed_seal_ffi(&alice.to_secret_bytes(), &bob.public_key_bytes(), b"hola");
+        let mut sender_pub = [0u8; 32];
+        let mut token = [0u8; 8];
+        let mut msg_id = [0u8; 16];
+        let mut sent_at: u64 = 0;
+        let mut out: *mut u8 = ptr::null_mut();
+        let mut out_len: usize = 0;
+        let rc = unsafe {
+            encrypchat_sealed_open(
+                bob.to_secret_bytes().as_ptr(),
+                blob.as_ptr(),
+                blob.len(),
+                0,
+                sender_pub.as_mut_ptr(),
+                token.as_mut_ptr() as *mut c_char,
+                token.len(),
+                msg_id.as_mut_ptr(),
+                &mut sent_at,
+                &mut out,
+                &mut out_len,
+            )
+        };
+        assert_eq!(rc, CoreError::BufferTooSmall.as_code());
+        assert!(out.is_null(), "no buffer may be handed back on error");
+        assert_eq!(out_len, 0);
+        assert_eq!(sender_pub, [0u8; 32]);
+    }
+
+    #[test]
+    fn sealed_null_and_empty_inputs_rejected() {
+        let alice = Identity::generate();
+        let bob = Identity::generate();
+        let mut out: *mut u8 = ptr::null_mut();
+        let mut out_len: usize = 0;
+        let mut msg_id = [0u8; 16];
+        let mut sent_at: u64 = 0;
+
+        let rc = unsafe {
+            encrypchat_sealed_seal(
+                alice.to_secret_bytes().as_ptr(),
+                bob.public_key_bytes().as_ptr(),
+                ptr::null(),
+                0,
+                &mut out,
+                &mut out_len,
+                msg_id.as_mut_ptr(),
+                &mut sent_at,
+            )
+        };
+        assert_eq!(rc, CoreError::EmptyPlaintext.as_code());
+
+        let rc = unsafe {
+            encrypchat_sealed_seal(
+                alice.to_secret_bytes().as_ptr(),
+                bob.public_key_bytes().as_ptr(),
+                b"x".as_ptr(),
+                1,
+                &mut out,
+                &mut out_len,
+                ptr::null_mut(),
+                &mut sent_at,
+            )
+        };
+        assert_eq!(rc, CoreError::NullPointer.as_code());
     }
 
     /// An empty nonce is an auth problem, not a null-pointer problem, and both spellings of

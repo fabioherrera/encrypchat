@@ -10,6 +10,7 @@ use sha2::{Digest, Sha256};
 use x25519_dalek::{PublicKey, StaticSecret};
 
 use crate::error::CoreError;
+use crate::pubkey::ensure_canonical_public_key;
 use crate::token::Token;
 
 /// Domain separation for relay PoP proofs.
@@ -83,6 +84,7 @@ pub fn pop_proof(
         return Err(CoreError::AuthFailed);
     }
     let token = Token::parse(dest_token)?;
+    ensure_canonical_public_key(peer_eph_pub)?;
     let sk = StaticSecret::from(*secret);
     let peer = PublicKey::from(*peer_eph_pub);
     let shared = sk.diffie_hellman(&peer);
@@ -101,7 +103,9 @@ pub fn pop_verify(
         return Err(CoreError::AuthFailed);
     }
     let token = Token::parse(dest_token)?;
-    let derived = Token::from_public_key_bytes(client_pub);
+    // A non-canonical client key is an error, not a mismatch: the caller asked us to name a
+    // key and there is no single name for that encoding.
+    let derived = Token::from_public_key_bytes(client_pub)?;
     if derived.as_str() != token.as_str() {
         return Ok(false);
     }
@@ -113,9 +117,12 @@ pub fn pop_verify(
 }
 
 /// True when `pubkey` hashes to the same token string (after parse/normalize).
+///
+/// A malformed token or a non-canonical `pubkey` is an error rather than `false`, so the
+/// relay can answer "bad request" instead of "wrong key".
 pub fn pubkey_matches_token(pubkey: &[u8; 32], dest_token: &str) -> Result<bool, CoreError> {
     let token = Token::parse(dest_token)?;
-    let derived = Token::from_public_key_bytes(pubkey);
+    let derived = Token::from_public_key_bytes(pubkey)?;
     Ok(derived.as_str() == token.as_str())
 }
 
@@ -180,6 +187,51 @@ mod tests {
             &proof
         )
         .unwrap());
+    }
+
+    /// The relay pull gate (F-10). An alias of the client key names no one, so it must not
+    /// reach the comparison as a plain "does not match" either.
+    #[test]
+    fn non_canonical_client_key_is_an_error_not_a_mismatch() {
+        use crate::pubkey::test_vectors::{high_bit_alias, non_reduced_max, NON_REDUCED_ZERO};
+
+        let alice = Identity::generate();
+        let eph = pop_generate_ephemeral();
+        let nonce = pop_generate_nonce();
+        let token = alice.token();
+        let proof = pop_proof(
+            &alice.to_secret_bytes(),
+            &eph.public,
+            &nonce,
+            token.as_str(),
+        )
+        .unwrap();
+
+        for alias in [
+            high_bit_alias(&alice.public_key_bytes()),
+            NON_REDUCED_ZERO,
+            non_reduced_max(),
+        ] {
+            assert!(matches!(
+                pubkey_matches_token(&alias, token.as_str()),
+                Err(CoreError::InvalidPublicKey)
+            ));
+            assert!(matches!(
+                pop_verify(&eph.secret, &alias, &nonce, token.as_str(), &proof),
+                Err(CoreError::InvalidPublicKey)
+            ));
+        }
+
+        // The relay's own ephemeral gets the same treatment on the client side.
+        assert!(matches!(
+            pop_proof(
+                &alice.to_secret_bytes(),
+                &high_bit_alias(&eph.public),
+                &nonce,
+                token.as_str()
+            ),
+            Err(CoreError::InvalidPublicKey)
+        ));
     }
 
     #[test]

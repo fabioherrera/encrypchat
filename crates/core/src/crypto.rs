@@ -7,6 +7,7 @@ use x25519_dalek::{PublicKey, StaticSecret};
 
 use crate::error::CoreError;
 use crate::identity::{Identity, PublicIdentity};
+use crate::pubkey::ensure_canonical_public_key;
 
 /// AEAD associated data for network E2EE payloads (domain separation from local seal).
 const MSG_AAD: &[u8] = b"encrypchat-msg-v1";
@@ -103,6 +104,7 @@ pub fn decrypt(identity: &Identity, ciphertext: &Ciphertext) -> Result<Vec<u8>, 
 
     let mut eph_bytes = [0u8; 32];
     eph_bytes.copy_from_slice(&bytes[..32]);
+    ensure_canonical_public_key(&eph_bytes)?;
     let nonce_bytes = &bytes[32..44];
     let body = &bytes[44..];
 
@@ -149,11 +151,26 @@ mod tests {
         assert!(encrypt(&bob, b"").is_err());
     }
 
+    /// The ephemeral is read straight out of the ciphertext, so it is one more public key
+    /// arriving from outside.
+    #[test]
+    fn non_canonical_ephemeral_rejected() {
+        let bob = Identity::generate();
+        let mut ct = encrypt(&bob.public_identity(), b"hola")
+            .unwrap()
+            .into_bytes();
+        ct[31] |= 0x80;
+        assert!(matches!(
+            decrypt(&bob, &Ciphertext::from_bytes(ct).unwrap()),
+            Err(CoreError::InvalidPublicKey)
+        ));
+    }
+
     #[test]
     fn token_matches_pubkey_hash() {
         let id = Identity::generate();
         let t1 = id.token();
-        let t2 = Token::from_public_key_bytes(&id.public_key_bytes());
+        let t2 = Token::from_public_key_bytes(&id.public_key_bytes()).unwrap();
         assert_eq!(t1.as_str(), t2.as_str());
         assert!(t1.as_str().starts_with("ec_"));
         assert_eq!(Token::parse(t1.as_str()).unwrap().as_str(), t1.as_str());

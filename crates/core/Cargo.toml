@@ -1,6 +1,6 @@
 [package]
 name = "encrypchat_core"
-version = "0.7.0"
+version = "0.8.1"
 edition = "2021"
 description = "Encrypchat local identity, E2EE, at-rest AEAD, and P2P networking core"
 license = "LicenseRef-Proprietary"
@@ -22,4 +22,5 @@ x25519-dalek = { version = "2", features = ["static_secrets"] }
 zeroize = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
+proptest = { version = "1.11.0", default-features = false, features = ["std", "bit-set"] }
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "macros", "time", "net", "io-util", "rt"] }

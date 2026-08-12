@@ -27,6 +27,8 @@ pub enum CoreError {
     AuthFailed,
     #[error("peer token is on the local blocklist")]
     PeerBlocked,
+    #[error("sealed blob outside the freshness window")]
+    Expired,
     #[error("internal error")]
     Internal,
 }
@@ -47,6 +49,7 @@ impl CoreError {
             Self::InvalidFrame => 10,
             Self::AuthFailed => 11,
             Self::PeerBlocked => 12,
+            Self::Expired => 13,
             Self::Internal => 255,
         }
     }

@@ -1,4 +1,5 @@
-//! Tokio TCP P2P node: dial by multiaddr, EH01 authenticated hello, length-prefixed frames.
+//! Tokio TCP P2P node: dial by multiaddr, EH02 mutual handshake, encrypted length-prefixed
+//! records.
 //!
 //! Phase 4 uses Tokio TCP (+ `inject_peer` / `connect_multiaddr` for tests and manual dial).
 //! libp2p request-response was attempted but hit persistent `ConnectionClosed` races on
@@ -6,9 +7,15 @@
 //!
 //! Networking carries E2EE ciphertext only — callers encrypt before [`NodeHandle::send_to_token`].
 //! Peer offline / unknown → [`CoreError::PeerOffline`] (no relay).
-//! Hello authenticity: EH01 offer + E2EE proof of nonce/token possession.
+//! Peer authenticity: **EH02** ([`crate::handshake`]) — a static-static Diffie-Hellman proof
+//! that cannot be built from the victim's public key, unlike the EH01 it replaces.
 //! Pre-auth exposure is bounded: [`HANDSHAKE_TIMEOUT`], [`MAX_PENDING_HANDSHAKES`]
 //! concurrent unauthenticated connections, [`MAX_PREAUTH_LEN`] buffers.
+//!
+//! Once the handshake is done the whole transport is encrypted under a session key derived
+//! from it ([`crate::transport`], F-15): the `EC04` header travels inside the AEAD, so an
+//! observer sees a length prefix and opaque bytes rather than `sender_token`. What is left on
+//! the wire is size above the padding floor, volume and timing. See `docs/threat-model.md` §6.2.
 
 use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
@@ -17,37 +24,35 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use multiaddr::{Multiaddr, Protocol};
-use rand::rngs::OsRng;
-use rand::RngCore;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::{oneshot, Mutex as AsyncMutex, Semaphore};
 use zeroize::Zeroizing;
 
-use crate::crypto::{decrypt, encrypt, Ciphertext};
 use crate::error::CoreError;
 use crate::frame::decode_frame;
-use crate::identity::{Identity, PublicIdentity};
+use crate::handshake::{
+    challenge_bytes, hello_bytes, initiator_proof, initiator_session_keys, new_nonce,
+    parse_challenge, parse_hello, responder_proof, responder_session_keys, verify_initiator_proof,
+    verify_responder_proof, Ephemeral, Transcript, EH02_CHALLENGE_LEN, EH02_HELLO_LEN,
+    EH02_NONCE_LEN,
+};
+use crate::identity::Identity;
 use crate::token::Token;
+use crate::transport::{RecvCipher, SendCipher, PAD_FLOOR, TRANSPORT_OVERHEAD};
 
 const MAX_FRAME_LEN: usize = 16 * 1024 * 1024;
-const MAX_TOKEN_LEN: usize = 256;
 const MSG_DATA: u8 = 1;
 const MSG_ACK: u8 = 2;
 
-/// Budget for a full EH01 exchange; on expiry the peer is treated as unauthenticated.
+/// Budget for a full EH02 exchange; on expiry the peer is treated as unauthenticated.
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(5);
 /// Inbound connections allowed to sit in the handshake at once.
 const MAX_PENDING_HANDSHAKES: usize = 32;
 /// Buffer cap for anything read before the peer is authenticated. Post-handshake
 /// data frames keep the [`MAX_FRAME_LEN`] budget.
 const MAX_PREAUTH_LEN: usize = 4 * 1024;
-
-const HELLO_MAGIC: &[u8; 4] = b"EH01";
-const HELLO_VERSION: u8 = 1;
-const HELLO_NONCE_LEN: usize = 32;
-const HELLO_PUBKEY_LEN: usize = 32;
 
 /// Stable peer handle for tests / dial bookkeeping (equals the Encrypchat token).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -109,8 +114,32 @@ fn is_blocked(blocked: &BlockedTokens, token: &str) -> bool {
     }
 }
 
+/// Socket half plus the sealing state of this direction.
+///
+/// They live behind the same mutex on purpose: the counter that becomes the AEAD nonce and
+/// the bytes on the socket have to advance together, or two concurrent senders (a data frame
+/// and an ACK) would swap places and the peer would reject both.
+struct EncryptedWriter {
+    half: tokio::net::tcp::OwnedWriteHalf,
+    cipher: SendCipher,
+}
+
+impl EncryptedWriter {
+    async fn send(&mut self, kind: u8, payload: &[u8]) -> Result<(), CoreError> {
+        if payload.len() > MAX_FRAME_LEN {
+            return Err(CoreError::InvalidFrame);
+        }
+        let record = self.cipher.seal(kind, payload)?;
+        self.half
+            .write_all(&record)
+            .await
+            .map_err(|_| CoreError::PeerOffline)?;
+        self.half.flush().await.map_err(|_| CoreError::PeerOffline)
+    }
+}
+
 struct PeerConn {
-    writer: Arc<AsyncMutex<tokio::net::tcp::OwnedWriteHalf>>,
+    writer: Arc<AsyncMutex<EncryptedWriter>>,
     /// At most one in-flight send ACK waiter per peer (Phase 4).
     pending_ack: Arc<AsyncMutex<Option<AckSender>>>,
 }
@@ -119,12 +148,6 @@ struct PeerConn {
 enum HandshakeRole {
     Dialer,
     Acceptor,
-}
-
-struct HelloOffer {
-    token: String,
-    pubkey: [u8; HELLO_PUBKEY_LEN],
-    nonce: [u8; HELLO_NONCE_LEN],
 }
 
 /// Running node handle with an embedded Tokio runtime (FFI-friendly).
@@ -215,7 +238,7 @@ impl NodeHandle {
     /// malformed entry fails the call with [`CoreError::InvalidToken`] and leaves the
     /// previous set untouched rather than silently skipping it.
     ///
-    /// Takes effect immediately: new sessions are refused after EH01, the next inbound
+    /// Takes effect immediately: new sessions are refused after EH02, the next inbound
     /// frame from a live blocked session closes it, and sends are refused.
     pub fn set_blocked_tokens(&self, tokens: &[&str]) -> Result<(), CoreError> {
         let mut next = HashSet::with_capacity(tokens.len());
@@ -349,39 +372,22 @@ fn multiaddr_to_socket(addr: &Multiaddr) -> Option<SocketAddr> {
     Some(SocketAddr::new(ip?, port?))
 }
 
-async fn write_msg(
-    writer: &mut (impl AsyncWriteExt + Unpin),
-    kind: u8,
-    payload: &[u8],
-) -> Result<(), CoreError> {
-    if payload.len() > MAX_FRAME_LEN {
-        return Err(CoreError::InvalidFrame);
-    }
-    let len = (1 + payload.len()) as u32;
-    writer
-        .write_all(&len.to_be_bytes())
-        .await
-        .map_err(|_| CoreError::PeerOffline)?;
-    writer
-        .write_all(&[kind])
-        .await
-        .map_err(|_| CoreError::PeerOffline)?;
-    writer
-        .write_all(payload)
-        .await
-        .map_err(|_| CoreError::PeerOffline)?;
-    writer.flush().await.map_err(|_| CoreError::PeerOffline)?;
-    Ok(())
-}
-
-async fn read_msg(reader: &mut (impl AsyncReadExt + Unpin)) -> Result<(u8, Vec<u8>), CoreError> {
+/// Read one encrypted record of an established session.
+///
+/// The length prefix is the only cleartext left on the wire, and it is bounded before a
+/// single byte is allocated. Everything after it goes through the session cipher, so a
+/// record that is not the next one of this session never reaches the caller.
+async fn read_msg(
+    reader: &mut (impl AsyncReadExt + Unpin),
+    cipher: &mut RecvCipher,
+) -> Result<(u8, Vec<u8>), CoreError> {
     let mut len_buf = [0u8; 4];
     reader
         .read_exact(&mut len_buf)
         .await
         .map_err(|_| CoreError::PeerOffline)?;
     let len = u32::from_be_bytes(len_buf) as usize;
-    if len == 0 || len > MAX_FRAME_LEN + 1 {
+    if len == 0 || len > MAX_FRAME_LEN + TRANSPORT_OVERHEAD + PAD_FLOOR {
         return Err(CoreError::InvalidFrame);
     }
     let mut buf = vec![0u8; len];
@@ -389,106 +395,55 @@ async fn read_msg(reader: &mut (impl AsyncReadExt + Unpin)) -> Result<(u8, Vec<u
         .read_exact(&mut buf)
         .await
         .map_err(|_| CoreError::PeerOffline)?;
-    let kind = buf[0];
-    Ok((kind, buf[1..].to_vec()))
+    cipher.open(&buf)
 }
 
-async fn write_offer(
+async fn write_hello(
     writer: &mut (impl AsyncWriteExt + Unpin),
-    token: &str,
-    pubkey: &[u8; HELLO_PUBKEY_LEN],
-    nonce: &[u8; HELLO_NONCE_LEN],
+    eph_pub: &[u8; 32],
+    nonce_i: &[u8; EH02_NONCE_LEN],
 ) -> Result<(), CoreError> {
-    let token_bytes = token.as_bytes();
-    if token_bytes.is_empty() || token_bytes.len() > MAX_TOKEN_LEN {
-        return Err(CoreError::InvalidToken);
-    }
     writer
-        .write_all(HELLO_MAGIC)
-        .await
-        .map_err(|_| CoreError::PeerOffline)?;
-    writer
-        .write_all(&[HELLO_VERSION])
-        .await
-        .map_err(|_| CoreError::PeerOffline)?;
-    writer
-        .write_all(&(token_bytes.len() as u16).to_be_bytes())
-        .await
-        .map_err(|_| CoreError::PeerOffline)?;
-    writer
-        .write_all(token_bytes)
-        .await
-        .map_err(|_| CoreError::PeerOffline)?;
-    writer
-        .write_all(pubkey)
-        .await
-        .map_err(|_| CoreError::PeerOffline)?;
-    writer
-        .write_all(nonce)
+        .write_all(&hello_bytes(eph_pub, nonce_i))
         .await
         .map_err(|_| CoreError::PeerOffline)?;
     writer.flush().await.map_err(|_| CoreError::PeerOffline)?;
     Ok(())
 }
 
-async fn read_offer(reader: &mut (impl AsyncReadExt + Unpin)) -> Result<HelloOffer, CoreError> {
-    let mut magic = [0u8; 4];
+async fn read_hello(
+    reader: &mut (impl AsyncReadExt + Unpin),
+) -> Result<([u8; 32], [u8; EH02_NONCE_LEN]), CoreError> {
+    let mut buf = [0u8; EH02_HELLO_LEN];
     reader
-        .read_exact(&mut magic)
+        .read_exact(&mut buf)
         .await
         .map_err(|_| CoreError::PeerOffline)?;
-    if &magic != HELLO_MAGIC {
-        return Err(CoreError::AuthFailed);
-    }
-    let mut ver = [0u8; 1];
-    reader
-        .read_exact(&mut ver)
-        .await
-        .map_err(|_| CoreError::PeerOffline)?;
-    if ver[0] != HELLO_VERSION {
-        return Err(CoreError::AuthFailed);
-    }
-    let mut len_buf = [0u8; 2];
-    reader
-        .read_exact(&mut len_buf)
-        .await
-        .map_err(|_| CoreError::PeerOffline)?;
-    let token_len = u16::from_be_bytes(len_buf) as usize;
-    if token_len == 0 || token_len > MAX_TOKEN_LEN {
-        return Err(CoreError::AuthFailed);
-    }
-    let mut token_buf = vec![0u8; token_len];
-    reader
-        .read_exact(&mut token_buf)
-        .await
-        .map_err(|_| CoreError::PeerOffline)?;
-    let token_raw = String::from_utf8(token_buf).map_err(|_| CoreError::AuthFailed)?;
-    let token = Token::parse(&token_raw)
-        .map_err(|_| CoreError::AuthFailed)?
-        .as_str()
-        .to_string();
+    parse_hello(&buf)
+}
 
-    let mut pubkey = [0u8; HELLO_PUBKEY_LEN];
-    reader
-        .read_exact(&mut pubkey)
+async fn write_challenge(
+    writer: &mut (impl AsyncWriteExt + Unpin),
+    eph_pub: &[u8; 32],
+    nonce_r: &[u8; EH02_NONCE_LEN],
+) -> Result<(), CoreError> {
+    writer
+        .write_all(&challenge_bytes(eph_pub, nonce_r))
         .await
         .map_err(|_| CoreError::PeerOffline)?;
-    let mut nonce = [0u8; HELLO_NONCE_LEN];
+    writer.flush().await.map_err(|_| CoreError::PeerOffline)?;
+    Ok(())
+}
+
+async fn read_challenge(
+    reader: &mut (impl AsyncReadExt + Unpin),
+) -> Result<([u8; 32], [u8; EH02_NONCE_LEN]), CoreError> {
+    let mut buf = [0u8; EH02_CHALLENGE_LEN];
     reader
-        .read_exact(&mut nonce)
+        .read_exact(&mut buf)
         .await
         .map_err(|_| CoreError::PeerOffline)?;
-
-    let derived = Token::from_public_key_bytes(&pubkey);
-    if derived.as_str() != token {
-        return Err(CoreError::AuthFailed);
-    }
-
-    Ok(HelloOffer {
-        token,
-        pubkey,
-        nonce,
-    })
+    parse_challenge(&buf)
 }
 
 async fn write_proof(
@@ -528,118 +483,110 @@ async fn read_proof(reader: &mut (impl AsyncReadExt + Unpin)) -> Result<Vec<u8>,
     Ok(buf)
 }
 
-fn build_proof_plaintext(
-    local_nonce: &[u8; 32],
-    peer_nonce: &[u8; 32],
-    local_token: &str,
-) -> Vec<u8> {
-    let mut pt = Vec::with_capacity(64 + local_token.len());
-    pt.extend_from_slice(local_nonce);
-    pt.extend_from_slice(peer_nonce);
-    pt.extend_from_slice(local_token.as_bytes());
-    pt
+/// Name an authenticated peer.
+///
+/// Fallible because the key arrived from the wire: [`crate::handshake`] already refuses a
+/// non-canonical one, and this is the second half of the same rule rather than a new check —
+/// a peer must not be able to choose which of several tokens it is seen under (F-10).
+fn token_of(pubkey: &[u8; 32]) -> Result<String, CoreError> {
+    Ok(Token::from_public_key_bytes(pubkey)?.as_str().to_string())
 }
 
-fn verify_proof(
-    local: &Identity,
-    local_nonce: &[u8; 32],
-    peer_offer: &HelloOffer,
-    ciphertext: &[u8],
-    expected_remote: Option<&str>,
-) -> Result<String, CoreError> {
-    let ct = Ciphertext::from_bytes(ciphertext.to_vec()).map_err(|_| CoreError::AuthFailed)?;
-    let pt = decrypt(local, &ct).map_err(|_| CoreError::AuthFailed)?;
-    if pt.len() < 64 {
-        return Err(CoreError::AuthFailed);
-    }
-    // peer_nonce || local_nonce || peer_token
-    if &pt[0..32] != peer_offer.nonce.as_slice() {
-        return Err(CoreError::AuthFailed);
-    }
-    if &pt[32..64] != local_nonce.as_slice() {
-        return Err(CoreError::AuthFailed);
-    }
-    let peer_token_raw = std::str::from_utf8(&pt[64..]).map_err(|_| CoreError::AuthFailed)?;
-    let peer_token = Token::parse(peer_token_raw)
-        .map_err(|_| CoreError::AuthFailed)?
-        .as_str()
-        .to_string();
-
-    let derived = PublicIdentity::from_public_key_bytes(peer_offer.pubkey);
-    if derived.token().as_str() != peer_token {
-        return Err(CoreError::AuthFailed);
-    }
-    if peer_token != peer_offer.token {
-        return Err(CoreError::AuthFailed);
-    }
-    if let Some(expected) = expected_remote {
-        if peer_token != expected {
-            return Err(CoreError::AuthFailed);
-        }
-    }
-    Ok(peer_token)
-}
-
+/// Run EH02 and return the peer's **authenticated** token.
+///
+/// `blocked` is consulted by the acceptor between messages 3 and 4, which is the only place
+/// it can be: the token is not trustworthy before message 3, and after message 4 the node
+/// has already told a blocked peer who it is. [`register_peer`] checks it again — that is
+/// the funnel for all three session paths, this one is what keeps a blocked peer from
+/// learning the local identity.
 async fn open_peer_session(
     stream: TcpStream,
     local_secret: &[u8; 32],
     expected_remote: Option<&str>,
     role: HandshakeRole,
-) -> Result<(String, PeerConn, tokio::net::tcp::OwnedReadHalf), CoreError> {
+    blocked: Option<&BlockedTokens>,
+) -> Result<(String, PeerConn, tokio::net::tcp::OwnedReadHalf, RecvCipher), CoreError> {
     let local = Identity::from_secret_bytes(*local_secret);
-    let local_token = local.token().as_str().to_string();
-    let local_pubkey = local.public_key_bytes();
-    let mut local_nonce = [0u8; HELLO_NONCE_LEN];
-    OsRng.fill_bytes(&mut local_nonce);
+    let local_secret_key = local.static_secret();
 
     let (mut reader, mut writer) = stream.into_split();
 
-    let peer_offer = match role {
+    // The ephemeral secret stays on this stack and dies with the handshake: that is what
+    // makes the session key forward secret.
+    let (remote_token, keys) = match role {
         HandshakeRole::Dialer => {
-            write_offer(&mut writer, &local_token, &local_pubkey, &local_nonce).await?;
-            let peer_offer = read_offer(&mut reader).await?;
-            let peer_pub = PublicIdentity::from_public_key_bytes(peer_offer.pubkey);
-            let proof_pt = build_proof_plaintext(&local_nonce, &peer_offer.nonce, &local_token);
-            let proof_ct = encrypt(&peer_pub, &proof_pt).map_err(|_| CoreError::AuthFailed)?;
-            write_proof(&mut writer, proof_ct.as_bytes()).await?;
+            let eph = Ephemeral::generate();
+            let nonce_i = new_nonce();
+            write_hello(&mut writer, &eph.public, &nonce_i).await?;
+            let (responder_eph, nonce_r) = read_challenge(&mut reader).await?;
+
+            let transcript = Transcript {
+                initiator_eph: eph.public,
+                responder_eph,
+                nonce_i,
+                nonce_r,
+            };
+            let proof = initiator_proof(&local_secret_key, &transcript)?;
+            write_proof(&mut writer, &proof).await?;
+
             let their_proof = read_proof(&mut reader).await?;
-            let remote_token = verify_proof(
-                &local,
-                &local_nonce,
-                &peer_offer,
-                &their_proof,
-                expected_remote,
-            )?;
-            (remote_token, peer_offer)
+            let remote_pub = verify_responder_proof(&local_secret_key, &transcript, &their_proof)?;
+            let remote_token = token_of(&remote_pub)?;
+            if let Some(expected) = expected_remote {
+                if remote_token != expected {
+                    return Err(CoreError::AuthFailed);
+                }
+            }
+            let keys =
+                initiator_session_keys(&local_secret_key, &eph.secret, &remote_pub, &transcript)?;
+            (remote_token, keys)
         }
         HandshakeRole::Acceptor => {
-            let peer_offer = read_offer(&mut reader).await?;
-            write_offer(&mut writer, &local_token, &local_pubkey, &local_nonce).await?;
+            let (initiator_eph, nonce_i) = read_hello(&mut reader).await?;
+            let eph = Ephemeral::generate();
+            let nonce_r = new_nonce();
+            write_challenge(&mut writer, &eph.public, &nonce_r).await?;
+
+            let transcript = Transcript {
+                initiator_eph,
+                responder_eph: eph.public,
+                nonce_i,
+                nonce_r,
+            };
             let their_proof = read_proof(&mut reader).await?;
-            let remote_token = verify_proof(
-                &local,
-                &local_nonce,
-                &peer_offer,
-                &their_proof,
-                expected_remote,
-            )?;
-            let peer_pub = PublicIdentity::from_public_key_bytes(peer_offer.pubkey);
-            let proof_pt = build_proof_plaintext(&local_nonce, &peer_offer.nonce, &local_token);
-            let proof_ct = encrypt(&peer_pub, &proof_pt).map_err(|_| CoreError::AuthFailed)?;
-            write_proof(&mut writer, proof_ct.as_bytes()).await?;
-            (remote_token, peer_offer)
+            let remote_pub = verify_initiator_proof(&eph.secret, &transcript, &their_proof)?;
+            let remote_token = token_of(&remote_pub)?;
+
+            if let Some(expected) = expected_remote {
+                if remote_token != expected {
+                    return Err(CoreError::AuthFailed);
+                }
+            }
+            if let Some(blocked) = blocked {
+                if is_blocked(blocked, &remote_token) {
+                    return Err(CoreError::PeerBlocked);
+                }
+            }
+
+            let proof = responder_proof(&local_secret_key, &remote_pub, &transcript)?;
+            write_proof(&mut writer, &proof).await?;
+            let keys =
+                responder_session_keys(&local_secret_key, &eph.secret, &remote_pub, &transcript)?;
+            (remote_token, keys)
         }
     };
 
-    let (remote_token, _peer_offer) = peer_offer;
     let conn = PeerConn {
-        writer: Arc::new(AsyncMutex::new(writer)),
+        writer: Arc::new(AsyncMutex::new(EncryptedWriter {
+            half: writer,
+            cipher: SendCipher::new(keys.send),
+        })),
         pending_ack: Arc::new(AsyncMutex::new(None)),
     };
-    Ok((remote_token, conn, reader))
+    Ok((remote_token, conn, reader, RecvCipher::new(keys.recv)))
 }
 
-/// [`open_peer_session`] under a wall-clock budget: a peer that stalls mid-EH01
+/// [`open_peer_session`] under a wall-clock budget: a peer that stalls mid-EH02
 /// is dropped as [`CoreError::AuthFailed`] instead of holding memory and fds.
 async fn open_peer_session_within(
     budget: Duration,
@@ -647,10 +594,11 @@ async fn open_peer_session_within(
     local_secret: &[u8; 32],
     expected_remote: Option<&str>,
     role: HandshakeRole,
-) -> Result<(String, PeerConn, tokio::net::tcp::OwnedReadHalf), CoreError> {
+    blocked: Option<&BlockedTokens>,
+) -> Result<(String, PeerConn, tokio::net::tcp::OwnedReadHalf, RecvCipher), CoreError> {
     match tokio::time::timeout(
         budget,
-        open_peer_session(stream, local_secret, expected_remote, role),
+        open_peer_session(stream, local_secret, expected_remote, role, blocked),
     )
     .await
     {
@@ -661,6 +609,7 @@ async fn open_peer_session_within(
 
 async fn reader_loop(
     mut reader: tokio::net::tcp::OwnedReadHalf,
+    mut cipher: RecvCipher,
     conn: PeerConn,
     inbound_tx: SyncSender<Vec<u8>>,
     authenticated_token: String,
@@ -668,7 +617,7 @@ async fn reader_loop(
     blocked: BlockedTokens,
 ) {
     loop {
-        match read_msg(&mut reader).await {
+        match read_msg(&mut reader, &mut cipher).await {
             Ok((MSG_DATA, frame)) => {
                 // Blocked after the session was established: close instead of queueing.
                 if is_blocked(&blocked, &authenticated_token) {
@@ -682,7 +631,7 @@ async fn reader_loop(
                             continue;
                         }
                         let mut w = conn.writer.lock().await;
-                        if write_msg(&mut *w, MSG_ACK, &[]).await.is_err() {
+                        if w.send(MSG_ACK, &[]).await.is_err() {
                             break;
                         }
                     }
@@ -720,11 +669,12 @@ async fn register_peer(
     remote: String,
     conn: PeerConn,
     reader: tokio::net::tcp::OwnedReadHalf,
+    cipher: RecvCipher,
     inbound_tx: SyncSender<Vec<u8>>,
     blocked: &BlockedTokens,
 ) -> Result<(), CoreError> {
     // Authorisation happens here and not earlier because `remote` is only trustworthy once
-    // EH01 proved key possession. A blocked peer therefore still costs a full handshake.
+    // EH02 proved key possession. A blocked peer therefore still costs a full handshake.
     if is_blocked(blocked, &remote) {
         // Dropping `conn` and `reader` closes the socket.
         return Err(CoreError::PeerBlocked);
@@ -746,6 +696,7 @@ async fn register_peer(
     let peers = Arc::clone(peers);
     tokio::spawn(reader_loop(
         reader,
+        cipher,
         conn,
         inbound_tx,
         remote,
@@ -801,15 +752,17 @@ async fn run_node(
                                     &local_secret,
                                     None,
                                     HandshakeRole::Dialer,
+                                    None,
                                 )
                                 .await
                                 {
-                                    Ok((remote, conn, reader)) => {
+                                    Ok((remote, conn, reader, cipher)) => {
                                         register_peer(
                                             &peers,
                                             remote,
                                             conn,
                                             reader,
+                                            cipher,
                                             inbound_tx.clone(),
                                             &blocked,
                                         )
@@ -831,15 +784,17 @@ async fn run_node(
                                     &local_secret,
                                     Some(&token),
                                     HandshakeRole::Dialer,
+                                    None,
                                 )
                                 .await
                                 {
-                                    Ok((remote, conn, reader)) => {
+                                    Ok((remote, conn, reader, cipher)) => {
                                         register_peer(
                                             &peers,
                                             remote,
                                             conn,
                                             reader,
+                                            cipher,
                                             inbound_tx.clone(),
                                             &blocked,
                                         )
@@ -877,7 +832,7 @@ async fn run_node(
 
                         let write_res = {
                             let mut w = conn.writer.lock().await;
-                            write_msg(&mut *w, MSG_DATA, &frame).await
+                            w.send(MSG_DATA, &frame).await
                         };
                         if let Err(e) = write_res {
                             let _ = conn.pending_ack.lock().await.take();
@@ -916,14 +871,15 @@ async fn run_node(
                                 &secret,
                                 None,
                                 HandshakeRole::Acceptor,
+                                Some(&blocked),
                             )
                             .await;
                             drop(permit);
-                            if let Ok((remote, conn, reader)) = session {
+                            if let Ok((remote, conn, reader, cipher)) = session {
                                 // A blocked peer is refused here; the caller is remote, so
                                 // there is nobody local to report the code to.
                                 let _ = register_peer(
-                                    &peers, remote, conn, reader, inbound, &blocked,
+                                    &peers, remote, conn, reader, cipher, inbound, &blocked,
                                 )
                                 .await;
                             }
@@ -941,7 +897,29 @@ async fn run_node(
 mod tests {
     use super::*;
     use crate::frame::WireFrame;
+    use crate::handshake::{forged_initiator_proof, EH02_PROOF_LEN};
     use crate::identity::Identity;
+    use crate::pubkey::test_vectors::high_bit_alias;
+    use sha2::Digest;
+
+    /// Man-in-the-middle plumbing for the wire test: forward one direction and keep a copy
+    /// of every byte that crosses.
+    async fn copy_and_log(
+        mut from: tokio::net::tcp::OwnedReadHalf,
+        mut to: tokio::net::tcp::OwnedWriteHalf,
+        log: Arc<Mutex<Vec<u8>>>,
+    ) {
+        let mut buf = vec![0u8; 8192];
+        while let Ok(n) = from.read(&mut buf).await {
+            if n == 0 {
+                break;
+            }
+            log.lock().unwrap().extend_from_slice(&buf[..n]);
+            if to.write_all(&buf[..n]).await.is_err() {
+                break;
+            }
+        }
+    }
 
     /// Poll `cond` for up to one second. Used where the assertion is about something the
     /// node does asynchronously, so a fixed sleep would be either flaky or slow.
@@ -1021,7 +999,8 @@ mod tests {
         // Blocked with the node already running, not fixed at start().
         alice.set_blocked_tokens(&[&bob_token]).expect("block bob");
 
-        // EH01 runs to completion and only then is the authenticated token refused.
+        // EH02 runs to completion and only then is the authenticated token refused: the
+        // dialer is the one enforcing its own list here, so it learns who answered first.
         let err = alice
             .connect_multiaddr(bob_addr.clone())
             .expect_err("dial to a blocked token must fail");
@@ -1078,8 +1057,9 @@ mod tests {
         bob.set_blocked_tokens(&[&alice_token])
             .expect("block alice");
 
-        // Alice reaches the listener and finishes the handshake; the rejection is on Bob's
-        // side, so her own dial can still report success.
+        // Alice reaches the listener and proves her identity; Bob refuses between messages
+        // 3 and 4, so she never learns his — and her own dial reports the refusal as a
+        // handshake that did not complete.
         let _ = alice.connect_multiaddr(bob_addr.clone());
         std::thread::sleep(Duration::from_millis(300));
         assert!(
@@ -1202,45 +1182,283 @@ mod tests {
         bob.stop();
     }
 
+    /// F-1, over a real socket and built exactly as the audit describes the attack: Mallory
+    /// has Alice's public key (contact card, or a previous cleartext EH01 offer) and nothing
+    /// else. Under EH01 this handshake succeeded and Bob registered the session as Alice.
     #[test]
-    fn offer_token_pubkey_mismatch_fails() {
+    fn attacker_with_only_the_public_key_fails_the_handshake() {
+        let alice = Identity::generate();
+        let mallory = Identity::generate();
+        let bob_id = Identity::generate();
+
+        let bob = NodeHandle::start(bob_id.to_secret_bytes(), 0).expect("bob start");
+        std::thread::sleep(Duration::from_millis(100));
+        let bob_addr = bob.listen_addrs().into_iter().next().expect("bob addr");
+        let bob_sock = multiaddr_to_socket(&bob_addr).expect("socket");
+
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .unwrap();
-
         rt.block_on(async {
+            let stream = TcpStream::connect(bob_sock).await.unwrap();
+            let (mut reader, mut writer) = stream.into_split();
+
+            let eph = Ephemeral::generate();
+            let nonce_i = new_nonce();
+            write_hello(&mut writer, &eph.public, &nonce_i)
+                .await
+                .unwrap();
+            let (responder_eph, nonce_r) = read_challenge(&mut reader).await.unwrap();
+
+            let forged = forged_initiator_proof(
+                &mallory.static_secret(),
+                &alice.public_key_bytes(),
+                &Transcript {
+                    initiator_eph: eph.public,
+                    responder_eph,
+                    nonce_i,
+                    nonce_r,
+                },
+            );
+            write_proof(&mut writer, &forged).await.unwrap();
+
+            let mut len = [0u8; 4];
+            assert!(
+                reader.read_exact(&mut len).await.is_err(),
+                "bob must not answer an unproven identity"
+            );
+        });
+
+        assert!(
+            bob.known_peers().expect("peers").is_empty(),
+            "a forged initiator must never become a session"
+        );
+
+        // Positive control: the same identity, this time with its private key, gets in.
+        let alice_node = NodeHandle::start(alice.to_secret_bytes(), 0).expect("alice start");
+        std::thread::sleep(Duration::from_millis(100));
+        alice_node.connect_multiaddr(bob_addr).expect("real alice");
+        assert!(
+            wait_until(|| bob
+                .known_peers()
+                .map(|p| p.contains(&alice.token().as_str().to_string()))
+                .unwrap_or(false)),
+            "the real alice must still be able to connect"
+        );
+
+        alice_node.stop();
+        bob.stop();
+    }
+
+    /// F-10, end to end and as the report describes it: Bob blocks Mallory, Mallory sets the
+    /// high bit of the last byte of her *own* public key and dials again. Every
+    /// Diffie-Hellman is unchanged, so her EH02 proof is genuinely valid — before the
+    /// encoding check Bob authenticated her, derived a token nobody had blocked, and opened
+    /// a session with the peer he had just refused.
+    #[test]
+    fn a_blocked_peer_cannot_return_under_an_alias_of_its_key() {
+        let mallory = Identity::generate();
+        let bob_id = Identity::generate();
+        let bob = NodeHandle::start(bob_id.to_secret_bytes(), 0).expect("bob start");
+        std::thread::sleep(Duration::from_millis(100));
+        let bob_addr = bob.listen_addrs().into_iter().next().expect("bob addr");
+        let bob_sock = multiaddr_to_socket(&bob_addr).expect("socket");
+
+        bob.set_blocked_tokens(&[mallory.token().as_str()])
+            .expect("block mallory");
+
+        let alias = high_bit_alias(&mallory.public_key_bytes());
+        let alias_token = format!("ec_{}", hex::encode(sha2::Sha256::digest(alias)));
+        assert_ne!(
+            alias_token,
+            mallory.token().as_str(),
+            "the alias must hash to something Bob has not blocked"
+        );
+
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        rt.block_on(async {
+            let stream = TcpStream::connect(bob_sock).await.unwrap();
+            let (mut reader, mut writer) = stream.into_split();
+
+            let eph = Ephemeral::generate();
+            let nonce_i = new_nonce();
+            write_hello(&mut writer, &eph.public, &nonce_i)
+                .await
+                .unwrap();
+            let (responder_eph, nonce_r) = read_challenge(&mut reader).await.unwrap();
+
+            // Her real secret, her own key spelled differently: not a forgery, an alias.
+            let proof = forged_initiator_proof(
+                &mallory.static_secret(),
+                &alias,
+                &Transcript {
+                    initiator_eph: eph.public,
+                    responder_eph,
+                    nonce_i,
+                    nonce_r,
+                },
+            );
+            write_proof(&mut writer, &proof).await.unwrap();
+
+            let mut len = [0u8; 4];
+            assert!(
+                reader.read_exact(&mut len).await.is_err(),
+                "bob must not answer a peer that renamed itself"
+            );
+        });
+
+        let peers = bob.known_peers().expect("peers");
+        assert!(
+            peers.is_empty(),
+            "a blocked peer must not get back in under {alias_token}: {peers:?}"
+        );
+
+        // Control: unblocked and spelling her key canonically, she connects — so the
+        // refusal above was the block plus the encoding, not a broken handshake.
+        bob.set_blocked_tokens(&[]).expect("unblock");
+        let mallory_node = NodeHandle::start(mallory.to_secret_bytes(), 0).expect("mallory start");
+        std::thread::sleep(Duration::from_millis(100));
+        mallory_node.connect_multiaddr(bob_addr).expect("dial");
+        assert!(
+            wait_until(|| bob
+                .known_peers()
+                .map(|p| p.contains(&mallory.token().as_str().to_string()))
+                .unwrap_or(false)),
+            "the canonical identity must still connect"
+        );
+
+        mallory_node.stop();
+        bob.stop();
+    }
+
+    /// F-15, from the position of someone sniffing the wire: everything an established
+    /// session sends must be opaque. The test proxies the whole TCP conversation and then
+    /// looks for the things that used to be readable in it.
+    #[test]
+    fn nothing_identifying_is_readable_on_the_wire() {
+        let alice_id = Identity::generate();
+        let bob_id = Identity::generate();
+        let alice = NodeHandle::start(alice_id.to_secret_bytes(), 0).expect("alice");
+        let bob = NodeHandle::start(bob_id.to_secret_bytes(), 0).expect("bob");
+        std::thread::sleep(Duration::from_millis(100));
+        let bob_sock = multiaddr_to_socket(&bob.listen_addrs()[0]).expect("bob socket");
+
+        let sniffed: Arc<Mutex<Vec<u8>>> = Arc::new(Mutex::new(Vec::new()));
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()
+            .unwrap();
+        let proxy_addr = rt.block_on(async {
             let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
                 .await
                 .unwrap();
             let addr = listener.local_addr().unwrap();
-
-            let bob = Identity::generate();
-            let alice = Identity::generate();
-            let bob_secret = bob.to_secret_bytes();
-
-            let server = tokio::spawn(async move {
-                let (stream, _) = listener.accept().await.unwrap();
-                open_peer_session(stream, &bob_secret, None, HandshakeRole::Acceptor).await
+            let sniffed = Arc::clone(&sniffed);
+            tokio::spawn(async move {
+                let (inbound, _) = listener.accept().await.unwrap();
+                let outbound = TcpStream::connect(bob_sock).await.unwrap();
+                let (client_rx, client_tx) = inbound.into_split();
+                let (server_rx, server_tx) = outbound.into_split();
+                let up = Arc::clone(&sniffed);
+                let down = Arc::clone(&sniffed);
+                tokio::join!(
+                    copy_and_log(client_rx, server_tx, up),
+                    copy_and_log(server_rx, client_tx, down),
+                );
             });
-
-            let stream = TcpStream::connect(addr).await.unwrap();
-            let (mut _reader, mut writer) = stream.into_split();
-            let mut nonce = [0u8; 32];
-            OsRng.fill_bytes(&mut nonce);
-            // Claim alice's token but present bob's pubkey → mismatch.
-            write_offer(
-                &mut writer,
-                alice.token().as_str(),
-                &bob.public_key_bytes(),
-                &nonce,
-            )
-            .await
-            .unwrap();
-
-            let res = server.await.unwrap();
-            assert!(matches!(res, Err(CoreError::AuthFailed)));
+            addr
         });
+
+        alice
+            .connect_multiaddr(socket_to_multiaddr(proxy_addr))
+            .expect("dial through the proxy");
+        let frame = WireFrame::new(alice.local_token(), b"cita a las 19".to_vec())
+            .unwrap()
+            .encode()
+            .unwrap();
+        alice
+            .send_to_token(&bob.local_token(), frame.clone())
+            .expect("send");
+        assert!(
+            wait_until(|| bob.try_recv().is_some()),
+            "the frame must still arrive"
+        );
+
+        let bytes = sniffed.lock().unwrap().clone();
+        // The one thing that *is* still recognisable, which also proves the proxy captured a
+        // real conversation rather than nothing: the handshake magic. Protocol fingerprinting
+        // is a declared residual, not an oversight.
+        assert!(
+            bytes.windows(4).any(|w| w == b"EH02"),
+            "the proxy should have seen the handshake"
+        );
+        for (what, needle) in [
+            ("alice token", alice.local_token().into_bytes()),
+            ("bob token", bob.local_token().into_bytes()),
+            ("alice pubkey", alice_id.public_key_bytes().to_vec()),
+            ("bob pubkey", bob_id.public_key_bytes().to_vec()),
+            ("frame magic", crate::frame::MAGIC.to_vec()),
+            ("whole frame", frame.clone()),
+        ] {
+            assert!(
+                !bytes.windows(needle.len()).any(|w| w == needle),
+                "{what} must not be readable on the wire"
+            );
+        }
+
+        alice.stop();
+        bob.stop();
+        rt.shutdown_background();
+    }
+
+    /// F-5: the listening side answers with ephemeral material only. A scanner that cannot
+    /// prove an identity gets no token and no public key, and a passive observer of the
+    /// exchange gets neither.
+    #[test]
+    fn responder_reveals_no_identity_before_the_peer_authenticates() {
+        let bob_id = Identity::generate();
+        let bob = NodeHandle::start(bob_id.to_secret_bytes(), 0).expect("bob start");
+        std::thread::sleep(Duration::from_millis(100));
+        let bob_sock = multiaddr_to_socket(&bob.listen_addrs()[0]).expect("socket");
+
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        rt.block_on(async {
+            let stream = TcpStream::connect(bob_sock).await.unwrap();
+            let (mut reader, mut writer) = stream.into_split();
+
+            write_hello(&mut writer, &Ephemeral::generate().public, &new_nonce())
+                .await
+                .unwrap();
+            let mut challenge = [0u8; EH02_CHALLENGE_LEN];
+            reader.read_exact(&mut challenge).await.unwrap();
+
+            for needle in [
+                bob_id.public_key_bytes().as_slice(),
+                bob_id.token().as_str().as_bytes(),
+            ] {
+                assert!(
+                    !challenge.windows(needle.len()).any(|w| w == needle),
+                    "the challenge must not carry the responder identity"
+                );
+            }
+
+            // An unproven peer gets nothing more, not even a rejection message.
+            write_proof(&mut writer, &[0u8; EH02_PROOF_LEN])
+                .await
+                .unwrap();
+            let mut len = [0u8; 4];
+            assert!(reader.read_exact(&mut len).await.is_err());
+        });
+
+        bob.stop();
     }
 
     #[test]
@@ -1265,11 +1483,12 @@ mod tests {
                     &bob_secret,
                     None,
                     HandshakeRole::Acceptor,
+                    None,
                 )
                 .await
             });
 
-            // Connect and never send EH01.
+            // Connect and never send the EH02 hello.
             let stalled = TcpStream::connect(addr).await.unwrap();
             let res = server.await.unwrap();
             assert!(matches!(res, Err(CoreError::AuthFailed)));
@@ -1291,7 +1510,6 @@ mod tests {
             let addr = listener.local_addr().unwrap();
 
             let bob_secret = Identity::generate().to_secret_bytes();
-            let alice = Identity::generate();
 
             let server = tokio::spawn(async move {
                 let (stream, _) = listener.accept().await.unwrap();
@@ -1301,22 +1519,18 @@ mod tests {
                     &bob_secret,
                     None,
                     HandshakeRole::Acceptor,
+                    None,
                 )
                 .await
             });
 
             let stream = TcpStream::connect(addr).await.unwrap();
-            let (mut _reader, mut writer) = stream.into_split();
-            let mut nonce = [0u8; 32];
-            OsRng.fill_bytes(&mut nonce);
-            write_offer(
-                &mut writer,
-                alice.token().as_str(),
-                &alice.public_key_bytes(),
-                &nonce,
-            )
-            .await
-            .unwrap();
+            let (mut reader, mut writer) = stream.into_split();
+            write_hello(&mut writer, &Ephemeral::generate().public, &new_nonce())
+                .await
+                .unwrap();
+            let mut challenge = [0u8; EH02_CHALLENGE_LEN];
+            reader.read_exact(&mut challenge).await.unwrap();
             // Declare a 8 MiB proof (valid post-handshake frame, not pre-auth) and
             // send no body: must be rejected on the length, before any allocation.
             let bogus_len = (8u32 * 1024 * 1024).to_be_bytes();

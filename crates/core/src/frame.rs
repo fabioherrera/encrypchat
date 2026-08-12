@@ -8,6 +8,10 @@
 //! sender_token:   u16 BE length + UTF-8 bytes
 //! ciphertext:     u32 BE length + bytes (E2EE blob from encrypt())
 //! ```
+//!
+//! This layout is not what a network observer sees: since `0.8.0` the whole frame, header
+//! included, travels inside the session AEAD of [`crate::transport`] (F-15). `sender_token`
+//! being in the clear here used to be enough to map the social graph off the wire.
 
 use rand::rngs::OsRng;
 use rand::RngCore;
@@ -19,8 +23,8 @@ pub const MAGIC: &[u8; 4] = b"EC04";
 pub const FRAME_VERSION: u8 = 1;
 pub const MSG_ID_LEN: usize = 16;
 
-const MAX_TOKEN_LEN: usize = 256;
-const MAX_CIPHERTEXT_LEN: usize = 16 * 1024 * 1024;
+pub(crate) const MAX_TOKEN_LEN: usize = 256;
+pub(crate) const MAX_CIPHERTEXT_LEN: usize = 16 * 1024 * 1024;
 
 /// Decoded chat wire frame (payload is opaque E2EE ciphertext).
 #[derive(Clone, PartialEq, Eq)]
@@ -43,8 +47,9 @@ impl std::fmt::Debug for WireFrame {
 impl WireFrame {
     /// Build a frame with a random `msg_id`.
     pub fn new(sender_token: impl Into<String>, ciphertext: Vec<u8>) -> Result<Self, CoreError> {
-        let sender_token = sender_token.into();
-        Token::parse(&sender_token)?;
+        // Normalised on the way in, so a caller cannot hold a frame whose token is spelled in
+        // a way [`decode_frame`] would refuse.
+        let sender_token = Token::parse(&sender_token.into())?.as_str().to_string();
         if ciphertext.is_empty() {
             return Err(CoreError::InvalidFrame);
         }
@@ -64,11 +69,13 @@ impl WireFrame {
 
 /// Encode a [`WireFrame`] to wire bytes.
 pub fn encode_frame(frame: &WireFrame) -> Result<Vec<u8>, CoreError> {
-    Token::parse(&frame.sender_token)?;
+    // The normalised spelling, not whatever is in the struct: the fields are public, and an
+    // encoder that can emit bytes its own decoder rejects is a trap for the next caller.
+    let token = Token::parse(&frame.sender_token)?;
     if frame.ciphertext.is_empty() {
         return Err(CoreError::InvalidFrame);
     }
-    let token_bytes = frame.sender_token.as_bytes();
+    let token_bytes = token.as_str().as_bytes();
     if token_bytes.len() > MAX_TOKEN_LEN {
         return Err(CoreError::InvalidFrame);
     }
@@ -115,7 +122,15 @@ pub fn decode_frame(bytes: &[u8]) -> Result<WireFrame, CoreError> {
     }
     let token_str = std::str::from_utf8(&bytes[offset..offset + token_len])
         .map_err(|_| CoreError::InvalidFrame)?;
-    let sender_token = Token::parse(token_str)?.as_str().to_string();
+    let token = Token::parse(token_str)?;
+    // One message, one encoding. `Token::parse` also accepts a token spelled in upper case or
+    // padded with whitespace, and normalising it here would leave several byte strings that
+    // decode to the same frame — the malleability F-10 removed from public keys, one layer up.
+    // Nothing downstream keys on frame bytes today; this is what keeps that from mattering.
+    if token.as_str() != token_str {
+        return Err(CoreError::InvalidFrame);
+    }
+    let sender_token = token.as_str().to_string();
     offset += token_len;
 
     if bytes.len() < offset + 4 {
@@ -188,5 +203,42 @@ mod tests {
             WireFrame::new("not-a-token", vec![1]),
             Err(CoreError::InvalidToken)
         ));
+    }
+
+    /// Found by the property in `src/fuzz.rs`: `Token::parse` normalises, so an upper-case
+    /// token used to decode into the same frame as its lower-case spelling and give two wire
+    /// encodings for one message. A frame now has exactly one.
+    #[test]
+    fn a_token_spelled_differently_is_not_a_second_encoding() {
+        let id = Identity::generate();
+        let token = id.token().as_str().to_string();
+        let frame = WireFrame::new(token.clone(), vec![7]).unwrap();
+        let canonical = frame.encode().unwrap();
+
+        let shouty = format!(
+            "{}{}",
+            Token::PREFIX,
+            token[Token::PREFIX.len()..].to_uppercase()
+        );
+        // The encoder normalises, so the same message cannot be put on the wire two ways even
+        // by a caller that writes the field directly.
+        let restated = WireFrame {
+            sender_token: shouty.clone(),
+            ..frame.clone()
+        };
+        assert_eq!(restated.encode().unwrap(), canonical);
+
+        // And the decoder refuses it if someone hand-assembles the bytes.
+        let mut spliced = canonical.clone();
+        let at = spliced
+            .windows(token.len())
+            .position(|w| w == token.as_bytes())
+            .expect("token in the frame");
+        spliced[at..at + token.len()].copy_from_slice(shouty.as_bytes());
+        assert!(matches!(
+            decode_frame(&spliced),
+            Err(CoreError::InvalidFrame)
+        ));
+        assert!(decode_frame(&canonical).is_ok());
     }
 }

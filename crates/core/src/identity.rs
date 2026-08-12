@@ -42,14 +42,17 @@ impl Identity {
         PublicKey::from(&secret).to_bytes()
     }
 
+    /// Infallible, unlike the import path: a key derived from a secret we hold is canonical
+    /// by construction, so there is no alias to reject ([`crate::pubkey`]).
     pub fn token(&self) -> Token {
-        Token::from_public_key_bytes(&self.public_key_bytes())
+        Token::from_secret(&self.static_secret())
     }
 
     pub fn public_identity(&self) -> PublicIdentity {
-        let public_key = self.public_key_bytes();
-        let token = Token::from_public_key_bytes(&public_key);
-        PublicIdentity { public_key, token }
+        PublicIdentity {
+            public_key: self.public_key_bytes(),
+            token: self.token(),
+        }
     }
 
     pub(crate) fn static_secret(&self) -> StaticSecret {
@@ -67,14 +70,19 @@ impl std::fmt::Debug for Identity {
 }
 
 impl PublicIdentity {
-    pub fn from_public_key_bytes(public_key: [u8; 32]) -> Self {
-        let token = Token::from_public_key_bytes(&public_key);
-        Self { public_key, token }
+    /// Import a contact's public key — a QR, a contact card, the FFI, a relay blob.
+    ///
+    /// [`CoreError::InvalidPublicKey`] on a non-canonical encoding: the alias is the same
+    /// key to every Diffie-Hellman but a different token, so accepting it would let one
+    /// peer hold several identities and walk around a block ([`crate::pubkey`], F-10).
+    pub fn try_from_public_key_bytes(public_key: [u8; 32]) -> Result<Self, CoreError> {
+        let token = Token::from_public_key_bytes(&public_key)?;
+        Ok(Self { public_key, token })
     }
 
     pub fn try_from_public_key_slice(bytes: &[u8]) -> Result<Self, CoreError> {
         let arr: [u8; 32] = bytes.try_into().map_err(|_| CoreError::InvalidPublicKey)?;
-        Ok(Self::from_public_key_bytes(arr))
+        Self::try_from_public_key_bytes(arr)
     }
 
     pub fn public_key_bytes(&self) -> [u8; 32] {
@@ -97,6 +105,46 @@ impl std::fmt::Debug for PublicIdentity {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pubkey::test_vectors::{high_bit_alias, non_reduced_max, NON_REDUCED_ZERO};
+
+    /// The import gate (F-10). Bob blocked Mallory; Mallory hands out a contact card with the
+    /// high bit of her own key set. It is the same key to every DH, so nothing downstream
+    /// would notice — the encoding is the only place to catch it.
+    #[test]
+    fn importing_an_alias_of_a_key_is_refused() {
+        let mallory = Identity::generate();
+        let real = mallory.public_key_bytes();
+        assert_eq!(
+            PublicIdentity::try_from_public_key_bytes(real)
+                .unwrap()
+                .token()
+                .as_str(),
+            mallory.token().as_str()
+        );
+
+        for alias in [high_bit_alias(&real), NON_REDUCED_ZERO, non_reduced_max()] {
+            assert!(
+                matches!(
+                    PublicIdentity::try_from_public_key_bytes(alias),
+                    Err(CoreError::InvalidPublicKey)
+                ),
+                "{} must not become an identity",
+                hex::encode(alias)
+            );
+            assert!(matches!(
+                PublicIdentity::try_from_public_key_slice(&alias),
+                Err(CoreError::InvalidPublicKey)
+            ));
+        }
+    }
+
+    #[test]
+    fn slice_import_still_rejects_the_wrong_length() {
+        assert!(matches!(
+            PublicIdentity::try_from_public_key_slice(&[0u8; 31]),
+            Err(CoreError::InvalidPublicKey)
+        ));
+    }
 
     #[test]
     fn token_stable_from_same_secret() {
