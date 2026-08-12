@@ -61,6 +61,39 @@
   background: var(--navy-mid);
 }
 
+.lang {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.langItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.langSep {
+  color: color-mix(in srgb, var(--navy) 35%, transparent);
+  user-select: none;
+}
+
+.langLink {
+  color: color-mix(in srgb, var(--navy) 72%, white);
+  text-decoration: none;
+}
+
+.langLink:hover {
+  color: var(--navy);
+}
+
+.langActive {
+  color: var(--navy);
+}
+
 @media (max-width: 720px) {
   .header {
     flex-direction: column;

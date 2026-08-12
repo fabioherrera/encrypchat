@@ -1,18 +1,23 @@
 import Link from "next/link";
 import Image from "next/image";
+import type { Locale } from "@/i18n/config";
+import { getDictionary } from "@/i18n/getDictionary";
+import { localizedHref } from "@/i18n/path";
 import { SITE_NAME } from "@/lib/site";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 import styles from "./SiteHeader.module.css";
 
-const links = [
-  { href: "/features", label: "Features" },
-  { href: "/download", label: "Download" },
-  { href: "/faq", label: "FAQ" },
-];
+export function SiteHeader({ locale }: { locale: Locale }) {
+  const t = getDictionary(locale).nav;
+  const links = [
+    { href: localizedHref(locale, "/features"), label: t.features },
+    { href: localizedHref(locale, "/download"), label: t.download },
+    { href: localizedHref(locale, "/faq"), label: t.faq },
+  ];
 
-export function SiteHeader() {
   return (
     <header className={styles.header}>
-      <Link href="/" className={styles.brand}>
+      <Link href={localizedHref(locale)} className={styles.brand}>
         <Image
           src="/logo-mark.png"
           alt=""
@@ -23,14 +28,15 @@ export function SiteHeader() {
         />
         <span className={styles.name}>{SITE_NAME}</span>
       </Link>
-      <nav className={styles.nav} aria-label="Primary">
+      <nav className={styles.nav} aria-label={t.primaryAria}>
         {links.map((l) => (
           <Link key={l.href} href={l.href} className={styles.link}>
             {l.label}
           </Link>
         ))}
-        <Link href="/download" className={styles.cta}>
-          Get the app
+        <LanguageSwitcher locale={locale} ariaLabel={t.langSwitcherAria} />
+        <Link href={localizedHref(locale, "/download")} className={styles.cta}>
+          {t.cta}
         </Link>
       </nav>
     </header>

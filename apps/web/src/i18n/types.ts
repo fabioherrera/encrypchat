@@ -1,0 +1,115 @@
+export type FaqItem = { q: string; a: string };
+
+export type Dictionary = {
+  meta: {
+    titleDefault: string;
+    titleTemplate: string;
+    description: string;
+    keywords: string[];
+    ogLocale: string;
+  };
+  nav: {
+    features: string;
+    download: string;
+    faq: string;
+    cta: string;
+    primaryAria: string;
+    langSwitcherAria: string;
+  };
+  footer: {
+    note: string;
+    privacy: string;
+    terms: string;
+    faq: string;
+    download: string;
+    aria: string;
+  };
+  platforms: {
+    android: string;
+    ios: string;
+    linux: string;
+    windows: string;
+    comingSoon: string;
+  };
+  home: {
+    heroAria: string;
+    lead: string;
+    ctaDownload: string;
+    ctaFeatures: string;
+    privacyTitle: string;
+    privacyP1: string;
+    privacyP2Before: string;
+    privacyP2P2p: string;
+    privacyP2Mid: string;
+    privacyP2Relay: string;
+    privacyP2After: string;
+    platformsTitle: string;
+    softwareDescription: string;
+  };
+  features: {
+    metaTitle: string;
+    metaDescription: string;
+    h1: string;
+    intro: string;
+    e2eeTitle: string;
+    e2eeBody: string;
+    p2pTitle: string;
+    p2pBody: string;
+    zeroCloudTitle: string;
+    zeroCloudBody: string;
+    relayTitle: string;
+    relayBodyBefore: string;
+    relayCiphertext: string;
+    relayBodyAfter: string;
+    tokenTitle: string;
+    tokenBody: string;
+    cta: string;
+  };
+  download: {
+    metaTitle: string;
+    metaDescription: string;
+    h1: string;
+    intro: string;
+    sourceNote: string;
+  };
+  faq: {
+    metaTitle: string;
+    metaDescription: string;
+    h1: string;
+    items: FaqItem[];
+  };
+  privacy: {
+    metaTitle: string;
+    metaDescription: string;
+    h1: string;
+    stub: string;
+    collectTitle: string;
+    collectBody: string;
+    deviceTitle: string;
+    deviceBody: string;
+    relayTitle: string;
+    relayBody: string;
+    siteTitle: string;
+    siteBody: string;
+    contactTitle: string;
+    contactBody: string;
+  };
+  terms: {
+    metaTitle: string;
+    metaDescription: string;
+    h1: string;
+    stub: string;
+    serviceTitle: string;
+    serviceBody: string;
+    securityTitle: string;
+    securityBody: string;
+    availabilityTitle: string;
+    availabilityBody: string;
+    useTitle: string;
+    useBody: string;
+  };
+  redirect: {
+    message: string;
+    link: string;
+  };
+};
