@@ -12,7 +12,7 @@ Documento vivo del plan de proyecto. Cada fase es **cerrada**: no se marca done 
 | Web | Next.js (`apps/web`) — landing/SEO, no chat |
 | Relay | Ciego (`services/relay`) — ciphertext + TTL |
 
-**Siguiente paso:** [Fase 4 — Mensajería P2P texto](#fase-4--mensajería-p2p-texto-ambos-online). F3: [phase-3.md](phase-3.md). Deploy live de F1 requiere `CLOUDFLARE_API_TOKEN` (ver notas F1).
+**Siguiente paso:** [Fase 5 — Relay ciego](#fase-5--relay-ciego-offline). F4: [phase-4.md](phase-4.md). Deploy live F1: `CLOUDFLARE_API_TOKEN`.
 
 ---
 
@@ -75,8 +75,8 @@ flowchart LR
 | 1 | Landing SEO encrypchat.com | **Done** (deploy DNS pendiente de token CF) |
 | 2 | Identidad y crypto local | **Done** |
 | 3 | Shell Flutter + FFI + DB cifrada | **Done** (gaps NDK/iOS/Windows en [phase-3.md](phase-3.md)) |
-| 4 | Mensajería P2P texto (online) | **Siguiente** |
-| 5 | Relay ciego (offline) | Pendiente |
+| 4 | Mensajería P2P texto (online) | **Done** (demo LAN manual + auditor pendientes — [phase-4.md](phase-4.md)) |
+| 5 | Relay ciego (offline) | **Siguiente** |
 | 6 | Media | Pendiente |
 | 7 | Llamadas WebRTC | Pendiente |
 | 8 | Paridad multiplataforma / empaquetado | Pendiente |
@@ -219,20 +219,23 @@ Checklist: [phase-3.md](phase-3.md). FFI `0.3.0`. `make build-ffi` / `make build
 
 ## Fase 4 — Mensajería P2P texto (ambos online)
 
+**Estado:** done (2026-08-12) — ver [phase-4.md](phase-4.md)  
 **Meta:** dos nodos envían texto E2EE en tiempo real (misma red o NAT básico).
 
 ### Alcance
 
-- libp2p: discovery + canal seguro entre peers conocidos por token.
+- Transporte: Tokio TCP + hello por token (libp2p diferido; misma API de producto).
 - UI chat 1:1; estados enviando/entregado/error.
 - Sin relay: peer offline → fallo explícito (fail-loud).
+- At-rest: `local_seal` / `db_key` en cuerpos (`body_sealed`).
 
 ### DoD
 
-- [ ] Demo 2 dispositivos: mensaje llega E2E
-- [ ] Plaintext solo en DB local del destinatario
-- [ ] Tests integración core (mock transport o loopback)
-- [ ] `/auditor` en handshake y framing
+- [x] Demo integración core 2 nodos (tests)
+- [x] Plaintext solo en memoria / sellado en DB local
+- [x] Tests integración core (inject/send/recv)
+- [ ] `/auditor` en handshake y framing — ver [audit-f4-messaging.md](audit-f4-messaging.md) (P0 auth hello antes de F5)
+- [ ] Demo 2 dispositivos físicos LAN (manual)
 
 ### Agentes
 

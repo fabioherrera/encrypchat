@@ -203,6 +203,13 @@ p {
   align-items: flex-end;
   margin: 0;
   padding-bottom: 1.5rem;
+  min-height: min(72vw, 380px);
+}
+
+@media (min-width: 900px) {
+  .heroVisual {
+    min-height: 480px;
+  }
 }
 
 .section {

@@ -1,18 +1,16 @@
 # encrypchat_core
 
-Local identity + E2EE for Encrypchat (no network I/O).
+Local identity, E2EE, at-rest AEAD, and P2P text transport for Encrypchat.
 
-## Phase 2 API
+## Phase 4 / 0.5.0 (EH01)
 
-- `Identity::generate` / `from_secret_bytes`
-- `Identity::token` → `ec_` + hex(SHA-256(pubkey))
-- `encrypt(recipient, plaintext)` / `decrypt(identity, ciphertext)`
-  - Ephemeral X25519 ECDH + ChaCha20-Poly1305
-  - Wire: `eph_pub(32) || nonce(12) || ciphertext||tag`
-
-## Phase 3 FFI
-
-C ABI in `src/ffi.rs` (`encrypchat_identity_*`, `encrypchat_encrypt` / `decrypt`, `encrypchat_free`, `encrypchat_api_version` → `0.3.0`).
+| Area | API |
+| --- | --- |
+| Identity / E2EE | `Identity`, `encrypt` / `decrypt` (AAD `encrypchat-msg-v1`) |
+| Local at-rest | `seal_local` / `open_local` with 32-byte `db_key` |
+| Wire frame | `WireFrame` / `encode_frame` / `decode_frame` (`EC04`) |
+| Networking | `NodeHandle` — Tokio TCP, **EH01** auth hello, length-prefixed data+ack |
+| FFI | C ABI in `src/ffi.rs`, `api_version` → `0.5.0` |
 
 ```bash
 cargo test -p encrypchat_core
@@ -20,5 +18,5 @@ cargo build -p encrypchat_core --release
 # → target/release/libencrypchat_core.so (and .a / rlib)
 ```
 
-Contract: [`docs/ffi-contract.md`](../../docs/ffi-contract.md)  
-Auditor notes: [`docs/audit-f2-crypto.md`](../../docs/audit-f2-crypto.md)
+Transport notes: [docs/phase-4.md](../../docs/phase-4.md)  
+Contract: [docs/ffi-contract.md](../../docs/ffi-contract.md)

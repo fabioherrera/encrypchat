@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-/// Errors from identity or E2EE operations.
+/// Errors from identity, E2EE, local AEAD, framing, or networking.
 #[derive(Debug, Error)]
 pub enum CoreError {
     #[error("invalid token encoding")]
@@ -17,6 +17,14 @@ pub enum CoreError {
     BufferTooSmall,
     #[error("null pointer")]
     NullPointer,
+    #[error("peer offline or unknown")]
+    PeerOffline,
+    #[error("no message available")]
+    Empty,
+    #[error("invalid wire frame")]
+    InvalidFrame,
+    #[error("peer authentication failed")]
+    AuthFailed,
     #[error("internal error")]
     Internal,
 }
@@ -32,6 +40,10 @@ impl CoreError {
             Self::EmptyPlaintext => 5,
             Self::BufferTooSmall => 6,
             Self::NullPointer => 7,
+            Self::PeerOffline => 8,
+            Self::Empty => 9,
+            Self::InvalidFrame => 10,
+            Self::AuthFailed => 11,
             Self::Internal => 255,
         }
     }

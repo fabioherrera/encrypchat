@@ -12,6 +12,10 @@ class CoreException implements Exception {
   static const int emptyPlaintext = 5;
   static const int bufferTooSmall = 6;
   static const int nullPointer = 7;
+  static const int peerOffline = 8;
+  static const int empty = 9;
+  static const int invalidFrame = 10;
+  static const int authFailed = 11;
   static const int internal = 255;
 
   String get label => switch (code) {
@@ -22,6 +26,10 @@ class CoreException implements Exception {
         emptyPlaintext => 'EmptyPlaintext',
         bufferTooSmall => 'BufferTooSmall',
         nullPointer => 'NullPointer',
+        peerOffline => 'PeerOffline',
+        empty => 'Empty',
+        invalidFrame => 'InvalidFrame',
+        authFailed => 'AuthFailed',
         internal => 'Internal',
         _ => 'Unknown($code)',
       };

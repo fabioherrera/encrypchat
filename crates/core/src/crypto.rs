@@ -1,4 +1,4 @@
-use chacha20poly1305::aead::{Aead, KeyInit};
+use chacha20poly1305::aead::{Aead, KeyInit, Payload};
 use chacha20poly1305::{ChaCha20Poly1305, Nonce};
 use rand::rngs::OsRng;
 use rand::RngCore;
@@ -7,6 +7,9 @@ use x25519_dalek::{PublicKey, StaticSecret};
 
 use crate::error::CoreError;
 use crate::identity::{Identity, PublicIdentity};
+
+/// AEAD associated data for network E2EE payloads (domain separation from local seal).
+const MSG_AAD: &[u8] = b"encrypchat-msg-v1";
 
 /// Encrypted payload: ephemeral pubkey (32) || nonce (12) || ciphertext+tag.
 #[derive(Clone, PartialEq, Eq)]
@@ -71,7 +74,13 @@ pub fn encrypt(recipient: &PublicIdentity, plaintext: &[u8]) -> Result<Ciphertex
     let nonce = Nonce::from_slice(&nonce_bytes);
 
     let encrypted = cipher
-        .encrypt(nonce, plaintext)
+        .encrypt(
+            nonce,
+            Payload {
+                msg: plaintext,
+                aad: MSG_AAD,
+            },
+        )
         .map_err(|_| CoreError::DecryptionFailed)?;
 
     let mut out = Vec::with_capacity(32 + 12 + encrypted.len());
@@ -101,7 +110,13 @@ pub fn decrypt(identity: &Identity, ciphertext: &Ciphertext) -> Result<Vec<u8>, 
     let cipher = ChaCha20Poly1305::new_from_slice(&key).expect("32-byte key");
     let nonce = Nonce::from_slice(nonce_bytes);
     cipher
-        .decrypt(nonce, body)
+        .decrypt(
+            nonce,
+            Payload {
+                msg: body,
+                aad: MSG_AAD,
+            },
+        )
         .map_err(|_| CoreError::DecryptionFailed)
 }
 

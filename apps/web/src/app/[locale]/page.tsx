@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/JsonLd";
-import { LiveChatPhone } from "@/components/LiveChatPhone";
+import { LiveChatDevices } from "@/components/LiveChatDevices";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/getDictionary";
 import { localizedHref } from "@/i18n/path";
@@ -87,7 +87,7 @@ export default async function HomePage({
             </div>
           </div>
           <div className="heroVisual">
-            <LiveChatPhone />
+            <LiveChatDevices copy={dict.demo} />
           </div>
         </div>
       </section>

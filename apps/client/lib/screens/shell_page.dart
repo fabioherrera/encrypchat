@@ -21,7 +21,7 @@ class _ShellPageState extends State<ShellPage> {
   @override
   Widget build(BuildContext context) {
     final Widget body = switch (_index) {
-      0 => const ChatsPage(),
+      0 => ChatsPage(session: widget.session),
       1 => ContactsPage(session: widget.session),
       _ => MyTokenPage(session: widget.session),
     };
