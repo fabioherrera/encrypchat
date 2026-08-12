@@ -1,10 +1,10 @@
 # FFI contract — Encrypchat core ↔ Flutter
 
-Status: Phase 2 design (no native bridge wired yet; Phase 3 implements).
+Status: **Phase 3 implemented** (`crates/core` C ABI + `api_version` `0.3.0`).
 
 ## Versioning
 
-- Rust crate: `encrypchat_core` `api_version()` → `0.2.0`
+- Rust crate: `encrypchat_core` `api_version()` → `0.3.0`
 - Bump `api_version` whenever exported FFI signatures or wire formats change.
 
 ## Types
@@ -13,16 +13,19 @@ Status: Phase 2 design (no native bridge wired yet; Phase 3 implements).
 | --- | --- | --- |
 | Secret key | `uint8[32]` | X25519 static secret; store only in OS secure storage / encrypted DB |
 | Public key | `uint8[32]` | X25519 public |
-| Token | UTF-8 string | `ec_` + 64 hex chars (SHA-256 of public key) |
+| Token | UTF-8 string | `ec_` + 64 hex chars (SHA-256 of public key); buffer ≥ 68 bytes incl. NUL |
 | Plaintext | `uint8[]` | Never sent to network unencrypted |
 | Ciphertext | `uint8[]` | `eph_pub(32) \|\| nonce(12) \|\| chacha20poly1305(ciphertext\|\|tag)` |
 
-## Suggested C ABI (Phase 3)
+## C ABI (Phase 3)
 
 All functions return `0` on success, non-zero `CoreError` code on failure.
 Caller owns returned buffers and must free with `encrypchat_free`.
 
 ```c
+// version
+int encrypchat_api_version(char *out, size_t cap); // writes "0.3.0"
+
 // identity
 int encrypchat_identity_generate(uint8_t out_secret[32], char *out_token, size_t token_cap);
 int encrypchat_identity_token(const uint8_t secret[32], char *out_token, size_t token_cap);
@@ -49,8 +52,10 @@ void encrypchat_free(void *ptr);
 2. `Debug` of Rust `Identity` redacts secrets; keep that property in Dart (`toString` must not print keys).
 3. Token is the only stable contact identifier exposed in UI.
 4. Empty plaintext is rejected.
+5. Null checks return `NullPointer` (7); undersized token/version buffers return `BufferTooSmall` (6).
+6. Entry points catch panics and map them to `Internal` (255).
 
-## Error codes (draft)
+## Error codes
 
 | Code | Meaning |
 | --- | --- |
@@ -59,6 +64,8 @@ void encrypchat_free(void *ptr);
 | 3 | DecryptionFailed |
 | 4 | CiphertextTooShort |
 | 5 | EmptyPlaintext |
+| 6 | BufferTooSmall |
+| 7 | NullPointer |
 | 255 | Internal |
 
 ## Out of scope (later phases)
@@ -66,3 +73,4 @@ void encrypchat_free(void *ptr);
 - libp2p transport framing
 - Relay envelope (`destination_token` + TTL + blob)
 - Media chunking
+- SQLCipher in Rust (F3 storage is Flutter-side)

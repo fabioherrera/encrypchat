@@ -14,10 +14,10 @@ export function SiteHeader() {
     <header className={styles.header}>
       <Link href="/" className={styles.brand}>
         <Image
-          src="/logo.png"
+          src="/logo-mark.png"
           alt=""
-          width={40}
-          height={40}
+          width={52}
+          height={56}
           className={styles.mark}
           priority
         />

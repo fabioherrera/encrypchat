@@ -28,6 +28,6 @@ ThemeData buildEncrypchatLightTheme() {
       backgroundColor: EncrypchatColors.navy,
       foregroundColor: EncrypchatColors.paper,
     ),
-    dividerColor: EncrypchatColors.navy.withOpacity(0.12),
+    dividerColor: EncrypchatColors.navy.withValues(alpha: 0.12),
   );
 }

@@ -3,8 +3,8 @@
 Mensajería **P2P** cifrada de extremo a extremo. Cada dispositivo es cliente + nodo local. Contenido **zero-cloud** (chats/media/claves en el dispositivo).
 
 **Roadmap:** [docs/roadmap.md](docs/roadmap.md) — fases 0–10, DoD y agentes.  
-**Siguiente paso:** Fase 3 (Flutter shell + FFI + DB cifrada).  
-F1 deploy live: exportá `CLOUDFLARE_API_TOKEN` y desplegá `apps/web/out` (ver roadmap F1).  
+**Siguiente paso:** Fase 4 (mensajería P2P texto online).  
+F3: [docs/phase-3.md](docs/phase-3.md) · F1 deploy: `CLOUDFLARE_API_TOKEN` + `apps/web/out`.  
 F0: [docs/phase-0.md](docs/phase-0.md) · F2 FFI: [docs/ffi-contract.md](docs/ffi-contract.md).
 
 ## Dominio y marca

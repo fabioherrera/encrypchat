@@ -5,6 +5,7 @@
 
 mod crypto;
 mod error;
+pub mod ffi;
 mod identity;
 mod token;
 
@@ -20,5 +21,5 @@ pub fn crate_name() -> &'static str {
 
 /// Semver of the public API surface (bump when FFI contract changes).
 pub fn api_version() -> &'static str {
-    "0.2.0"
+    "0.3.0"
 }

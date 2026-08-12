@@ -130,18 +130,58 @@ p {
 }
 
 .heroCopy {
-  padding: 1rem 0 2rem;
-  max-width: 32rem;
+  padding: 0.5rem 0 2rem;
+  max-width: 36rem;
 }
 
-.heroBrand {
+.heroLogo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin: 0 0 1.25rem;
+  line-height: 1;
+}
+
+.heroMark {
+  width: min(28vw, 118px);
+  height: auto;
+  display: block;
+}
+
+.heroWordmark {
   font-family: var(--font-display), "Manrope", system-ui, sans-serif;
-  font-size: clamp(2.75rem, 8vw, 4.75rem);
+  font-size: clamp(2.35rem, 6.5vw, 3.55rem);
   font-weight: 700;
   letter-spacing: -0.04em;
-  line-height: 0.95;
-  margin: 0 0 1rem;
   color: var(--navy);
+}
+
+.heroTagline {
+  font-family: var(--font-sans), "Manrope", system-ui, sans-serif;
+  font-size: clamp(0.62rem, 1.6vw, 0.78rem);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--navy-mid);
+}
+
+@media (min-width: 900px) {
+  .heroMark {
+    width: 132px;
+  }
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .heroLead {
@@ -162,19 +202,7 @@ p {
   justify-content: center;
   align-items: flex-end;
   margin: 0;
-}
-
-.heroPhone {
-  width: min(100%, 360px);
-  height: auto;
-  display: block;
-  filter: drop-shadow(0 28px 48px color-mix(in srgb, var(--navy) 22%, transparent));
-}
-
-@media (min-width: 900px) {
-  .heroPhone {
-    width: min(100%, 420px);
-  }
+  padding-bottom: 1.5rem;
 }
 
 .section {

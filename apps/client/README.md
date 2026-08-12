@@ -1,17 +1,17 @@
-# encrypchat
+# Encrypchat Flutter client
 
-A new Flutter project.
+Multiplataforma: Android, iOS, Linux (Fedora), Windows.
 
-## Getting Started
+## Fase 3
 
-This project is a starting point for a Flutter application.
+Shell con onboarding, token/QR, contactos (import/export) y lista de chats vacía.
+Crypto vía FFI a `encrypchat_core` (`make build-ffi`).
 
-A few resources to get you started if this is your first Flutter project:
+```bash
+# desde la raíz del monorepo
+make build-ffi
+make dev-client          # Linux
+cd apps/client && flutter test
+```
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Detalles y gaps: [docs/phase-3.md](../../docs/phase-3.md).

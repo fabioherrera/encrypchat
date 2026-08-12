@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { JsonLd } from "@/components/JsonLd";
+import { LiveChatPhone } from "@/components/LiveChatPhone";
 import { PLATFORMS, SITE_NAME, SITE_URL } from "@/lib/site";
 
 const softwareLd = {
@@ -24,7 +25,7 @@ const orgLd = {
   "@type": "Organization",
   name: SITE_NAME,
   url: SITE_URL,
-  logo: `${SITE_URL}/logo.png`,
+  logo: `${SITE_URL}/logo-transparent.png`,
 };
 
 export default function HomePage() {
@@ -36,7 +37,20 @@ export default function HomePage() {
       <section className="heroBleed" aria-label="Hero">
         <div className="heroInner">
           <div className="heroCopy">
-            <h1 className="heroBrand">{SITE_NAME}</h1>
+            <h1 className="heroLogo">
+              <Image
+                src="/logo-mark.png"
+                alt=""
+                width={160}
+                height={172}
+                className="heroMark"
+                priority
+              />
+              <span className="heroWordmark">{SITE_NAME}</span>
+              <span className="heroTagline">
+                DECENTRALIZED P2P CHAT | ZERO-CLOUD
+              </span>
+            </h1>
             <p className="heroLead">
               Peer-to-peer encrypted chat on your device — not a cloud inbox we
               can read.
@@ -50,17 +64,9 @@ export default function HomePage() {
               </Link>
             </div>
           </div>
-          <figure className="heroVisual">
-            <Image
-              className="heroPhone"
-              src="/product/chat-light.png"
-              alt="Encrypchat light chat interface — encrypted conversation on a phone"
-              width={840}
-              height={1680}
-              priority
-              sizes="(min-width: 900px) 420px, 360px"
-            />
-          </figure>
+          <div className="heroVisual">
+            <LiveChatPhone />
+          </div>
         </div>
       </section>
 

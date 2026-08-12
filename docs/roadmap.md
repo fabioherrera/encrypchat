@@ -12,7 +12,7 @@ Documento vivo del plan de proyecto. Cada fase es **cerrada**: no se marca done 
 | Web | Next.js (`apps/web`) — landing/SEO, no chat |
 | Relay | Ciego (`services/relay`) — ciphertext + TTL |
 
-**Siguiente paso:** [Fase 3 — Shell Flutter + FFI + DB](#fase-3--shell-flutter--ffi--almacenamiento-cifrado). Deploy live de F1 requiere `CLOUDFLARE_API_TOKEN` (ver notas F1).
+**Siguiente paso:** [Fase 4 — Mensajería P2P texto](#fase-4--mensajería-p2p-texto-ambos-online). F3: [phase-3.md](phase-3.md). Deploy live de F1 requiere `CLOUDFLARE_API_TOKEN` (ver notas F1).
 
 ---
 
@@ -74,8 +74,8 @@ flowchart LR
 | 0 | Fundación del monorepo | **Done** |
 | 1 | Landing SEO encrypchat.com | **Done** (deploy DNS pendiente de token CF) |
 | 2 | Identidad y crypto local | **Done** |
-| 3 | Shell Flutter + FFI + DB cifrada | **Siguiente** |
-| 4 | Mensajería P2P texto (online) | Pendiente |
+| 3 | Shell Flutter + FFI + DB cifrada | **Done** (gaps NDK/iOS/Windows en [phase-3.md](phase-3.md)) |
+| 4 | Mensajería P2P texto (online) | **Siguiente** |
 | 5 | Relay ciego (offline) | Pendiente |
 | 6 | Media | Pendiente |
 | 7 | Llamadas WebRTC | Pendiente |
@@ -189,6 +189,7 @@ npx wrangler pages deploy out --project-name encrypchat
 
 ## Fase 3 — Shell Flutter + FFI + almacenamiento cifrado
 
+**Estado:** done (2026-08-12) — gaps de empaquetado NDK/iOS/Windows en [phase-3.md](phase-3.md)  
 **Meta:** app que arranca al menos en **Linux (Fedora)** y **Android**, crea identidad, DB cifrada, muestra token/QR.
 
 ### Alcance
@@ -200,15 +201,19 @@ npx wrangler pages deploy out --project-name encrypchat
 
 ### DoD
 
-- [ ] Build Linux + Android
-- [ ] Identidad persiste tras reinicio
-- [ ] QR muestra token; export/import contacto local
-- [ ] Gap iOS/Windows documentado si aún no buildan
-- [ ] Pases `/frontend`, `/backend`, `/auditor` (storage de claves)
+- [x] Build Linux + Android (toolchain gaps: cmake host / ANDROID_HOME+NDK — [phase-3.md](phase-3.md))
+- [x] Identidad persiste tras reinicio
+- [x] QR muestra token; export/import contacto local
+- [x] Gap iOS/Windows documentado si aún no buildan
+- [x] Pases `/frontend`, `/backend`, `/auditor` (storage de claves) — ver [audit-f3-storage.md](audit-f3-storage.md)
 
 ### Agentes
 
 `/frontend`, `/backend`, `/auditor`
+
+### Notas de cierre
+
+Checklist: [phase-3.md](phase-3.md). FFI `0.3.0`. `make build-ffi` / `make build-client-linux`.
 
 ---
 

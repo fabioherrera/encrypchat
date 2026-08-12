@@ -59,11 +59,10 @@ apps/client/windows/flutter/ephemeral/
 # Local toolchains (optional)
 .tools/
 
-# Coverage / misc
-coverage/
-*.lcov
-dist/
-tmp/
-.cache/
-target/
+# Bundled Rust FFI (produced by `make build-ffi`)
+apps/client/native/*.so
+apps/client/native/*.dll
+apps/client/native/*.dylib
+apps/client/android/app/src/main/jniLibs/**
+!apps/client/android/app/src/main/jniLibs/README.md
 
