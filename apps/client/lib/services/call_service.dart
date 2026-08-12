@@ -7,6 +7,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import '../core/call_signal.dart';
 import '../models/contact.dart';
+import 'local_database.dart';
 import 'messaging_service.dart';
 
 enum CallPhase { idle, outgoing, incoming, connecting, active, ended }
@@ -15,12 +16,25 @@ enum CallPhase { idle, outgoing, incoming, connecting, active, ended }
 class CallService extends ChangeNotifier {
   CallService({required MessagingService messaging}) : _messaging = messaging {
     _messaging.onCallSignal = _onInboundSignal;
+    _messaging.onBlockPeer = hangupIfPeer;
   }
 
   static const stunServers = [
     {'urls': 'stun:stun.l.google.com:19302'},
     {'urls': 'stun:stun1.l.google.com:19302'},
   ];
+
+  /// How late a stamped `invite` may be and still ring, and how far ahead the
+  /// caller's clock may run.
+  ///
+  /// Defence in depth: with EH02 encrypting the transport under a counter nonce,
+  /// a third party can no longer drop an old signal into a live session, so what
+  /// is left is an `invite` that reaches the callee long after the caller gave up
+  /// — a phone ringing for a call nobody is on. The forward tolerance matches the
+  /// core's sealed-blob skew, so two devices whose clocks are close enough to
+  /// exchange messages are close enough to ring each other.
+  static const inviteMaxAge = Duration(seconds: 90);
+  static const inviteMaxSkewAhead = Duration(seconds: 300);
 
   final MessagingService _messaging;
 
@@ -157,6 +171,23 @@ class CallService extends ChangeNotifier {
     await _reset();
   }
 
+  /// Ends the call if [token] is the identity on the other side.
+  ///
+  /// Wired into [MessagingService.block], which calls it *before* the block
+  /// lands: WebRTC media is direct UDP and does not pass through the node, so
+  /// nothing else would stop mic and camera — and after the block even the
+  /// peer's `hangup` is discarded, so the call would hang until the user hung up
+  /// by hand. Someone blocking a harasser mid-call expects the call to end.
+  Future<void> hangupIfPeer(String token) async {
+    final active = peer?.token;
+    if (active == null) return;
+    if (LocalDatabase.normalizeToken(active) !=
+        LocalDatabase.normalizeToken(token)) {
+      return;
+    }
+    await hangup();
+  }
+
   Future<void> toggleMute() async {
     muted = !muted;
     _local?.getAudioTracks().forEach((t) => t.enabled = !muted);
@@ -188,6 +219,7 @@ class CallService extends ChangeNotifier {
   Future<void> _handleInboundSignal(String fromToken, CallSignal signal) async {
     switch (signal.type) {
       case CallSignalType.invite:
+        if (!_ringworthy(signal)) return;
         if (phase != CallPhase.idle && phase != CallPhase.ended) {
           final contact = _messaging.contactForToken(fromToken);
           if (contact != null) {
@@ -289,6 +321,38 @@ class CallService extends ChangeNotifier {
 
   bool _fromActivePeer(String fromToken) =>
       peer != null && peer!.token == fromToken;
+
+  /// Whether an `invite` is recent enough to ring the phone.
+  ///
+  /// Only `invite` is gated: it is the one signal that makes noise on its own,
+  /// and the rest are already tied to a live call by `callId` and phase.
+  ///
+  /// An **unstamped** invite still rings. The field is new, calls are P2P-only,
+  /// and refusing one would mean a peer on the previous build silently cannot
+  /// reach the user — a worse failure than a late ring, given that the transport
+  /// itself (EH02) is what stops a third party from injecting one. If signaling
+  /// is ever allowed over the relay, absence must become a refusal instead: there
+  /// the blob genuinely can arrive hours later.
+  bool _ringworthy(CallSignal signal) {
+    final ts = signal.sentAtUnix;
+    if (ts == null) {
+      debugPrint('call invite without timestamp (peer on an older build)');
+      return true;
+    }
+    final now = clock().toUtc().millisecondsSinceEpoch ~/ 1000;
+    final age = now - ts;
+    if (age > inviteMaxAge.inSeconds || -age > inviteMaxSkewAhead.inSeconds) {
+      // No `lastError` and no ring: nothing on this device was waiting for it.
+      debugPrint('call invite ignored: ${age}s off this clock');
+      return false;
+    }
+    return true;
+  }
+
+  /// Wall clock for the invite window. Injectable because the stamp travels
+  /// inside the ciphertext and cannot be backdated from the outside.
+  @visibleForTesting
+  DateTime Function() clock = () => DateTime.now().toUtc();
 
   Future<void> _applyRemoteOffer(String sdp) async {
     if (_pc == null) {
@@ -416,8 +480,13 @@ class CallService extends ChangeNotifier {
         await _local?.dispose();
       } catch (_) {}
       _local = null;
-      localRenderer.srcObject = null;
-      remoteRenderer.srcObject = null;
+      // Only touch the renderers if they were initialized: their setter throws
+      // without a texture, and a call torn down before it was ever displayed
+      // (rejected, or the peer blocked while ringing) never initializes them.
+      if (_renderersReady) {
+        localRenderer.srcObject = null;
+        remoteRenderer.srcObject = null;
+      }
       _pendingRemoteIce.clear();
       _pendingOfferSdp = null;
       phase = CallPhase.ended;
@@ -451,10 +520,29 @@ class CallService extends ChangeNotifier {
     return base64UrlEncode(bytes).replaceAll('=', '');
   }
 
+  /// Puts the service in the state a connected call leaves behind, minus the
+  /// WebRTC objects: `getUserMedia` and `RTCPeerConnection` need the platform
+  /// plugin, which `flutter test` does not load. Only the teardown path is
+  /// exercised through it.
+  @visibleForTesting
+  void simulateActiveCall({
+    required Contact peer,
+    required MediaStream localStream,
+    String callId = 'test-call',
+  }) {
+    this.peer = peer;
+    this.callId = callId;
+    media = CallMediaMode.av;
+    phase = CallPhase.active;
+    _local = localStream;
+    notifyListeners();
+  }
+
   @override
   void dispose() {
     _disposed = true;
     _messaging.onCallSignal = null;
+    _messaging.onBlockPeer = null;
     _idleTimer?.cancel();
     _idleTimer = null;
     unawaited(localRenderer.dispose());

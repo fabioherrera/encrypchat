@@ -20,14 +20,24 @@ dependencies:
   path: ^1.9.1
   path_provider: ^2.1.5
   qr_flutter: ^4.1.0
-  sqflite: ^2.4.2
-  sqflite_common_ffi: ^2.3.5
+  # One SQLite implementation on all four platforms (see hooks below): the
+  # sqflite native plugin would use the OS SQLite on Android/iOS, which cannot
+  # read an encrypted file.
+  sqflite_common_ffi: ^2.4.2
   flutter_webrtc: ^1.6.0
   url_launcher: ^6.3.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+
+# Ship SQLCipher instead of plain SQLite, so the database file itself is
+# encrypted (LocalDatabase sets `PRAGMA key`). Prebuilt for Android, iOS,
+# Linux and Windows; replaces the bundled libsqlite3, never adds a second copy.
+hooks:
+  user_defines:
+    sqlite3:
+      source: sqlcipher
 
 flutter:
   uses-material-design: true

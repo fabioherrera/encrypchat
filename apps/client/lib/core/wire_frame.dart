@@ -7,9 +7,9 @@ import 'package:encrypchat/models/contact.dart';
 class WireFrame {
   WireFrame({
     required this.msgId,
-    required this.senderToken,
+    required String senderToken,
     required this.ciphertext,
-  });
+  }) : senderToken = senderToken.trim().toLowerCase();
 
   static const magic = [0x45, 0x43, 0x30, 0x34]; // EC04
   static const version = 1;
@@ -36,7 +36,7 @@ class WireFrame {
     }
     return WireFrame(
       msgId: id,
-      senderToken: senderToken.toLowerCase(),
+      senderToken: senderToken,
       ciphertext: ciphertext,
     );
   }
@@ -90,11 +90,13 @@ class WireFrame {
     if (!isValidToken(token)) {
       throw const FormatException('Invalid token in frame');
     }
-    return WireFrame(
-      msgId: msgId,
-      senderToken: token.toLowerCase(),
-      ciphertext: ct,
-    );
+    // Matches `decode_frame` in core: one frame, one encoding. Accepting a
+    // non-canonical token here would let the same frame arrive as two byte
+    // strings, which breaks anything that caches or dedups on those bytes.
+    if (token != token.trim().toLowerCase()) {
+      throw const FormatException('Non-canonical token in frame');
+    }
+    return WireFrame(msgId: msgId, senderToken: token, ciphertext: ct);
   }
 
   static Uint8List _randomMsgId() {

@@ -41,4 +41,53 @@ void main() {
       isFalse,
     );
   });
+
+  test('the stamp survives the round trip', () {
+    final stamped = CallSignal(
+      type: CallSignalType.invite,
+      callId: 'abc123',
+      media: CallMediaMode.audio,
+    ).stamped(1786000000);
+
+    final decoded = CallSignal.decode(stamped.encode());
+
+    expect(decoded.sentAtUnix, 1786000000);
+    expect(decoded.callId, 'abc123');
+  });
+
+  test('a signal from before the field existed reads as unstamped', () {
+    // Not as zero: 1970 would be judged stale, and refusing to ring is a louder
+    // decision than the missing field justifies on its own.
+    final legacy = Uint8List.fromList(
+      utf8.encode(
+        jsonEncode({
+          'v': 1,
+          'kind': 'call',
+          'type': 'invite',
+          'callId': 'c1',
+          'media': 'audio',
+        }),
+      ),
+    );
+
+    expect(CallSignal.decode(legacy).sentAtUnix, isNull);
+  });
+
+  test('a junk stamp reads as unstamped', () {
+    for (final ts in ['ayer', 0, -1, 3.5]) {
+      final raw = Uint8List.fromList(
+        utf8.encode(
+          jsonEncode({
+            'v': 1,
+            'kind': 'call',
+            'type': 'invite',
+            'callId': 'c1',
+            'media': 'audio',
+            'ts': ts,
+          }),
+        ),
+      );
+      expect(CallSignal.decode(raw).sentAtUnix, isNull, reason: '$ts');
+    }
+  });
 }

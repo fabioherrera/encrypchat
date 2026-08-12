@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/session_controller.dart';
 import '../theme/encrypchat_colors.dart';
 import 'chat_page.dart';
+import 'requests_page.dart';
 
 class ChatsPage extends StatelessWidget {
   const ChatsPage({super.key, required this.session});
@@ -12,6 +13,7 @@ class ChatsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final contacts = session.contacts;
+    final requests = session.requests;
     final listen = session.hasMessaging ? session.messaging.listenAddr : null;
     final relayInsecure =
         session.hasMessaging && session.messaging.relayIsInsecure;
@@ -64,6 +66,10 @@ class ChatsPage extends StatelessWidget {
               ),
             ),
           if (relayInsecure) const RelayInsecureNotice(),
+          RelayPullFaultNotice(session: session),
+          if (session.hasMessaging)
+            InboundDropNotice(messaging: session.messaging),
+          if (requests.isNotEmpty) _RequestsTile(session: session),
           Expanded(
             child: contacts.isEmpty
                 ? const Center(
@@ -87,9 +93,16 @@ class ChatsPage extends StatelessWidget {
                             ),
                           ),
                           SizedBox(height: 8),
+                          // "El mensaje espera cifrado" was a promise the relay
+                          // never makes: it accepts a blob it may not have room
+                          // to keep, and saying so would tell a stranger when
+                          // somebody is online. P2P is the only path with an
+                          // acknowledgement, so that is what the copy leads on.
                           Text(
-                            'Importá un contacto. Preferí P2P; si está offline '
-                            'y configurás relay (☁), el mensaje espera cifrado.',
+                            'Importá un contacto. P2P es el camino directo y el '
+                            'único que confirma la entrega; si está offline y '
+                            'configurás relay (☁), el mensaje sale cifrado '
+                            'hacia ahí.',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: EncrypchatColors.muted,
@@ -150,6 +163,55 @@ class ChatsPage extends StatelessWidget {
                   ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Entry point for messages from identities that are not contacts.
+///
+/// It sits above the list rather than inside it: a stranger is not a chat yet,
+/// and mixing them in would put someone the user never agended next to their
+/// contacts. Deliberately quiet — no badge colour, no count in a pill — because
+/// the whole point of the policy is that a stranger cannot demand attention.
+class _RequestsTile extends StatelessWidget {
+  const _RequestsTile({required this.session});
+
+  final SessionController session;
+
+  @override
+  Widget build(BuildContext context) {
+    final count = session.requests.length;
+    return Material(
+      color: EncrypchatColors.paper,
+      child: ListTile(
+        leading: const CircleAvatar(
+          backgroundColor: EncrypchatColors.bubbleOut,
+          foregroundColor: EncrypchatColors.navy,
+          child: Icon(Icons.mark_email_unread_outlined, size: 20),
+        ),
+        title: const Text(
+          'Solicitudes',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: EncrypchatColors.ink,
+          ),
+        ),
+        subtitle: Text(
+          count == 1
+              ? '1 persona que no tenés agendada te escribió'
+              : '$count personas que no tenés agendadas te escribieron',
+          style: const TextStyle(color: EncrypchatColors.muted),
+        ),
+        trailing: const Icon(
+          Icons.chevron_right,
+          color: EncrypchatColors.muted,
+        ),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => RequestsPage(session: session),
+          ),
+        ),
       ),
     );
   }

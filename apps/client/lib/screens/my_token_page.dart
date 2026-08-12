@@ -6,6 +6,7 @@ import '../core/legal_links.dart';
 import '../services/session_controller.dart';
 import '../theme/encrypchat_colors.dart';
 import 'about_page.dart';
+import 'delete_identity_page.dart';
 
 class MyTokenPage extends StatelessWidget {
   const MyTokenPage({super.key, required this.session});
@@ -142,10 +143,32 @@ class MyTokenPage extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 24),
+          // Next to the identity it destroys, and reachable: an app that keeps
+          // your data only on your device has to let you take it off the device.
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.delete_forever_outlined, color: _danger),
+            title: const Text(
+              'Borrar identidad de este dispositivo',
+              style: TextStyle(fontWeight: FontWeight.w600, color: _danger),
+            ),
+            subtitle: const Text(
+              'Tu clave, tus chats y tus adjuntos. Irreversible.',
+              style: TextStyle(fontSize: 12.5, color: EncrypchatColors.muted),
+            ),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => DeleteIdentityPage(session: session),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
+
+  static const _danger = Color(0xFF8C1C13);
 
   void _openAbout(BuildContext context) {
     Navigator.of(context).push(

@@ -4,6 +4,23 @@ import 'package:flutter/foundation.dart';
 
 enum MessageDirection { outbound, inbound }
 
+/// How far an outbound message got — and, for the two that are not a
+/// confirmation, how far it is honest to say it got.
+///
+/// [delivered] is the only delivery there is: `node_send` waits for the peer's
+/// own ACK, so the message reached their device.
+///
+/// [viaRelay] is **not** one. It says the relay accepted the blob and nothing
+/// beyond that: a relay whose mailbox for that token is over quota now answers
+/// an enqueue exactly like it answers an acceptance — same status, same body,
+/// an id that names no row — because the difference was a presence oracle,
+/// letting anyone holding a token fill the mailbox and then probe to learn
+/// whether that person had come online to empty it. This device cannot tell the
+/// two apart and never will: the honest sender and the attacker send the same
+/// request. Everything on screen has to fit inside "handed to the relay".
+///
+/// [sent] is only in rows migrated from the pre-F5 schema, where there was no
+/// distinction to make.
 enum MessageStatus { sending, sent, delivered, viaRelay, error }
 
 enum MessageKind { text, media }

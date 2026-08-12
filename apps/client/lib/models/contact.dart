@@ -4,6 +4,45 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 
+/// A contact card that cannot be imported, and never will be.
+///
+/// Separate from a transient failure on purpose: nothing about retrying a
+/// malformed card helps, so the UI must say what is wrong with *the card* and
+/// point at getting a new one, instead of offering another attempt.
+class ContactCardException implements Exception {
+  const ContactCardException(this.message);
+
+  /// Shown as-is: describes the card, never key material.
+  final String message;
+
+  /// The shape is wrong: not an export line at all, or truncated.
+  static const unreadable = ContactCardException(
+    'Esa tarjeta de contacto no se pudo leer. Tiene que empezar con '
+    '"encrypchat:contact:v1:" y llegar completa: pedile que la exporte de '
+    'nuevo, o volvé a escanear el QR entero.',
+  );
+
+  /// Token and public key do not agree, so one of the two was altered in
+  /// transit or copied by halves.
+  static const tokenMismatch = ContactCardException(
+    'El token de esa tarjeta no corresponde a su clave pública. Está alterada '
+    'o quedó mal copiada: pedile la tarjeta otra vez y no la edites a mano.',
+  );
+
+  /// The core refused the key: `InvalidPublicKey` (2). Either degenerate, or a
+  /// non-canonical encoding of a real key — which is an identity that would get
+  /// its own token and, with it, a way around a block (F-10). Not something to
+  /// "fix" here; see invariant 14 in `docs/ffi-contract.md`.
+  static const malformedKey = ContactCardException(
+    'La clave pública de esa tarjeta está mal codificada, así que no se puede '
+    'usar como identidad. No es un problema de red: la tarjeta está mal. '
+    'Pedile que la genere de nuevo con una versión al día de Encrypchat.',
+  );
+
+  @override
+  String toString() => 'ContactCardException: $message';
+}
+
 /// Local contact (public material only — never stores secrets).
 @immutable
 class Contact {
@@ -63,6 +102,11 @@ class Contact {
     return 'encrypchat:contact:v1:$token:$publicKeyHex:$name';
   }
 
+  /// Parses an export line or a scanned QR (they carry the same string).
+  ///
+  /// The 32 bytes come out exactly as they were written: this never masks,
+  /// reduces or otherwise "repairs" an encoding. Whether the core accepts the
+  /// key is the core's call — see `EncrypchatCore.assertUsablePublicKey`.
   static Contact parseExport(String raw) {
     final trimmed = raw.trim();
     final parts = trimmed.split(':');
@@ -70,14 +114,14 @@ class Contact {
         parts[0] != 'encrypchat' ||
         parts[1] != 'contact' ||
         parts[2] != 'v1') {
-      throw const FormatException('Invalid contact export');
+      throw ContactCardException.unreadable;
     }
     final token = parts[3];
     final hex = parts[4];
     final namePart = parts.length > 5 ? parts.sublist(5).join(':') : '';
     final pub = _hexToBytes(hex);
     if (!_tokenMatchesPublicKey(token, pub)) {
-      throw const FormatException('Token does not match public key');
+      throw ContactCardException.tokenMismatch;
     }
     final name = namePart.isEmpty ? null : Uri.decodeComponent(namePart);
     return Contact(
@@ -106,7 +150,7 @@ bool _tokenMatchesPublicKey(String token, Uint8List publicKey) {
 Uint8List _hexToBytes(String hex) {
   final cleaned = hex.trim().toLowerCase();
   if (cleaned.length != 64 || !RegExp(r'^[0-9a-f]+$').hasMatch(cleaned)) {
-    throw const FormatException('Invalid public key hex');
+    throw ContactCardException.unreadable;
   }
   final out = Uint8List(32);
   for (var i = 0; i < 32; i++) {

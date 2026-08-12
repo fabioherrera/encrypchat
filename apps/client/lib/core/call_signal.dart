@@ -15,6 +15,7 @@ class CallSignal {
     required this.media,
     this.sdp,
     this.candidate,
+    this.sentAtUnix,
   });
 
   static const schemaVersion = 1;
@@ -27,6 +28,24 @@ class CallSignal {
   final CallMediaMode media;
   final String? sdp;
   final Map<String, dynamic>? candidate;
+
+  /// When the sender says it wrote this, in Unix seconds (`ts`).
+  ///
+  /// Inside the E2EE payload, so it cannot be edited in transit, but it is the
+  /// sender's clock: a claim, not a trusted time. `null` means the peer runs a
+  /// build from before the field existed — see `CallService` for what that costs.
+  final int? sentAtUnix;
+
+  /// Same signal, stamped with this device's clock. Called on the way out so the
+  /// stamp comes from one place instead of every construction site.
+  CallSignal stamped(int sentAtUnix) => CallSignal(
+    type: type,
+    callId: callId,
+    media: media,
+    sdp: sdp,
+    candidate: candidate,
+    sentAtUnix: sentAtUnix,
+  );
 
   static bool looksLike(Uint8List bytes) {
     if (bytes.isEmpty || bytes[0] != 0x7b) return false; // '{'
@@ -73,12 +92,16 @@ class CallSignal {
         throw const FormatException('ICE candidate demasiado grande');
       }
     }
+    final ts = map['ts'];
     return CallSignal(
       type: type,
       callId: callId,
       media: media,
       sdp: sdp,
       candidate: cand,
+      // Absent or not a number reads as unstamped, never as zero: `0` would look
+      // like 1970 and be judged stale by the freshness check.
+      sentAtUnix: ts is int && ts > 0 ? ts : null,
     );
   }
 
@@ -98,6 +121,7 @@ class CallSignal {
       'callId': callId,
       'media': media == CallMediaMode.av ? 'av' : 'audio',
     };
+    if (sentAtUnix != null) map['ts'] = sentAtUnix;
     if (sdp != null) map['sdp'] = sdp;
     if (candidate != null) map['candidate'] = candidate;
     return Uint8List.fromList(utf8.encode(jsonEncode(map)));

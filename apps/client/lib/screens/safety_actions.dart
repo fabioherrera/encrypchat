@@ -20,6 +20,7 @@ Future<bool> confirmBlock(
         'Dejarás de recibir sus mensajes, sus fotos y sus llamadas: se '
         'descartan en este dispositivo antes de abrirlos. Tampoco vas a poder '
         'escribirle mientras esté bloqueado.\n\n'
+        'Si estás en una llamada con esta persona, se corta ahora mismo.\n\n'
         'No se le avisa. El historial que ya tenés se conserva. Podés '
         'desbloquear cuando quieras.',
       ),

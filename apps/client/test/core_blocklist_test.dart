@@ -195,9 +195,12 @@ void main() {
   });
 
   test('the ABI floor rejects an older core and accepts a newer one', () {
-    expect(EncrypchatCore.isApiCompatible('0.7.0'), isTrue);
-    expect(EncrypchatCore.isApiCompatible('0.7.3'), isTrue);
+    // The floor moved to 0.8.0 with the sealed-sender pair: a 0.7.x core has no
+    // `encrypchat_sealed_open`, and the relay path has nothing to fall back to.
     expect(EncrypchatCore.isApiCompatible('0.8.0'), isTrue);
+    expect(EncrypchatCore.isApiCompatible('0.8.4'), isTrue);
+    expect(EncrypchatCore.isApiCompatible('0.9.0'), isTrue);
+    expect(EncrypchatCore.isApiCompatible('0.7.0'), isFalse);
     expect(EncrypchatCore.isApiCompatible('0.6.9'), isFalse);
     // A major bump is not assumed compatible either way.
     expect(EncrypchatCore.isApiCompatible('1.0.0'), isFalse);
@@ -211,7 +214,7 @@ void main() {
         isA<CoreVersionException>().having(
           (e) => e.message,
           'message',
-          allOf(contains('make build-ffi'), contains('0.7.0')),
+          allOf(contains('make build-ffi'), contains('0.8.0')),
         ),
       ),
     );

@@ -17,6 +17,10 @@ class CoreException implements Exception {
   static const int invalidFrame = 10;
   static const int authFailed = 11;
   static const int peerBlocked = 12;
+
+  /// Sealed blob outside the freshness window — authenticated first, so this
+  /// means "genuine but old", never "forged".
+  static const int expired = 13;
   static const int internal = 255;
 
   String get label => switch (code) {
@@ -32,6 +36,7 @@ class CoreException implements Exception {
     invalidFrame => 'InvalidFrame',
     authFailed => 'AuthFailed',
     peerBlocked => 'PeerBlocked',
+    expired => 'Expired',
     internal => 'Internal',
     _ => 'Unknown($code)',
   };

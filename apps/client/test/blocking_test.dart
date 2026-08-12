@@ -30,6 +30,7 @@ void main() {
   /// Bob is the peer that gets blocked; his identity only exists to produce
   /// frames addressed to the local user.
   late Contact bob;
+  late Uint8List bobSecret;
 
   Uint8List frameFromBob(Uint8List plaintext) {
     return WireFrame.create(
@@ -61,9 +62,10 @@ void main() {
     await identity.create();
 
     final bobIdentity = core.identityGenerate();
+    bobSecret = bobIdentity.secret;
     bob = Contact(
       token: bobIdentity.token,
-      publicKey: core.identityPublicKey(bobIdentity.secret),
+      publicKey: core.identityPublicKey(bobSecret),
       displayName: 'Bob',
     );
 
@@ -140,14 +142,25 @@ void main() {
 
   test('relay-delivered messages from a blocked peer are dropped', () async {
     await messaging.block(bob.token);
-    final blob = core.encryptUtf8(
-      recipientPublicKey: identity.publicKey!,
-      plaintext: jsonEncode({'v': 1, 'from': bob.token, 'body': 'hola'}),
-    );
+    // Sealed by Bob himself: the token the block acts on comes out of the
+    // ciphertext, so there is no declared sender to swap for a trusted one.
+    final blob = core
+        .sealedSeal(
+          senderSecret: bobSecret,
+          recipientPublicKey: identity.publicKey!,
+          plaintext: Uint8List.fromList(utf8.encode('hola')),
+        )
+        .blob;
 
     await messaging.handleRelayBlob(blob);
 
     expect(await database.messageCount(), 0);
+
+    // Unblocking lets the same identity through, which is what proves the drop
+    // was the block and not a format failure.
+    await messaging.unblock(bob.token);
+    await messaging.handleRelayBlob(blob);
+    expect(await database.messageCount(), 1);
   });
 
   test(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../models/contact.dart';
 import '../services/session_controller.dart';
 import '../theme/encrypchat_colors.dart';
 import 'safety_actions.dart';
@@ -51,6 +52,10 @@ class _ContactsPageState extends State<ContactsPage> {
           context,
         ).showSnackBar(const SnackBar(content: Text('Contacto guardado')));
       }
+    } on ContactCardException catch (e) {
+      // The card is wrong and will stay wrong: shown as its own dialog, with
+      // what to ask for, and no invitation to try the same text again.
+      if (mounted) await _cardRejected(e);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -58,6 +63,54 @@ class _ContactsPageState extends State<ContactsPage> {
         ).showSnackBar(SnackBar(content: Text('No se pudo importar: $e')));
       }
     }
+  }
+
+  Future<void> _cardRejected(ContactCardException error) {
+    return showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Tarjeta no válida'),
+        content: Text(error.message),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Deleting a contact removes the conversation too, because the chat list is
+  /// built from contacts: leaving the messages would leave them unreachable and
+  /// growing, which is the invisibility F-6 was about. So it has to be said out
+  /// loud before it happens.
+  Future<void> _confirmDelete(String token, String label) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Eliminar a $label'),
+        content: const Text(
+          'Se borran también los mensajes y los adjuntos de esta conversación '
+          'en este dispositivo. No se puede deshacer.\n\n'
+          'Eliminar no es bloquear: si te vuelve a escribir, aparecerá en '
+          'Solicitudes.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await widget.session.removeContact(token);
+    if (mounted) setState(() {});
   }
 
   @override
@@ -205,7 +258,7 @@ class _ContactsPageState extends State<ContactsPage> {
                         );
                         if (mounted) setState(() {});
                       } else if (value == 'delete') {
-                        await widget.session.removeContact(c.token);
+                        await _confirmDelete(c.token, c.label);
                       }
                     },
                     itemBuilder: (context) => [
