@@ -3,7 +3,8 @@
 
 ROOT := $(CURDIR)
 FLUTTER ?= $(shell if [ -x $(ROOT)/.tools/flutter/bin/flutter ]; then echo $(ROOT)/.tools/flutter/bin/flutter; else command -v flutter; fi)
-export PATH := $(dir $(abspath $(FLUTTER))):$(PATH)
+# Prefer portable toolchain under .tools/bin (cmake/ninja) when present
+export PATH := $(ROOT)/.tools/bin:$(dir $(abspath $(FLUTTER))):$(PATH)
 export PUB_CACHE ?= $(ROOT)/.tools/pub-cache
 # Isolated HOME only for Flutter (avoids writing to real ~; keeps rustup working for cargo)
 FLUTTER_HOME := $(ROOT)/.tools/home
@@ -15,6 +16,7 @@ export CARGO_TARGET_DIR ?= $(ROOT)/target
 
 help:
 	@echo "Targets: check | check-rust | check-web | check-client | build-ffi | build-client-linux | dev-web | dev-client"
+	@echo "Toolchain: put cmake/ninja in .tools/bin if system packages are unavailable"
 
 check: check-rust check-web build-ffi check-client
 
