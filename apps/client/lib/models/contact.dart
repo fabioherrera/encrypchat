@@ -25,16 +25,17 @@ class Contact {
   String get label {
     final name = displayName?.trim();
     if (name != null && name.isNotEmpty) return name;
-    if (token.length > 14) return '${token.substring(0, 10)}…${token.substring(token.length - 4)}';
+    if (token.length > 14)
+      return '${token.substring(0, 10)}…${token.substring(token.length - 4)}';
     return token;
   }
 
   Map<String, Object?> toMap() => {
-        'token': token,
-        'public_key': publicKey,
-        'display_name': displayName,
-        'created_at': (createdAt ?? DateTime.now().toUtc()).toIso8601String(),
-      };
+    'token': token,
+    'public_key': publicKey,
+    'display_name': displayName,
+    'created_at': (createdAt ?? DateTime.now().toUtc()).toIso8601String(),
+  };
 
   factory Contact.fromMap(Map<String, Object?> map) {
     final key = map['public_key'];

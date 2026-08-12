@@ -12,10 +12,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Encrypchat'), findsWidgets);
-    expect(
-      find.text('DECENTRALIZED P2P CHAT | ZERO-CLOUD'),
-      findsOneWidget,
-    );
+    expect(find.text('DECENTRALIZED P2P CHAT | ZERO-CLOUD'), findsOneWidget);
     expect(find.text('Crear identidad'), findsOneWidget);
   });
 

@@ -13,14 +13,13 @@ import '../models/contact.dart';
 ///
 /// Message bodies are stored as AEAD blobs (`local_seal` with [dbKey]), never plaintext.
 class LocalDatabase {
-  LocalDatabase({
-    FlutterSecureStorage? storage,
-    DatabaseFactory? factory,
-  })  : _storage = storage ??
-            const FlutterSecureStorage(
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
-            ),
-        _factory = factory;
+  LocalDatabase({FlutterSecureStorage? storage, DatabaseFactory? factory})
+    : _storage =
+          storage ??
+          const FlutterSecureStorage(
+            aOptions: AndroidOptions(encryptedSharedPreferences: true),
+          ),
+      _factory = factory;
 
   static const _dbKeyStorage = 'local_db_key_v1';
   static const _dbName = 'encrypchat_v1.db';
@@ -142,11 +141,10 @@ class LocalDatabase {
     if (copied) {
       await db.execute('DROP TABLE IF EXISTS messages_old');
     }
-    await db.insert(
-      'meta',
-      {'key': 'encryption', 'value': 'local_aead_db_key_v1'},
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert('meta', {
+      'key': 'encryption',
+      'value': 'local_aead_db_key_v1',
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<void> _upgradeToV3(Database db) async {
@@ -173,16 +171,12 @@ class LocalDatabase {
     required String token,
     required Uint8List publicKey,
   }) async {
-    await db.insert(
-      'profile',
-      {
-        'id': 1,
-        'token': token,
-        'public_key': publicKey,
-        'created_at': DateTime.now().toUtc().toIso8601String(),
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert('profile', {
+      'id': 1,
+      'token': token,
+      'public_key': publicKey,
+      'created_at': DateTime.now().toUtc().toIso8601String(),
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<List<Contact>> listContacts() async {
@@ -208,14 +202,10 @@ class LocalDatabase {
   }
 
   Future<void> blockToken(String token) async {
-    await db.insert(
-      'blocked',
-      {
-        'token': normalizeToken(token),
-        'created_at': DateTime.now().toUtc().toIso8601String(),
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert('blocked', {
+      'token': normalizeToken(token),
+      'created_at': DateTime.now().toUtc().toIso8601String(),
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<void> unblockToken(String token) async {

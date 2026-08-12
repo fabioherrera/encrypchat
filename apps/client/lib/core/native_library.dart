@@ -56,7 +56,9 @@ List<String> _linuxCandidates() {
     p.join(cwd, 'native', 'libencrypchat_core.so'),
     p.join(cwd, 'apps', 'client', 'native', 'libencrypchat_core.so'),
     // Dev: monorepo apps/client → ../../target/release
-    p.normalize(p.join(cwd, '..', '..', 'target', 'release', 'libencrypchat_core.so')),
+    p.normalize(
+      p.join(cwd, '..', '..', 'target', 'release', 'libencrypchat_core.so'),
+    ),
     p.normalize(p.join(cwd, 'target', 'release', 'libencrypchat_core.so')),
   ];
 }

@@ -68,16 +68,16 @@ class ChatMessage {
   }
 
   Map<String, Object?> toMap() => {
-        'id': id,
-        'peer_token': peerToken,
-        'direction': direction.name,
-        'body_sealed': bodySealed,
-        'status': status.name,
-        'created_at': createdAt.toUtc().toIso8601String(),
-        'kind': kind.name,
-        'mime': mime,
-        'media_relpath': mediaRelPath,
-      };
+    'id': id,
+    'peer_token': peerToken,
+    'direction': direction.name,
+    'body_sealed': bodySealed,
+    'status': status.name,
+    'created_at': createdAt.toUtc().toIso8601String(),
+    'kind': kind.name,
+    'mime': mime,
+    'media_relpath': mediaRelPath,
+  };
 
   factory ChatMessage.fromMap(Map<String, Object?> map, {String? plaintext}) {
     final sealed = map['body_sealed'];

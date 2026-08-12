@@ -16,11 +16,7 @@ import '../theme/encrypchat_colors.dart';
 import 'safety_actions.dart';
 
 class ChatPage extends StatefulWidget {
-  const ChatPage({
-    super.key,
-    required this.session,
-    required this.peer,
-  });
+  const ChatPage({super.key, required this.session, required this.peer});
 
   final SessionController session;
   final Contact peer;
@@ -71,9 +67,9 @@ class _ChatPageState extends State<ChatPage> {
       await _reload();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$e')));
       }
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -104,9 +100,9 @@ class _ChatPageState extends State<ChatPage> {
       await _reload();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$e')));
       }
     } finally {
       // The picker handed us a plaintext copy in the app cache and nothing else
@@ -125,9 +121,9 @@ class _ChatPageState extends State<ChatPage> {
       // CallOverlayHost / CallPage opened via session.calls listener.
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$e')));
       }
     }
   }
@@ -300,7 +296,11 @@ class _ChatPageState extends State<ChatPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.lock_outline, size: 14, color: EncrypchatColors.muted),
+                Icon(
+                  Icons.lock_outline,
+                  size: 14,
+                  color: EncrypchatColors.muted,
+                ),
                 SizedBox(width: 6),
                 Text(
                   'Cifrado E2EE · en este dispositivo',
@@ -318,8 +318,9 @@ class _ChatPageState extends State<ChatPage> {
                 final m = _messages[index];
                 final mine = m.direction == MessageDirection.outbound;
                 return Align(
-                  alignment:
-                      mine ? Alignment.centerRight : Alignment.centerLeft,
+                  alignment: mine
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
                   child: Container(
                     margin: const EdgeInsets.symmetric(vertical: 4),
                     padding: const EdgeInsets.symmetric(

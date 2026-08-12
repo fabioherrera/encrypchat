@@ -16,10 +16,7 @@ void main() {
     expect(find.text('Términos de uso'), findsOneWidget);
     // The URL is on screen, so the page stays reachable even where the app
     // cannot hand the link to a browser.
-    expect(
-      find.textContaining('https://encrypchat.com/'),
-      findsNWidgets(2),
-    );
+    expect(find.textContaining('https://encrypchat.com/'), findsNWidgets(2));
     expect(find.text('Contactos bloqueados'), findsOneWidget);
   });
 }

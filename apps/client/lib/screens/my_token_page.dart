@@ -106,7 +106,9 @@ class MyTokenPage extends StatelessWidget {
                   await Clipboard.setData(ClipboardData(text: export));
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Contacto exportado al portapapeles')),
+                      const SnackBar(
+                        content: Text('Contacto exportado al portapapeles'),
+                      ),
                     );
                   }
                 },
@@ -147,9 +149,7 @@ class MyTokenPage extends StatelessWidget {
 
   void _openAbout(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => AboutPage(session: session),
-      ),
+      MaterialPageRoute<void>(builder: (_) => AboutPage(session: session)),
     );
   }
 }

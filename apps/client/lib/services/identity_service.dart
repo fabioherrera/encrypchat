@@ -10,14 +10,13 @@ import '../core/encrypchat_core.dart';
 ///
 /// Never logs secret bytes. [toString] only exposes the token.
 class IdentityService {
-  IdentityService({
-    required EncrypchatCore core,
-    FlutterSecureStorage? storage,
-  })  : _core = core,
-        _storage = storage ??
-            const FlutterSecureStorage(
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
-            );
+  IdentityService({required EncrypchatCore core, FlutterSecureStorage? storage})
+    : _core = core,
+      _storage =
+          storage ??
+          const FlutterSecureStorage(
+            aOptions: AndroidOptions(encryptedSharedPreferences: true),
+          );
 
   static const _secretKey = 'identity_secret_v1';
   static const _tokenKey = 'identity_token_v1';
@@ -58,10 +57,7 @@ class IdentityService {
     _secret = generated.secret;
     _token = generated.token;
     _publicKey = _core.identityPublicKey(_secret!);
-    await _storage.write(
-      key: _secretKey,
-      value: base64Encode(_secret!),
-    );
+    await _storage.write(key: _secretKey, value: base64Encode(_secret!));
     await _storage.write(key: _tokenKey, value: _token);
     return _token!;
   }

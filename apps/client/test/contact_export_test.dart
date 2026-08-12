@@ -9,11 +9,7 @@ void main() {
     final pub = Uint8List.fromList(List<int>.generate(32, (i) => i + 1));
     final digest = sha256.convert(pub);
     final token = 'ec_${digest.toString()}';
-    final contact = Contact(
-      token: token,
-      publicKey: pub,
-      displayName: 'Ada',
-    );
+    final contact = Contact(token: token, publicKey: pub, displayName: 'Ada');
     final parsed = Contact.parseExport(contact.exportLine());
     expect(parsed.token, token);
     expect(parsed.publicKey, pub);
@@ -21,12 +17,7 @@ void main() {
   });
 
   test('isValidToken accepts ec_ + 64 hex', () {
-    expect(
-      isValidToken(
-        'ec_${List.filled(64, 'a').join()}',
-      ),
-      isTrue,
-    );
+    expect(isValidToken('ec_${List.filled(64, 'a').join()}'), isTrue);
     expect(isValidToken('bad'), isFalse);
   });
 }

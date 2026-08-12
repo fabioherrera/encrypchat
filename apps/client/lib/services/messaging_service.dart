@@ -27,15 +27,16 @@ class MessagingService extends ChangeNotifier {
     RelayClient? relay,
     MediaStore? mediaStore,
     FlutterSecureStorage? storage,
-  })  : _core = core,
-        _identity = identity,
-        _database = database,
-        _relay = relay ?? RelayClient(),
-        _media = mediaStore ?? MediaStore(core: core, database: database),
-        _storage = storage ??
-            const FlutterSecureStorage(
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
-            );
+  }) : _core = core,
+       _identity = identity,
+       _database = database,
+       _relay = relay ?? RelayClient(),
+       _media = mediaStore ?? MediaStore(core: core, database: database),
+       _storage =
+           storage ??
+           const FlutterSecureStorage(
+             aOptions: AndroidOptions(encryptedSharedPreferences: true),
+           );
 
   static const _relayUrlKey = 'relay_base_url_v1';
 
@@ -167,10 +168,7 @@ class MessagingService extends ChangeNotifier {
   Future<void> startNode({int listenPort = 0}) async {
     await loadRelayUrl();
     if (_core.isNodeRunning) return;
-    _core.nodeStart(
-      secret: _identity.requireSecret(),
-      listenPort: listenPort,
-    );
+    _core.nodeStart(secret: _identity.requireSecret(), listenPort: listenPort);
     // The core-side list is empty after every start, so this is the one sync
     // that cannot be skipped: without it a restart silently drops the mirror.
     _syncBlockedToCore();

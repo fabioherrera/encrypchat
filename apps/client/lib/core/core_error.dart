@@ -20,25 +20,26 @@ class CoreException implements Exception {
   static const int internal = 255;
 
   String get label => switch (code) {
-        invalidToken => 'InvalidToken',
-        invalidPublicKey => 'InvalidPublicKey',
-        decryptionFailed => 'DecryptionFailed',
-        ciphertextTooShort => 'CiphertextTooShort',
-        emptyPlaintext => 'EmptyPlaintext',
-        bufferTooSmall => 'BufferTooSmall',
-        nullPointer => 'NullPointer',
-        peerOffline => 'PeerOffline',
-        empty => 'Empty',
-        invalidFrame => 'InvalidFrame',
-        authFailed => 'AuthFailed',
-        peerBlocked => 'PeerBlocked',
-        internal => 'Internal',
-        _ => 'Unknown($code)',
-      };
+    invalidToken => 'InvalidToken',
+    invalidPublicKey => 'InvalidPublicKey',
+    decryptionFailed => 'DecryptionFailed',
+    ciphertextTooShort => 'CiphertextTooShort',
+    emptyPlaintext => 'EmptyPlaintext',
+    bufferTooSmall => 'BufferTooSmall',
+    nullPointer => 'NullPointer',
+    peerOffline => 'PeerOffline',
+    empty => 'Empty',
+    invalidFrame => 'InvalidFrame',
+    authFailed => 'AuthFailed',
+    peerBlocked => 'PeerBlocked',
+    internal => 'Internal',
+    _ => 'Unknown($code)',
+  };
 
   @override
-  String toString() =>
-      message == null ? 'CoreException($label)' : 'CoreException($label): $message';
+  String toString() => message == null
+      ? 'CoreException($label)'
+      : 'CoreException($label): $message';
 }
 
 /// The native core on disk is older than the ABI this build was written against.

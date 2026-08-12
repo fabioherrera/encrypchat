@@ -31,8 +31,7 @@ class EncrypchatApp extends StatefulWidget {
 }
 
 class _EncrypchatAppState extends State<EncrypchatApp> {
-  late final SessionController _session =
-      widget.session ?? SessionController();
+  late final SessionController _session = widget.session ?? SessionController();
 
   @override
   void initState() {

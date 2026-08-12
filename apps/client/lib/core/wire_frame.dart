@@ -74,7 +74,9 @@ class WireFrame {
     if (tokenLen == 0 || offset + tokenLen > bytes.length) {
       throw const FormatException('Bad token length');
     }
-    final token = String.fromCharCodes(bytes.sublist(offset, offset + tokenLen));
+    final token = String.fromCharCodes(
+      bytes.sublist(offset, offset + tokenLen),
+    );
     offset += tokenLen;
     if (offset + 4 > bytes.length) {
       throw const FormatException('Missing ciphertext length');
@@ -97,18 +99,20 @@ class WireFrame {
 
   static Uint8List _randomMsgId() {
     final rnd = Random.secure();
-    return Uint8List.fromList(List<int>.generate(msgIdLen, (_) => rnd.nextInt(256)));
+    return Uint8List.fromList(
+      List<int>.generate(msgIdLen, (_) => rnd.nextInt(256)),
+    );
   }
 
   static Uint8List _u16be(int v) =>
       Uint8List.fromList([(v >> 8) & 0xff, v & 0xff]);
 
   static Uint8List _u32be(int v) => Uint8List.fromList([
-        (v >> 24) & 0xff,
-        (v >> 16) & 0xff,
-        (v >> 8) & 0xff,
-        v & 0xff,
-      ]);
+    (v >> 24) & 0xff,
+    (v >> 16) & 0xff,
+    (v >> 8) & 0xff,
+    v & 0xff,
+  ]);
 
   static int _readU16be(Uint8List b, int o) => (b[o] << 8) | b[o + 1];
 

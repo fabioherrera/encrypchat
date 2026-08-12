@@ -42,6 +42,9 @@ jobs:
           cargo build -p encrypchat_core --release
           mkdir -p apps/client/native
           cp -f target/release/libencrypchat_core.so apps/client/native/
+      - name: Dart format
+        working-directory: apps/client
+        run: dart format --output=none --set-exit-if-changed .
       - name: Flutter test
         working-directory: apps/client
         env:

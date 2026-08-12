@@ -47,15 +47,15 @@ class _ContactsPageState extends State<ContactsPage> {
     try {
       await widget.session.importContact(raw);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Contacto guardado')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Contacto guardado')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No se pudo importar: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('No se pudo importar: $e')));
       }
     }
   }
@@ -172,7 +172,9 @@ class _ContactsPageState extends State<ContactsPage> {
                   trailing: PopupMenuButton<String>(
                     onSelected: (value) async {
                       if (value == 'copy') {
-                        await Clipboard.setData(ClipboardData(text: c.exportLine()));
+                        await Clipboard.setData(
+                          ClipboardData(text: c.exportLine()),
+                        );
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Export copiado')),
@@ -207,7 +209,10 @@ class _ContactsPageState extends State<ContactsPage> {
                       }
                     },
                     itemBuilder: (context) => [
-                      const PopupMenuItem(value: 'copy', child: Text('Exportar')),
+                      const PopupMenuItem(
+                        value: 'copy',
+                        child: Text('Exportar'),
+                      ),
                       if (blocked)
                         const PopupMenuItem(
                           value: 'unblock',
@@ -222,7 +227,10 @@ class _ContactsPageState extends State<ContactsPage> {
                         value: 'report',
                         child: Text('Reportar abuso'),
                       ),
-                      const PopupMenuItem(value: 'delete', child: Text('Eliminar')),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Text('Eliminar'),
+                      ),
                     ],
                   ),
                 );

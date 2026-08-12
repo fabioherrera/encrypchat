@@ -18,11 +18,11 @@ class SessionController extends ChangeNotifier {
     LocalDatabase? database,
     MessagingService? messaging,
     CallService? calls,
-  })  : _core = core,
-        _identity = identity,
-        _database = database ?? LocalDatabase(),
-        _messagingInjected = messaging,
-        _callsInjected = calls;
+  }) : _core = core,
+       _identity = identity,
+       _database = database ?? LocalDatabase(),
+       _messagingInjected = messaging,
+       _callsInjected = calls;
 
   EncrypchatCore? _core;
   IdentityService? _identity;
@@ -103,12 +103,9 @@ class SessionController extends ChangeNotifier {
       publicKey: identity.publicKey!,
     );
     contacts = await _database.listContacts();
-    _messaging = _messagingInjected ??
-        MessagingService(
-          core: core,
-          identity: identity,
-          database: _database,
-        );
+    _messaging =
+        _messagingInjected ??
+        MessagingService(core: core, identity: identity, database: _database);
     _messaging!.setContacts(contacts);
     await _messaging!.loadBlocked();
     _messaging!.addListener(notifyListeners);

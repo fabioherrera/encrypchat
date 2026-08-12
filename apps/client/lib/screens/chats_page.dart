@@ -49,7 +49,10 @@ class ChatsPage extends StatelessWidget {
             Material(
               color: EncrypchatColors.paper,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
                 child: Text(
                   'Nodo P2P: $listen',
                   style: const TextStyle(
@@ -137,10 +140,8 @@ class ChatsPage extends StatelessWidget {
                         onTap: () {
                           Navigator.of(context).push(
                             MaterialPageRoute<void>(
-                              builder: (_) => ChatPage(
-                                session: session,
-                                peer: c,
-                              ),
+                              builder: (_) =>
+                                  ChatPage(session: session, peer: c),
                             ),
                           );
                         },

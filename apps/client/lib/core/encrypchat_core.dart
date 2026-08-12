@@ -10,161 +10,157 @@ import 'native_library.dart';
 typedef _ApiVersionC = Int32 Function(Pointer<Char> out, Size cap);
 typedef _ApiVersionDart = int Function(Pointer<Char> out, int cap);
 
-typedef _IdentityGenerateC = Int32 Function(
-  Pointer<Uint8> outSecret,
-  Pointer<Char> outToken,
-  Size tokenCap,
-);
-typedef _IdentityGenerateDart = int Function(
-  Pointer<Uint8> outSecret,
-  Pointer<Char> outToken,
-  int tokenCap,
-);
+typedef _IdentityGenerateC =
+    Int32 Function(
+      Pointer<Uint8> outSecret,
+      Pointer<Char> outToken,
+      Size tokenCap,
+    );
+typedef _IdentityGenerateDart =
+    int Function(
+      Pointer<Uint8> outSecret,
+      Pointer<Char> outToken,
+      int tokenCap,
+    );
 
-typedef _IdentityTokenC = Int32 Function(
-  Pointer<Uint8> secret,
-  Pointer<Char> outToken,
-  Size tokenCap,
-);
-typedef _IdentityTokenDart = int Function(
-  Pointer<Uint8> secret,
-  Pointer<Char> outToken,
-  int tokenCap,
-);
+typedef _IdentityTokenC =
+    Int32 Function(
+      Pointer<Uint8> secret,
+      Pointer<Char> outToken,
+      Size tokenCap,
+    );
+typedef _IdentityTokenDart =
+    int Function(Pointer<Uint8> secret, Pointer<Char> outToken, int tokenCap);
 
-typedef _IdentityPublicKeyC = Int32 Function(
-  Pointer<Uint8> secret,
-  Pointer<Uint8> outPub,
-);
-typedef _IdentityPublicKeyDart = int Function(
-  Pointer<Uint8> secret,
-  Pointer<Uint8> outPub,
-);
+typedef _IdentityPublicKeyC =
+    Int32 Function(Pointer<Uint8> secret, Pointer<Uint8> outPub);
+typedef _IdentityPublicKeyDart =
+    int Function(Pointer<Uint8> secret, Pointer<Uint8> outPub);
 
-typedef _BufOutC = Int32 Function(
-  Pointer<Uint8> a,
-  Pointer<Uint8> data,
-  Size dataLen,
-  Pointer<Pointer<Uint8>> out,
-  Pointer<Size> outLen,
-);
-typedef _BufOutDart = int Function(
-  Pointer<Uint8> a,
-  Pointer<Uint8> data,
-  int dataLen,
-  Pointer<Pointer<Uint8>> out,
-  Pointer<Size> outLen,
-);
+typedef _BufOutC =
+    Int32 Function(
+      Pointer<Uint8> a,
+      Pointer<Uint8> data,
+      Size dataLen,
+      Pointer<Pointer<Uint8>> out,
+      Pointer<Size> outLen,
+    );
+typedef _BufOutDart =
+    int Function(
+      Pointer<Uint8> a,
+      Pointer<Uint8> data,
+      int dataLen,
+      Pointer<Pointer<Uint8>> out,
+      Pointer<Size> outLen,
+    );
 
-typedef _DecryptC = Int32 Function(
-  Pointer<Uint8> secret,
-  Pointer<Uint8> ciphertext,
-  Size ciphertextLen,
-  Pointer<Pointer<Uint8>> outPlaintext,
-  Pointer<Size> outLen,
-);
-typedef _DecryptDart = int Function(
-  Pointer<Uint8> secret,
-  Pointer<Uint8> ciphertext,
-  int ciphertextLen,
-  Pointer<Pointer<Uint8>> outPlaintext,
-  Pointer<Size> outLen,
-);
+typedef _DecryptC =
+    Int32 Function(
+      Pointer<Uint8> secret,
+      Pointer<Uint8> ciphertext,
+      Size ciphertextLen,
+      Pointer<Pointer<Uint8>> outPlaintext,
+      Pointer<Size> outLen,
+    );
+typedef _DecryptDart =
+    int Function(
+      Pointer<Uint8> secret,
+      Pointer<Uint8> ciphertext,
+      int ciphertextLen,
+      Pointer<Pointer<Uint8>> outPlaintext,
+      Pointer<Size> outLen,
+    );
 
-typedef _NodeStartC = Int32 Function(
-  Pointer<Uint8> secret,
-  Uint16 listenPort,
-  Pointer<Pointer<Void>> outHandle,
-);
-typedef _NodeStartDart = int Function(
-  Pointer<Uint8> secret,
-  int listenPort,
-  Pointer<Pointer<Void>> outHandle,
-);
+typedef _NodeStartC =
+    Int32 Function(
+      Pointer<Uint8> secret,
+      Uint16 listenPort,
+      Pointer<Pointer<Void>> outHandle,
+    );
+typedef _NodeStartDart =
+    int Function(
+      Pointer<Uint8> secret,
+      int listenPort,
+      Pointer<Pointer<Void>> outHandle,
+    );
 
 typedef _NodeStopC = Void Function(Pointer<Void> handle);
 typedef _NodeStopDart = void Function(Pointer<Void> handle);
 
-typedef _NodeTokenC = Int32 Function(
-  Pointer<Void> handle,
-  Pointer<Char> out,
-  Size cap,
-);
-typedef _NodeTokenDart = int Function(
-  Pointer<Void> handle,
-  Pointer<Char> out,
-  int cap,
-);
+typedef _NodeTokenC =
+    Int32 Function(Pointer<Void> handle, Pointer<Char> out, Size cap);
+typedef _NodeTokenDart =
+    int Function(Pointer<Void> handle, Pointer<Char> out, int cap);
 
-typedef _NodeSendC = Int32 Function(
-  Pointer<Void> handle,
-  Pointer<Char> token,
-  Pointer<Uint8> frame,
-  Size frameLen,
-);
-typedef _NodeSendDart = int Function(
-  Pointer<Void> handle,
-  Pointer<Char> token,
-  Pointer<Uint8> frame,
-  int frameLen,
-);
+typedef _NodeSendC =
+    Int32 Function(
+      Pointer<Void> handle,
+      Pointer<Char> token,
+      Pointer<Uint8> frame,
+      Size frameLen,
+    );
+typedef _NodeSendDart =
+    int Function(
+      Pointer<Void> handle,
+      Pointer<Char> token,
+      Pointer<Uint8> frame,
+      int frameLen,
+    );
 
-typedef _NodeTryRecvC = Int32 Function(
-  Pointer<Void> handle,
-  Pointer<Pointer<Uint8>> out,
-  Pointer<Size> outLen,
-);
-typedef _NodeTryRecvDart = int Function(
-  Pointer<Void> handle,
-  Pointer<Pointer<Uint8>> out,
-  Pointer<Size> outLen,
-);
+typedef _NodeTryRecvC =
+    Int32 Function(
+      Pointer<Void> handle,
+      Pointer<Pointer<Uint8>> out,
+      Pointer<Size> outLen,
+    );
+typedef _NodeTryRecvDart =
+    int Function(
+      Pointer<Void> handle,
+      Pointer<Pointer<Uint8>> out,
+      Pointer<Size> outLen,
+    );
 
-typedef _NodePeerCountC = Int32 Function(
-  Pointer<Void> handle,
-  Pointer<Size> outCount,
-);
-typedef _NodePeerCountDart = int Function(
-  Pointer<Void> handle,
-  Pointer<Size> outCount,
-);
+typedef _NodePeerCountC =
+    Int32 Function(Pointer<Void> handle, Pointer<Size> outCount);
+typedef _NodePeerCountDart =
+    int Function(Pointer<Void> handle, Pointer<Size> outCount);
 
-typedef _NodeConnectC = Int32 Function(
-  Pointer<Void> handle,
-  Pointer<Char> multiaddr,
-);
-typedef _NodeConnectDart = int Function(
-  Pointer<Void> handle,
-  Pointer<Char> multiaddr,
-);
+typedef _NodeConnectC =
+    Int32 Function(Pointer<Void> handle, Pointer<Char> multiaddr);
+typedef _NodeConnectDart =
+    int Function(Pointer<Void> handle, Pointer<Char> multiaddr);
 
-typedef _NodeSetBlockedC = Int32 Function(
-  Pointer<Void> handle,
-  Pointer<Pointer<Char>> tokens,
-  Size count,
-);
-typedef _NodeSetBlockedDart = int Function(
-  Pointer<Void> handle,
-  Pointer<Pointer<Char>> tokens,
-  int count,
-);
+typedef _NodeSetBlockedC =
+    Int32 Function(
+      Pointer<Void> handle,
+      Pointer<Pointer<Char>> tokens,
+      Size count,
+    );
+typedef _NodeSetBlockedDart =
+    int Function(
+      Pointer<Void> handle,
+      Pointer<Pointer<Char>> tokens,
+      int count,
+    );
 
-typedef _PopProofC = Int32 Function(
-  Pointer<Uint8> secret,
-  Pointer<Uint8> ephPub,
-  Pointer<Uint8> nonce,
-  Size nonceLen,
-  Pointer<Char> token,
-  Pointer<Uint8> outProof,
-);
-typedef _PopProofDart = int Function(
-  Pointer<Uint8> secret,
-  Pointer<Uint8> ephPub,
-  Pointer<Uint8> nonce,
-  int nonceLen,
-  Pointer<Char> token,
-  Pointer<Uint8> outProof,
-);
+typedef _PopProofC =
+    Int32 Function(
+      Pointer<Uint8> secret,
+      Pointer<Uint8> ephPub,
+      Pointer<Uint8> nonce,
+      Size nonceLen,
+      Pointer<Char> token,
+      Pointer<Uint8> outProof,
+    );
+typedef _PopProofDart =
+    int Function(
+      Pointer<Uint8> secret,
+      Pointer<Uint8> ephPub,
+      Pointer<Uint8> nonce,
+      int nonceLen,
+      Pointer<Char> token,
+      Pointer<Uint8> outProof,
+    );
 
 typedef _FreeC = Void Function(Pointer<Void> ptr);
 typedef _FreeDart = void Function(Pointer<Void> ptr);
@@ -172,58 +168,64 @@ typedef _FreeDart = void Function(Pointer<Void> ptr);
 /// Dart wrapper for Phase 4 C ABI (`docs/ffi-contract.md`).
 class EncrypchatCore {
   EncrypchatCore(DynamicLibrary lib)
-      : _apiVersion = lib.lookupFunction<_ApiVersionC, _ApiVersionDart>(
-          'encrypchat_api_version',
-        ),
-        _identityGenerate =
-            lib.lookupFunction<_IdentityGenerateC, _IdentityGenerateDart>(
-          'encrypchat_identity_generate',
-        ),
-        _identityToken =
-            lib.lookupFunction<_IdentityTokenC, _IdentityTokenDart>(
-          'encrypchat_identity_token',
-        ),
-        _identityPublicKey =
-            lib.lookupFunction<_IdentityPublicKeyC, _IdentityPublicKeyDart>(
-          'encrypchat_identity_public_key',
-        ),
-        _encrypt = lib.lookupFunction<_BufOutC, _BufOutDart>('encrypchat_encrypt'),
-        _decrypt = lib.lookupFunction<_DecryptC, _DecryptDart>('encrypchat_decrypt'),
-        _localSeal =
-            lib.lookupFunction<_BufOutC, _BufOutDart>('encrypchat_local_seal'),
-        _localOpen =
-            lib.lookupFunction<_BufOutC, _BufOutDart>('encrypchat_local_open'),
-        _nodeStart =
-            lib.lookupFunction<_NodeStartC, _NodeStartDart>('encrypchat_node_start'),
-        _nodeStop =
-            lib.lookupFunction<_NodeStopC, _NodeStopDart>('encrypchat_node_stop'),
-        _nodeLocalToken =
-            lib.lookupFunction<_NodeTokenC, _NodeTokenDart>(
-          'encrypchat_node_local_token',
-        ),
-        _nodeListenAddr =
-            lib.lookupFunction<_NodeTokenC, _NodeTokenDart>(
-          'encrypchat_node_listen_addr',
-        ),
-        _nodeSend =
-            lib.lookupFunction<_NodeSendC, _NodeSendDart>('encrypchat_node_send'),
-        _nodeTryRecv = lib.lookupFunction<_NodeTryRecvC, _NodeTryRecvDart>(
-          'encrypchat_node_try_recv',
-        ),
-        _nodePeerCount = lib.lookupFunction<_NodePeerCountC, _NodePeerCountDart>(
-          'encrypchat_node_peer_count',
-        ),
-        _nodeConnect = lib.lookupFunction<_NodeConnectC, _NodeConnectDart>(
-          'encrypchat_node_connect',
-        ),
-        _nodeSetBlocked =
-            lib.lookupFunction<_NodeSetBlockedC, _NodeSetBlockedDart>(
-          'encrypchat_node_set_blocked_tokens',
-        ),
-        _popProof = lib.lookupFunction<_PopProofC, _PopProofDart>(
-          'encrypchat_pop_proof',
-        ),
-        _free = lib.lookupFunction<_FreeC, _FreeDart>('encrypchat_free');
+    : _apiVersion = lib.lookupFunction<_ApiVersionC, _ApiVersionDart>(
+        'encrypchat_api_version',
+      ),
+      _identityGenerate = lib
+          .lookupFunction<_IdentityGenerateC, _IdentityGenerateDart>(
+            'encrypchat_identity_generate',
+          ),
+      _identityToken = lib.lookupFunction<_IdentityTokenC, _IdentityTokenDart>(
+        'encrypchat_identity_token',
+      ),
+      _identityPublicKey = lib
+          .lookupFunction<_IdentityPublicKeyC, _IdentityPublicKeyDart>(
+            'encrypchat_identity_public_key',
+          ),
+      _encrypt = lib.lookupFunction<_BufOutC, _BufOutDart>(
+        'encrypchat_encrypt',
+      ),
+      _decrypt = lib.lookupFunction<_DecryptC, _DecryptDart>(
+        'encrypchat_decrypt',
+      ),
+      _localSeal = lib.lookupFunction<_BufOutC, _BufOutDart>(
+        'encrypchat_local_seal',
+      ),
+      _localOpen = lib.lookupFunction<_BufOutC, _BufOutDart>(
+        'encrypchat_local_open',
+      ),
+      _nodeStart = lib.lookupFunction<_NodeStartC, _NodeStartDart>(
+        'encrypchat_node_start',
+      ),
+      _nodeStop = lib.lookupFunction<_NodeStopC, _NodeStopDart>(
+        'encrypchat_node_stop',
+      ),
+      _nodeLocalToken = lib.lookupFunction<_NodeTokenC, _NodeTokenDart>(
+        'encrypchat_node_local_token',
+      ),
+      _nodeListenAddr = lib.lookupFunction<_NodeTokenC, _NodeTokenDart>(
+        'encrypchat_node_listen_addr',
+      ),
+      _nodeSend = lib.lookupFunction<_NodeSendC, _NodeSendDart>(
+        'encrypchat_node_send',
+      ),
+      _nodeTryRecv = lib.lookupFunction<_NodeTryRecvC, _NodeTryRecvDart>(
+        'encrypchat_node_try_recv',
+      ),
+      _nodePeerCount = lib.lookupFunction<_NodePeerCountC, _NodePeerCountDart>(
+        'encrypchat_node_peer_count',
+      ),
+      _nodeConnect = lib.lookupFunction<_NodeConnectC, _NodeConnectDart>(
+        'encrypchat_node_connect',
+      ),
+      _nodeSetBlocked = lib
+          .lookupFunction<_NodeSetBlockedC, _NodeSetBlockedDart>(
+            'encrypchat_node_set_blocked_tokens',
+          ),
+      _popProof = lib.lookupFunction<_PopProofC, _PopProofDart>(
+        'encrypchat_pop_proof',
+      ),
+      _free = lib.lookupFunction<_FreeC, _FreeDart>('encrypchat_free');
 
   factory EncrypchatCore.open() {
     final lib = loadEncrypchatCore();
@@ -396,10 +398,7 @@ class EncrypchatCore {
     return _bufOut(_localSeal, dbKey, plaintext);
   }
 
-  Uint8List localOpen({
-    required Uint8List dbKey,
-    required Uint8List sealed,
-  }) {
+  Uint8List localOpen({required Uint8List dbKey, required Uint8List sealed}) {
     _require32(dbKey);
     return _bufOut(_localOpen, dbKey, sealed);
   }
@@ -575,14 +574,16 @@ class EncrypchatCore {
     final token = destToken.toNativeUtf8();
     final out = calloc<Uint8>(32);
     try {
-      _check(_popProof(
-        secretPtr,
-        ephPtr,
-        noncePtr,
-        nonce.length,
-        token.cast<Char>(),
-        out,
-      ));
+      _check(
+        _popProof(
+          secretPtr,
+          ephPtr,
+          noncePtr,
+          nonce.length,
+          token.cast<Char>(),
+          out,
+        ),
+      );
       return Uint8List.fromList(out.asTypedList(32));
     } finally {
       calloc.free(secretPtr);
@@ -593,11 +594,7 @@ class EncrypchatCore {
     }
   }
 
-  Uint8List _bufOut(
-    _BufOutDart fn,
-    Uint8List keyOrPub,
-    Uint8List data,
-  ) {
+  Uint8List _bufOut(_BufOutDart fn, Uint8List keyOrPub, Uint8List data) {
     final a = _copyBytes(keyOrPub);
     final dataPtr = data.isEmpty ? nullptr : _copyBytes(data);
     final outPtr = calloc<Pointer<Uint8>>();

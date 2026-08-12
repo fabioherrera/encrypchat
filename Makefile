@@ -45,6 +45,8 @@ check-client: build-ffi
 	mkdir -p $(PUB_CACHE) $(FLUTTER_HOME)
 	cd apps/client && HOME=$(FLUTTER_HOME) PUB_CACHE=$(PUB_CACHE) $(FLUTTER) pub get
 	cd apps/client && HOME=$(FLUTTER_HOME) PUB_CACHE=$(PUB_CACHE) \
+		dart format --output=none --set-exit-if-changed .
+	cd apps/client && HOME=$(FLUTTER_HOME) PUB_CACHE=$(PUB_CACHE) \
 		ENCRYPCHAT_CORE_LIB=$(ROOT)/apps/client/native/libencrypchat_core.so \
 		$(FLUTTER) test
 	@echo "Client tests OK (linux/cmake package builds need system deps — Phase 8)"
