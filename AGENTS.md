@@ -32,7 +32,7 @@ F1 deploy: `CLOUDFLARE_API_TOKEN` + `apps/web/out`.
 | --- | --- |
 | UI | Flutter |
 | Core | Rust + libp2p + E2EE (`crates/core`) |
-| DB local | SQLite en el dispositivo; cuerpos de mensaje y media sellados con AEAD. **SQLCipher (cifrado de fichero completo) pendiente F10** — hoy `peer_token`, contactos, timestamps y `media_relpath` son legibles en disco ([audit-f3-storage.md](docs/audit-f3-storage.md)) |
+| DB local | **SQLCipher** en el dispositivo (fichero completo, AES-256; clave derivada de `db_key` del almacén seguro del SO) + cuerpos de mensaje y media sellados con AEAD encima. No protege con el dispositivo desbloqueado y el llavero accesible ([audit-f3-storage.md](docs/audit-f3-storage.md)) |
 | A/V | WebRTC P2P |
 | Offline | Relay ciego (`services/relay`) |
 | Web | Next.js (`apps/web`) |

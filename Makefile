@@ -12,6 +12,10 @@ FLUTTER_HOME := $(ROOT)/.tools/home
 # Prefer repo-local target dir so `native/` can be populated without sandbox cache paths.
 export CARGO_TARGET_DIR ?= $(ROOT)/target
 
+# The web build is offline by design (fonts are self-hosted); telemetry was the
+# only outbound call left. Also keeps builds identical with and without network.
+export NEXT_TELEMETRY_DISABLED := 1
+
 .PHONY: check check-rust check-web check-client build-ffi build-client-linux \
 	package package-linux package-android help
 
@@ -39,7 +43,13 @@ build-ffi:
 	@echo "FFI lib → apps/client/native/libencrypchat_core.so"
 
 check-web:
-	cd apps/web && npm run build
+	# Clean start every time: fonts are self-hosted, so no build cache is worth
+	# keeping and no network is needed. This also refreshes out/, the artifact
+	# that gets deployed. NEXT_DIST_DIR was tried here and does not isolate the
+	# build — it only moves the export, which left out/ silently stale — so do
+	# not run this while `next dev` is up: both own .next and the build fails
+	# at random with "Cannot find module for page".
+	cd apps/web && rm -rf .next out && npm run build
 
 check-client: build-ffi
 	mkdir -p $(PUB_CACHE) $(FLUTTER_HOME)
@@ -69,7 +79,6 @@ dev-client: build-ffi
 		$(FLUTTER) run -d linux
 
 dev-web:
-	cd apps/web && npm run build >/dev/null 2>&1 || true
 	cd apps/web && npm run dev
 
 package-linux:

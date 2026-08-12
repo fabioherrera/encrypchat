@@ -13,6 +13,19 @@
 #   cd deploy/cloudflared
 #   export TUNNEL_TOKEN=...
 #   docker compose up -d
+#
+# IF THE BLIND RELAY IS BEHIND THIS TUNNEL, IT NEEDS CONFIGURING (F-13)
+#
+# Every request then reaches encrypchat_relay from Traefik, not from the user, so its per-IP
+# rate limit charges all users to one bucket and one client can lock everyone out with `429`.
+# On the relay service, set the addresses it should believe `X-Forwarded-For` from:
+#
+#   ENCRYPCHAT_RELAY_TRUSTED_PROXIES=127.0.0.1,::1,172.18.0.0/16   # adjust to your network
+#
+# and rate-limit at Traefik as well — the relay's limiter is per process and never sees what
+# the proxy already accepted. Details: services/relay/README.md → "Behind a reverse proxy".
+# The relay logs a warning if all its traffic arrives from a single address with no proxy
+# configured, which is what this misconfiguration looks like from the inside.
 
 services:
   cloudflared:

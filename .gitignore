@@ -24,6 +24,7 @@ Thumbs.db
 # Node / Next.js
 node_modules/
 apps/web/.next/
+apps/web/.next-check/
 apps/web/out/
 apps/web/build/
 npm-debug.log*

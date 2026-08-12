@@ -4,9 +4,15 @@ on:
   push:
     branches: [main, master]
   pull_request:
+  # Dependency advisories change without anyone touching this repository, so the audit gate
+  # needs a clock of its own. See the `audit` job for why that is not just a convenience.
+  schedule:
+    - cron: "17 4 * * *"
 
 jobs:
   rust:
+    # Nothing here depends on the calendar, so there is no reason to re-run it nightly.
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,6 +24,9 @@ jobs:
         run: cargo fmt --all --check
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
+      # The malformed-input properties (`crates/core/src/fuzz.rs`,
+      # `services/relay/tests/malformed.rs`) run inside these two, in a few seconds. The deep
+      # pass over the same generators is the `deep-fuzz` job below.
       - name: Test core
         run: cargo test -p encrypchat_core
       - name: Test relay
@@ -26,6 +35,7 @@ jobs:
         run: cargo build -p encrypchat_relay
 
   client:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -42,22 +52,27 @@ jobs:
           cargo build -p encrypchat_core --release
           mkdir -p apps/client/native
           cp -f target/release/libencrypchat_core.so apps/client/native/
+      - name: Pub get
+        working-directory: apps/client
+        run: flutter pub get
       - name: Dart format
         working-directory: apps/client
         run: dart format --output=none --set-exit-if-changed .
+      # Blocking on errors and warnings, not on style infos: an info-level lint that nobody
+      # intends to fix turns the whole check red and teaches the team to ignore it. Drop
+      # `--no-fatal-infos` once the client is clean at that level.
+      - name: Flutter analyze
+        working-directory: apps/client
+        run: flutter analyze --no-fatal-infos
       - name: Flutter test
         working-directory: apps/client
         env:
           ENCRYPCHAT_CORE_LIB: ${{ github.workspace }}/apps/client/native/libencrypchat_core.so
-        run: |
-          flutter pub get
-          flutter test
+        run: flutter test
 
   web:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/web
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -65,7 +80,156 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
-      - run: npm ci
-      - run: npm run build
+      - name: Install
+        working-directory: apps/web
+        run: npm ci
+      # `make check-web`, not a bare `npm run build`: the target builds in an isolated
+      # `distDir` and pins `NEXT_TELEMETRY_DISABLED`, so the gate is the same command a
+      # developer runs locally instead of an approximation of it.
+      - name: Build
+        run: make check-web
+
+  # Dependency advisories, which are the one result in this workflow that changes while the
+  # code stands still.
+  #
+  # A gate that goes red on a pull request because an advisory was published overnight, for a
+  # crate the author never touched and often with no patched version to move to, teaches
+  # everyone that red means nothing. So the audit blocks exactly where it is actionable:
+  #
+  #   * a change that touches a lockfile — the author chose those dependencies, and the finding
+  #     is about their diff;
+  #   * the nightly run — one scheduled build goes red, in front of whoever owns the release,
+  #     and nobody's branch is held hostage while a fix is found.
+  #
+  # Everywhere else it still runs and still reports; it just annotates instead of failing.
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Needed to diff against the base of a pull request.
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Should a finding block?
+        id: policy
+        run: |
+          set -euo pipefail
+          enforce=false
+          case "${{ github.event_name }}" in
+            schedule)
+              enforce=true
+              ;;
+            pull_request)
+              git fetch --no-tags origin "${{ github.base_ref }}"
+              if git diff --name-only "origin/${{ github.base_ref }}...HEAD" \
+                  | grep -qE '(^|/)(Cargo\.lock|package-lock\.json)$'; then
+                enforce=true
+              fi
+              ;;
+            *)
+              before="${{ github.event.before }}"
+              if [ -z "$before" ] || [ "$before" = "0000000000000000000000000000000000000000" ]; then
+                enforce=true
+              elif git diff --name-only "$before" HEAD \
+                  | grep -qE '(^|/)(Cargo\.lock|package-lock\.json)$'; then
+                enforce=true
+              fi
+              ;;
+          esac
+          echo "enforce=$enforce" >> "$GITHUB_OUTPUT"
+          if [ "$enforce" = "true" ]; then
+            echo "Findings block this run."
+          else
+            echo "Findings are reported as warnings: no lockfile in this change."
+          fi
+
+      # Built from source rather than pulled from a third-party action: this workflow is the
+      # supply chain it is auditing, and the cache makes it a one-off cost.
+      #
+      # The floor matters. cargo-audit reads a database it does not ship, so a version that is
+      # too old stops working on its own: 0.21 aborts on today's advisory-db with "unsupported
+      # CVSS version: 4.0", which fails the job with no finding behind it. If that happens
+      # again, the fix is to raise this version and the cache key together.
+      - name: Cache cargo-audit
+        id: cache-audit
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/cargo-audit
+          key: cargo-audit-0.22-${{ runner.os }}
+      - name: Install cargo-audit
+        if: steps.cache-audit.outputs.cache-hit != 'true'
+        run: cargo install cargo-audit --locked --version ^0.22
+
+      # Default severity: `cargo audit` fails on vulnerabilities and only reports unmaintained
+      # or yanked crates. That is the right line — "unmaintained" is a fact to know about, not
+      # a reason to stop a release.
+      - name: cargo audit
+        run: |
+          if [ "${{ steps.policy.outputs.enforce }}" = "true" ]; then
+            cargo audit
+          else
+            cargo audit || echo "::warning title=cargo audit::Advisory found in dependencies this change did not touch — see the nightly run."
+          fi
+
+      - name: Install web dependencies
+        working-directory: apps/web
+        run: npm ci
+
+      # `high` and above, matching the Rust side: `moderate` in the Next.js tree is dominated
+      # by build-time transitive advisories that never reach a visitor of encrypchat.com, and
+      # blocking on them would be the same trap as `--deny warnings` above.
+      - name: npm audit
+        working-directory: apps/web
+        run: |
+          if [ "${{ steps.policy.outputs.enforce }}" = "true" ]; then
+            npm audit --audit-level=high
+          else
+            npm audit --audit-level=high || echo "::warning title=npm audit::Advisory in apps/web dependencies this change did not touch — see the nightly run."
+          fi
+      # Visibility without a gate: the full picture, including the levels that do not block.
+      - name: npm audit (informational)
+        working-directory: apps/web
+        continue-on-error: true
+        run: npm audit --audit-level=low
+
+  # The same generators as the pull-request run, given the case count a fuzzer needs. Nightly
+  # because that depth costs minutes rather than seconds, and because a decoder that survives
+  # 300k inputs today is worth re-checking against the ones it has not seen yet.
+  deep-fuzz:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    env:
+      PROPTEST_CASES: "300000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Core decoders
+        run: cargo test --release -p encrypchat_core --lib fuzz
+      - name: Relay request bodies
+        # A sixth of the core's count: each case is a whole request through the router and into
+        # a SQLite mailbox, and the ones that are accepted leave rows behind, so the cost per
+        # case grows as the run goes on — 20k took ten seconds locally, 100k took seventy.
+        env:
+          PROPTEST_CASES: "50000"
+        run: cargo test --release -p encrypchat_relay --test malformed
+
+      # A shrunk failure is a byte string, and proptest writes it next to the source that found
+      # it. Without this the nightly reports "it failed" and the input dies with the runner;
+      # with it, the file is downloadable and belongs in the commit that fixes the bug, where it
+      # becomes a permanent regression case.
+      - name: Failing inputs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: proptest-regressions
+          path: "**/proptest-regressions/**"
+          if-no-files-found: ignore
 
   # Packaging (Linux tarball / Android APK) stays manual — see docs/phase-8.md.
