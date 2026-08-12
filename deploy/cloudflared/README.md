@@ -21,7 +21,9 @@ Domain spelling: **encrypchat.com** (with **y**).
 2. **Create Service** → **Docker Compose**.
 3. Repo: `fabioherrera/encrypchat`, branch `main`.
 4. Compose file: `deploy/cloudflared/docker-compose.yml`
-5. Environment: `TUNNEL_TOKEN=<your token>`
+5. Environment (either name works):
+   - `CLOUDFLARE_TUNNEL_TOKEN=<token>` (Dokploy-style), or
+   - `TUNNEL_TOKEN=<token>`
 6. Deploy.
 
 Confirm network exists on the server:

@@ -21,8 +21,8 @@ services:
     restart: unless-stopped
     command: tunnel --no-autoupdate run
     environment:
-      # Set in Dokploy → Environment (do not commit the real token)
-      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+      # Dokploy often uses CLOUDFLARE_TUNNEL_TOKEN; cloudflared expects TUNNEL_TOKEN
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-${TUNNEL_TOKEN}}
     networks:
       - dokploy-network
     # Optional: only if you must reach host ports instead of Traefik DNS
