@@ -1,53 +1,73 @@
-# Cómo probar la app (sin esperar F5–F8)
+# Cómo probar la app (instaladores Phase 8)
 
-Fase 4 + EH01 ya son un **cliente usable** para demo P2P en LAN. No hace falta relay, media ni tiendas para instalar y probar.
+Fase 4 + EH01 ya son un **cliente usable** para demo P2P en LAN. Empaquetado packaging-first: instaladores en `dist/` sin esperar F5–F7 (relay/media/WebRTC diferidos).
 
-## Qué sí tenés hoy
+## Artefactos en `dist/` (recomendado)
 
-| Pieza | Estado |
+Tras `make package` (ver [phase-8.md](phase-8.md) y [`dist/README.md`](../dist/README.md)):
+
+| Artefacto | Ruta típica |
 | --- | --- |
-| Identidad + QR/contactos | Sí |
-| Chat 1:1 E2EE online | Sí |
-| Hello autenticado (EH01) | Sí (`0.5.0`) |
-| Cuerpos sellados en DB | Sí |
-| Offline / relay | No (F5) — peer apagado = error explícito |
+| Linux portable | `dist/encrypchat-linux-x64-<version>.tar.gz` |
+| Android APK (arm64) | `dist/encrypchat-android-arm64-<version>.apk` |
 
-## Bloqueo = toolchain del host, no fases de producto
-
-En esta máquina (Fedora) faltaba:
+### Instalar Linux
 
 ```bash
-# Linux desktop build
-sudo dnf install cmake ninja-build clang gtk3-devel
-
-# Android APK (javac; tenés JRE 25 sin compiler)
-sudo dnf install java-21-openjdk-devel
-export JAVA_HOME=/usr/lib/jvm/java-21-openjdk
-export ANDROID_HOME=$HOME/Android/Sdk
+tar -xzf dist/encrypchat-linux-x64-*.tar.gz
+cd encrypchat-linux-x64-*
+./install.sh
+encrypchat
 ```
 
-Luego:
+Instala en `~/.local/share/encrypchat`, symlink `~/.local/bin/encrypchat`, desktop entry en `~/.local/share/applications/`.
+
+### Instalar Android
 
 ```bash
-# desde la raíz del monorepo
-make build-ffi
+adb install -r dist/encrypchat-android-arm64-*.apk
+```
 
-# Linux
-make build-client-linux
-# o: cd apps/client && flutter run -d linux
+APK **debug-signed** (Flutter default sin keystore de release) — OK para sideload de prueba, no para Play Store.
 
-# Android (después de JDK + SDK)
-cd apps/client
-flutter build apk --debug
-# Instalar: adb install build/app/outputs/flutter-apk/app-debug.apk
-# Nota: falta copiar libencrypchat_core.so a jniLibs (cargo-ndk) para crypto/P2P en device
+## Builds intermedios (sin empaquetar)
+
+| Artefacto | Ruta |
+| --- | --- |
+| Linux bundle | `apps/client/build/linux/x64/release/bundle/encrypchat` |
+| Android APK (flutter out) | `apps/client/build/app/outputs/flutter-apk/app-release.apk` |
+| Core Linux `.so` | `apps/client/native/libencrypchat_core.so` |
+| Core Android arm64 | `apps/client/android/app/src/main/jniLibs/arm64-v8a/` |
+
+```bash
+./apps/client/build/linux/x64/release/bundle/encrypchat
 ```
 
 ## Demo 2 dispositivos (misma Wi‑Fi)
 
-1. Ambos crean identidad e importan el contacto del otro.  
-2. Chats → icono link → copiar multiaddr / puerto.  
-3. El otro conecta con IP LAN + puerto.  
+1. Ambos crean identidad e importan el contacto del otro.
+2. Chats → icono link → copiar multiaddr / puerto.
+3. El otro conecta con IP LAN + puerto.
 4. Abrir chat y mandar texto.
 
-iOS / Windows empaquetados = **Fase 8**, no bloquean probar en Linux o Android con NDK.
+## Toolchain portable (`.tools/`, gitignored)
+
+Sin `sudo dnf`: cmake, ninja, wrappers clang→g++, JDK 21 Temurin, headers libsecret.
+
+```bash
+export PATH="$PWD/.tools/bin:$PATH"
+export PKG_CONFIG_PATH="$PWD/.tools/pkgconfig"
+export JAVA_HOME="$PWD/.tools/jdk-21"
+export ANDROID_HOME=$HOME/Android/Sdk
+make package
+```
+
+## Qué incluye / qué no
+
+| Pieza | Estado |
+| --- | --- |
+| Identidad + QR/contactos | Sí |
+| Chat 1:1 E2EE + EH01 | Sí |
+| Linux / Android instaladores | Sí (`dist/`) |
+| Relay offline | F5 (diferido) |
+| iOS / Windows package | Gap F8 — stubs en `scripts/package-ios.sh` / `package-windows.sh` |

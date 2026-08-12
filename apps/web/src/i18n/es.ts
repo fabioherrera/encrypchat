@@ -85,12 +85,12 @@ const es: Dictionary = {
   download: {
     metaTitle: "Descargar",
     metaDescription:
-      "Descargá Encrypchat para Android, iOS, Linux (Fedora) y Windows. Las builds llegan pronto — volvé cuando el empaquetado esté listo.",
+      "Apps nativas Encrypchat para Android, iOS, Linux y Windows. Builds de prueba en GitHub Releases o dist/ local; ver docs/phase-8.md.",
     h1: "Descargar",
     intro:
-      "Apps nativas para cada plataforma de primera clase. Los instaladores aparecerán aquí cuando avance el empaquetado de la Fase 8.",
+      "Apps nativas para Android, iOS, Linux (Fedora) y Windows. Los instaladores públicos irán a GitHub Releases cuando se publiquen — no enlazamos URLs que aún no existen.",
     sourceNote:
-      "¿Preferís compilar desde el código mientras faltan binarios? Consultá el roadmap en la documentación del repositorio público.",
+      "Builds de prueba: ver docs/phase-8.md en el repositorio (make package → dist/ para tarball Linux y APK Android). iOS y Windows siguen necesitando host Mac / Windows.",
   },
   faq: {
     metaTitle: "FAQ",
@@ -112,7 +112,7 @@ const es: Dictionary = {
       },
       {
         q: "¿Qué plataformas soportan?",
-        a: "Android, iOS, Linux (Fedora) y Windows son objetivos de primera clase. Los enlaces de descarga aparecen cuando haya instaladores.",
+        a: "Android, iOS, Linux (Fedora) y Windows son objetivos de primera clase. Paquetes de prueba Linux/Android en dist/ (ver docs/phase-8.md); tiendas y GitHub Releases cuando empiece la publicación.",
       },
       {
         q: "¿Cómo agrego un contacto?",

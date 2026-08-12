@@ -66,3 +66,7 @@ apps/client/native/*.dylib
 apps/client/android/app/src/main/jniLibs/**
 !apps/client/android/app/src/main/jniLibs/README.md
 
+# Packaged installers (keep docs)
+dist/*
+!dist/README.md
+

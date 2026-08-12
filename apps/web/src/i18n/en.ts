@@ -85,12 +85,12 @@ const en: Dictionary = {
   download: {
     metaTitle: "Download",
     metaDescription:
-      "Download Encrypchat for Android, iOS, Linux (Fedora), and Windows. Builds are coming soon — check back as packaging lands.",
+      "Encrypchat native apps for Android, iOS, Linux, and Windows. Test builds via GitHub Releases or local dist/; see docs/phase-8.md.",
     h1: "Download",
     intro:
-      "Native apps for every first-class platform. Installers will appear here as Phase 8 packaging lands.",
+      "Native apps for Android, iOS, Linux (Fedora), and Windows. Public installers will ship on GitHub Releases when published — we do not link to URLs that are not live yet.",
     sourceNote:
-      "Prefer building from source while binaries are pending? See the project roadmap in the public repository documentation.",
+      "Test builds: see docs/phase-8.md in the repository (make package → dist/ for Linux tarball and Android APK). iOS and Windows packages still need Mac / Windows hosts.",
   },
   faq: {
     metaTitle: "FAQ",
@@ -112,7 +112,7 @@ const en: Dictionary = {
       },
       {
         q: "Which platforms are supported?",
-        a: "Android, iOS, Linux (Fedora), and Windows are first-class targets. Download links appear when installers are ready.",
+        a: "Android, iOS, Linux (Fedora), and Windows are first-class targets. Linux and Android test packages are built into dist/ (see docs/phase-8.md); store links and GitHub Releases follow when publishing starts.",
       },
       {
         q: "How do I add a contact?",

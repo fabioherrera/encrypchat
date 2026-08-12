@@ -12,7 +12,7 @@ Documento vivo del plan de proyecto. Cada fase es **cerrada**: no se marca done 
 | Web | Next.js (`apps/web`) — landing/SEO, no chat |
 | Relay | Ciego (`services/relay`) — ciphertext + TTL |
 
-**Siguiente paso:** [Fase 5 — Relay ciego](#fase-5--relay-ciego-offline). F4: [phase-4.md](phase-4.md). Deploy live F1: `CLOUDFLARE_API_TOKEN`.
+**Siguiente paso:** [Fase 8 — packaging-first](#fase-8--paridad-multiplataforma-y-empaquetado) (instaladores Linux/Android). F5–F7 diferidos tras instaladores. F4: [phase-4.md](phase-4.md). Deploy live F1: `CLOUDFLARE_API_TOKEN`.
 
 ---
 
@@ -76,10 +76,10 @@ flowchart LR
 | 2 | Identidad y crypto local | **Done** |
 | 3 | Shell Flutter + FFI + DB cifrada | **Done** (gaps NDK/iOS/Windows en [phase-3.md](phase-3.md)) |
 | 4 | Mensajería P2P texto (online) | **Done** (demo LAN manual + auditor pendientes — [phase-4.md](phase-4.md)) |
-| 5 | Relay ciego (offline) | **Siguiente** |
-| 6 | Media | Pendiente |
-| 7 | Llamadas WebRTC | Pendiente |
-| 8 | Paridad multiplataforma / empaquetado | Pendiente |
+| 5 | Relay ciego (offline) | **Diferido** (después de instaladores) |
+| 6 | Media | Pendiente (tras F5) |
+| 7 | Llamadas WebRTC | Pendiente (tras F6) |
+| 8 | Paridad multiplataforma / empaquetado | **In progress / packaging-first** — [phase-8.md](phase-8.md) |
 | 9 | Legal + compliance tiendas | Pendiente |
 | 10 | Hardening, auditoría y beta | Pendiente |
 
@@ -245,6 +245,7 @@ Checklist: [phase-3.md](phase-3.md). FFI `0.3.0`. `make build-ffi` / `make build
 
 ## Fase 5 — Relay ciego (offline)
 
+**Estado:** diferido — se retoma cuando Linux/Android instalables (F8 packaging-first) estén en uso para demos.  
 **Meta:** experiencia offline tipo WhatsApp sin nube de contenido.
 
 ### Alcance
@@ -312,19 +313,24 @@ Checklist: [phase-3.md](phase-3.md). FFI `0.3.0`. `make build-ffi` / `make build
 
 ## Fase 8 — Paridad multiplataforma y empaquetado
 
-**Meta:** las 4 plataformas de primera clase tienen build instalable.
+**Estado:** **In progress / packaging-first** — [phase-8.md](phase-8.md).  
+**Meta:** las 4 plataformas de primera clase tienen build instalable.  
+**Corte actual:** Linux tarball + Android APK en `dist/`; Windows/iOS documentados como gaps (sin binarios inventados). F5–F7 diferidos a propósito.
 
 ### Alcance
 
-- iOS signing/dev; Windows installer; Linux Fedora (flatpak o RPM); Android release signing prep.
-- Actualizar download en `apps/web`.
-- Background/node lifecycle por OS documentado.
+- Linux portable + `install.sh`; Android release APK (sideload / debug-signing OK para pruebas).
+- Scripts stub + docs para iOS / Windows (requieren Mac / host Windows).
+- Actualizar download en `apps/web` con copy honesta (Releases futuros / `dist/` local).
+- Más adelante: Flatpak/RPM, firma Play, TestFlight, background/node lifecycle por OS.
 
 ### DoD
 
-- [ ] Binarios o instrucciones para Android, iOS, Linux Fedora, Windows
-- [ ] Landing download actualizada (`/seo`)
-- [ ] Gaps residuales listados (TestFlight, Play internal, etc.)
+- [x] Linux + Android instalables vía `make package` → `dist/` (ver [phase-8.md](phase-8.md))
+- [x] Landing download actualizada sin URLs 404 (`/seo`)
+- [x] Gaps iOS / Windows listados
+- [ ] Binarios iOS / Windows reales
+- [ ] Firma release tiendas
 
 ### Agentes
 
