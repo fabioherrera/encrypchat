@@ -1,0 +1,18 @@
+.git
+.tools
+.cursor
+**/node_modules
+**/target
+**/.next
+**/out
+**/build
+apps/client
+crates
+services
+docs
+*.md
+!apps/web/nginx.conf
+.env
+.env.*
+!.env.example
+encrypchat logo.png

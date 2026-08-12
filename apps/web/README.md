@@ -11,13 +11,18 @@ npm run build   # writes ./out
 
 ## Deploy (Dokploy)
 
-Point Dokploy at this repo. For the marketing site, use **Docker** build context `apps/web`:
+**Recommended:** build from **repo root** (Dokploy default):
 
-- Dockerfile: `apps/web/Dockerfile`
-- Port: `80`
-- Domain: `encrypchat.com`
+| Field | Value |
+| --- | --- |
+| Context / build path | `.` or empty |
+| Dockerfile | `Dockerfile` (root) |
+| Port | `80` |
+| Domain | `encrypchat.com` |
 
 Auto-deploy on push to `main`.
+
+Alternative: context `apps/web`, Dockerfile `Dockerfile`.
 
 ## Deploy (Cloudflare Pages)
 

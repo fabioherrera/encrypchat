@@ -32,8 +32,23 @@ docs/              Roadmap and phase checklists
 
 ## Deploy (Dokploy)
 
-Repo: `https://github.com/fabioherrera/encrypchat.git`  
-Marketing site: Docker context **`apps/web`** (nginx serves the Next static export). Connect `encrypchat.com` and enable auto-deploy on `main`.
+Repo: `https://github.com/fabioherrera/encrypchat.git`
+
+**Recommended (simplest):**
+
+| Field | Value |
+| --- | --- |
+| Build path / context | `.` (repo root) or leave empty |
+| Dockerfile | `Dockerfile` |
+| Port | `80` |
+| Branch | `main` |
+| Auto-deploy | ON |
+
+There is a root `Dockerfile` that builds `apps/web` and serves it with nginx.
+
+Alternative: context `apps/web` + Dockerfile `Dockerfile` (nested under `apps/web`).
+
+Connect domain `encrypchat.com` via Cloudflare Tunnel → `http://<service>:80`.
 
 ## Commands
 
