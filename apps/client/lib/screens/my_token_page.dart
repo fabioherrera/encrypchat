@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../core/legal_links.dart';
 import '../services/session_controller.dart';
 import '../theme/encrypchat_colors.dart';
+import 'about_page.dart';
 
 class MyTokenPage extends StatelessWidget {
   const MyTokenPage({super.key, required this.session});
@@ -17,7 +19,16 @@ class MyTokenPage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: EncrypchatColors.canvas,
-      appBar: AppBar(title: const Text('Mi token')),
+      appBar: AppBar(
+        title: const Text('Mi token'),
+        actions: [
+          IconButton(
+            tooltip: 'Acerca de, privacidad y bloqueos',
+            onPressed: () => _openAbout(context),
+            icon: const Icon(Icons.info_outline),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
@@ -104,7 +115,40 @@ class MyTokenPage extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 32),
+          Divider(color: EncrypchatColors.navy.withValues(alpha: 0.12)),
+          const SizedBox(height: 4),
+          Wrap(
+            children: [
+              TextButton(
+                onPressed: () => openExternalUrl(
+                  context,
+                  LegalLinks.privacy(LegalLinks.deviceLocale),
+                ),
+                child: const Text('Privacidad'),
+              ),
+              TextButton(
+                onPressed: () => openExternalUrl(
+                  context,
+                  LegalLinks.terms(LegalLinks.deviceLocale),
+                ),
+                child: const Text('Términos'),
+              ),
+              TextButton(
+                onPressed: () => _openAbout(context),
+                child: const Text('Acerca de'),
+              ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+
+  void _openAbout(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => AboutPage(session: session),
       ),
     );
   }

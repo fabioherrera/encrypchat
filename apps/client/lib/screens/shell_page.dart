@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/session_controller.dart';
 import '../theme/encrypchat_colors.dart';
+import 'call_overlay_host.dart';
 import 'chats_page.dart';
 import 'contacts_page.dart';
 import 'my_token_page.dart';
@@ -26,30 +27,33 @@ class _ShellPageState extends State<ShellPage> {
       _ => MyTokenPage(session: widget.session),
     };
 
-    return Scaffold(
-      body: body,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        backgroundColor: EncrypchatColors.paper,
-        indicatorColor: EncrypchatColors.bubbleOut,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.chat_bubble_outline),
-            selectedIcon: Icon(Icons.chat_bubble),
-            label: 'Chats',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.people_outline),
-            selectedIcon: Icon(Icons.people),
-            label: 'Contactos',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.qr_code_2_outlined),
-            selectedIcon: Icon(Icons.qr_code_2),
-            label: 'Mi token',
-          ),
-        ],
+    return CallOverlayHost(
+      session: widget.session,
+      child: Scaffold(
+        body: body,
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: _index,
+          onDestinationSelected: (i) => setState(() => _index = i),
+          backgroundColor: EncrypchatColors.paper,
+          indicatorColor: EncrypchatColors.bubbleOut,
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.chat_bubble_outline),
+              selectedIcon: Icon(Icons.chat_bubble),
+              label: 'Chats',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.people_outline),
+              selectedIcon: Icon(Icons.people),
+              label: 'Contactos',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.qr_code_2_outlined),
+              selectedIcon: Icon(Icons.qr_code_2),
+              label: 'Mi token',
+            ),
+          ],
+        ),
       ),
     );
   }

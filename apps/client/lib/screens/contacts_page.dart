@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../services/session_controller.dart';
 import '../theme/encrypchat_colors.dart';
+import 'safety_actions.dart';
 
 class ContactsPage extends StatefulWidget {
   const ContactsPage({super.key, required this.session});
@@ -119,21 +120,44 @@ class _ContactsPageState extends State<ContactsPage> {
               ),
               itemBuilder: (context, index) {
                 final c = contacts[index];
+                final blocked = widget.session.isBlocked(c.token);
                 return ListTile(
                   tileColor: EncrypchatColors.paper,
                   leading: CircleAvatar(
-                    backgroundColor: EncrypchatColors.navy,
+                    backgroundColor: blocked
+                        ? EncrypchatColors.offline
+                        : EncrypchatColors.navy,
                     foregroundColor: EncrypchatColors.paper,
-                    child: Text(
-                      c.label.isEmpty ? '?' : c.label[0].toUpperCase(),
-                    ),
+                    child: blocked
+                        ? const Icon(Icons.block, size: 20)
+                        : Text(
+                            c.label.isEmpty ? '?' : c.label[0].toUpperCase(),
+                          ),
                   ),
-                  title: Text(
-                    c.label,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: EncrypchatColors.ink,
-                    ),
+                  title: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          c.label,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: EncrypchatColors.ink,
+                          ),
+                        ),
+                      ),
+                      if (blocked) ...[
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Bloqueado',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: EncrypchatColors.offline,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   subtitle: Text(
                     c.token,
@@ -154,13 +178,51 @@ class _ContactsPageState extends State<ContactsPage> {
                             const SnackBar(content: Text('Export copiado')),
                           );
                         }
+                      } else if (value == 'block') {
+                        await confirmBlock(
+                          context,
+                          widget.session,
+                          token: c.token,
+                          label: c.label,
+                        );
+                        if (mounted) setState(() {});
+                      } else if (value == 'unblock') {
+                        await confirmUnblock(
+                          context,
+                          widget.session,
+                          token: c.token,
+                          label: c.label,
+                        );
+                        if (mounted) setState(() {});
+                      } else if (value == 'report') {
+                        await showReportDialog(
+                          context,
+                          widget.session,
+                          token: c.token,
+                          label: c.label,
+                        );
+                        if (mounted) setState(() {});
                       } else if (value == 'delete') {
                         await widget.session.removeContact(c.token);
                       }
                     },
-                    itemBuilder: (context) => const [
-                      PopupMenuItem(value: 'copy', child: Text('Exportar')),
-                      PopupMenuItem(value: 'delete', child: Text('Eliminar')),
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(value: 'copy', child: Text('Exportar')),
+                      if (blocked)
+                        const PopupMenuItem(
+                          value: 'unblock',
+                          child: Text('Desbloquear'),
+                        )
+                      else
+                        const PopupMenuItem(
+                          value: 'block',
+                          child: Text('Bloquear'),
+                        ),
+                      const PopupMenuItem(
+                        value: 'report',
+                        child: Text('Reportar abuso'),
+                      ),
+                      const PopupMenuItem(value: 'delete', child: Text('Eliminar')),
                     ],
                   ),
                 );

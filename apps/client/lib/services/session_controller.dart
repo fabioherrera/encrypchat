@@ -1,30 +1,36 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/core_error.dart';
 import '../core/encrypchat_core.dart';
 import '../models/contact.dart';
+import 'call_service.dart';
 import 'identity_service.dart';
 import 'local_database.dart';
 import 'messaging_service.dart';
 
 enum AppPhase { loading, needsOnboarding, ready, error }
 
-/// Owns identity + DB + messaging lifecycle for the shell.
+/// Owns identity + DB + messaging + calls lifecycle for the shell.
 class SessionController extends ChangeNotifier {
   SessionController({
     EncrypchatCore? core,
     IdentityService? identity,
     LocalDatabase? database,
     MessagingService? messaging,
+    CallService? calls,
   })  : _core = core,
         _identity = identity,
         _database = database ?? LocalDatabase(),
-        _messagingInjected = messaging;
+        _messagingInjected = messaging,
+        _callsInjected = calls;
 
   EncrypchatCore? _core;
   IdentityService? _identity;
   final LocalDatabase _database;
   final MessagingService? _messagingInjected;
+  final CallService? _callsInjected;
   MessagingService? _messaging;
+  CallService? _calls;
 
   AppPhase phase = AppPhase.loading;
   String? errorMessage;
@@ -50,6 +56,8 @@ class SessionController extends ChangeNotifier {
     return m;
   }
 
+  CallService? get calls => _calls;
+
   bool get hasMessaging => _messaging != null;
 
   Future<void> bootstrap() async {
@@ -67,9 +75,18 @@ class SessionController extends ChangeNotifier {
         return;
       }
       await _enterReady();
-    } catch (e, st) {
-      debugPrint('bootstrap failed: $e\n$st');
-      errorMessage = e.toString();
+    } on CoreVersionException catch (e) {
+      // Safe to print: it describes the library on disk, not anything of the user's.
+      debugPrint('core too old: ${e.found}');
+      errorMessage = e.message;
+      phase = AppPhase.error;
+      notifyListeners();
+    } catch (e) {
+      // A decode failure on the stored secret would echo key material otherwise,
+      // so neither the log nor the screen gets the exception text.
+      debugPrint('bootstrap failed: ${e.runtimeType}');
+      errorMessage =
+          'No se pudo abrir el almacenamiento local (${e.runtimeType}).';
       phase = AppPhase.error;
       notifyListeners();
     }
@@ -92,12 +109,15 @@ class SessionController extends ChangeNotifier {
           identity: identity,
           database: _database,
         );
+    _messaging!.setContacts(contacts);
+    await _messaging!.loadBlocked();
     _messaging!.addListener(notifyListeners);
+    _calls = _callsInjected ?? CallService(messaging: _messaging!);
+    _calls!.addListener(notifyListeners);
     try {
       await _messaging!.startNode();
-    } catch (e, st) {
-      debugPrint('node start failed: $e\n$st');
-      // Still allow UI; connect/send will fail loud.
+    } catch (e) {
+      debugPrint('node start failed: ${e.runtimeType}');
     }
     phase = AppPhase.ready;
     notifyListeners();
@@ -105,6 +125,7 @@ class SessionController extends ChangeNotifier {
 
   Future<void> refreshContacts() async {
     contacts = await _database.listContacts();
+    _messaging?.setContacts(contacts);
     notifyListeners();
   }
 
@@ -132,6 +153,21 @@ class SessionController extends ChangeNotifier {
     await refreshContacts();
   }
 
+  /// Blocked tokens, whether or not they are still saved as contacts.
+  List<String> get blockedTokens => _messaging?.blockedTokens ?? const [];
+
+  bool isBlocked(String token) => _messaging?.isBlocked(token) ?? false;
+
+  Future<void> blockContact(String token) async {
+    await messaging.block(token);
+    notifyListeners();
+  }
+
+  Future<void> unblockContact(String token) async {
+    await messaging.unblock(token);
+    notifyListeners();
+  }
+
   String exportOwnContact({String? displayName}) {
     return Contact(
       token: identity.token!,
@@ -149,6 +185,8 @@ class SessionController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _calls?.removeListener(notifyListeners);
+    _calls?.dispose();
     _messaging?.removeListener(notifyListeners);
     _messaging?.dispose();
     _database.close();

@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import 'core/media_picker.dart';
 import 'screens/onboarding_page.dart';
 import 'screens/shell_page.dart';
 import 'services/session_controller.dart';
@@ -9,6 +12,11 @@ import 'theme/encrypchat_theme.dart';
 /// Encrypchat shell — Phase 3: identity + encrypted local store + brand UI.
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  configureMediaPicker();
+  // Sweeps what a crash (or a build before this existed) left in the cache:
+  // plaintext copies of photos already sent. Not awaited — the UI does not
+  // depend on it and it only touches the app's own temp dir.
+  unawaited(purgePickerTemps());
   runApp(const EncrypchatApp());
 }
 

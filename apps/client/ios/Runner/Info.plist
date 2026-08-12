@@ -47,6 +47,12 @@
 			</array>
 		</dict>
 	</dict>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Encrypchat needs the microphone for encrypted peer-to-peer voice and video calls. Audio stays on the devices — not uploaded to Encrypchat servers.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Encrypchat needs the camera for encrypted peer-to-peer video calls. Video stays on the devices — not uploaded to Encrypchat servers.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Encrypchat needs access to your photo library only when you pick a photo to attach to a chat. The photo is encrypted on this device before it is sent to the contact you chose — it is not uploaded to Encrypchat servers.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

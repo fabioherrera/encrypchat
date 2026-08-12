@@ -138,6 +138,34 @@ typedef _NodeConnectDart = int Function(
   Pointer<Char> multiaddr,
 );
 
+typedef _NodeSetBlockedC = Int32 Function(
+  Pointer<Void> handle,
+  Pointer<Pointer<Char>> tokens,
+  Size count,
+);
+typedef _NodeSetBlockedDart = int Function(
+  Pointer<Void> handle,
+  Pointer<Pointer<Char>> tokens,
+  int count,
+);
+
+typedef _PopProofC = Int32 Function(
+  Pointer<Uint8> secret,
+  Pointer<Uint8> ephPub,
+  Pointer<Uint8> nonce,
+  Size nonceLen,
+  Pointer<Char> token,
+  Pointer<Uint8> outProof,
+);
+typedef _PopProofDart = int Function(
+  Pointer<Uint8> secret,
+  Pointer<Uint8> ephPub,
+  Pointer<Uint8> nonce,
+  int nonceLen,
+  Pointer<Char> token,
+  Pointer<Uint8> outProof,
+);
+
 typedef _FreeC = Void Function(Pointer<Void> ptr);
 typedef _FreeDart = void Function(Pointer<Void> ptr);
 
@@ -188,12 +216,74 @@ class EncrypchatCore {
         _nodeConnect = lib.lookupFunction<_NodeConnectC, _NodeConnectDart>(
           'encrypchat_node_connect',
         ),
+        _nodeSetBlocked =
+            lib.lookupFunction<_NodeSetBlockedC, _NodeSetBlockedDart>(
+          'encrypchat_node_set_blocked_tokens',
+        ),
+        _popProof = lib.lookupFunction<_PopProofC, _PopProofDart>(
+          'encrypchat_pop_proof',
+        ),
         _free = lib.lookupFunction<_FreeC, _FreeDart>('encrypchat_free');
 
-  factory EncrypchatCore.open() => EncrypchatCore(loadEncrypchatCore());
+  factory EncrypchatCore.open() {
+    final lib = loadEncrypchatCore();
+    assertSupportedApiVersion(lib);
+    return EncrypchatCore(lib);
+  }
 
   static const int tokenCap = 68;
   static const int addrCap = 128;
+
+  /// Lowest core ABI this client can drive: `encrypchat_node_set_blocked_tokens`
+  /// arrived in 0.7.0.
+  static const String minApiVersion = '0.7.0';
+
+  /// Fails loudly on a stale library **before** the constructor looks up its
+  /// symbols, because a missing symbol surfaces as `Invalid argument(s): Failed
+  /// to lookup symbol …`, which reads like a client bug instead of "rebuild the
+  /// core".
+  static void assertSupportedApiVersion(DynamicLibrary lib) {
+    String? found;
+    try {
+      final read = lib.lookupFunction<_ApiVersionC, _ApiVersionDart>(
+        'encrypchat_api_version',
+      );
+      final out = calloc<Uint8>(16);
+      try {
+        if (read(out.cast<Char>(), 16) == 0) {
+          found = out.cast<Utf8>().toDartString();
+        }
+      } finally {
+        calloc.free(out);
+      }
+    } on ArgumentError {
+      // Older than the version symbol itself: report it as unknown, not as a
+      // lookup failure.
+      found = null;
+    }
+    if (found == null || !isApiCompatible(found)) {
+      throw CoreVersionException(found: found, required: minApiVersion);
+    }
+  }
+
+  /// The core is pre-1.0, so the minor is what moves when the ABI grows: an
+  /// older minor is missing symbols this build looks up, a newer one only adds.
+  static bool isApiCompatible(String version) {
+    final found = _parseVersion(version);
+    final wanted = _parseVersion(minApiVersion);
+    if (found == null || wanted == null) return false;
+    if (found.major != wanted.major) return false;
+    return found.minor >= wanted.minor;
+  }
+
+  static ({int major, int minor})? _parseVersion(String version) {
+    final parts = version.trim().split('.');
+    if (parts.length < 2) return null;
+    final major = int.tryParse(parts[0]);
+    final minor = int.tryParse(parts[1]);
+    if (major == null || minor == null) return null;
+    return (major: major, minor: minor);
+  }
 
   final _ApiVersionDart _apiVersion;
   final _IdentityGenerateDart _identityGenerate;
@@ -211,6 +301,8 @@ class EncrypchatCore {
   final _NodeTryRecvDart _nodeTryRecv;
   final _NodePeerCountDart _nodePeerCount;
   final _NodeConnectDart _nodeConnect;
+  final _NodeSetBlockedDart _nodeSetBlocked;
+  final _PopProofDart _popProof;
   final _FreeDart _free;
 
   Pointer<Void>? _node;
@@ -382,6 +474,36 @@ class EncrypchatCore {
     nodeConnect('/ip4/$host/tcp/$port');
   }
 
+  /// Replaces the core-side blocklist (it never merges, and it starts empty on
+  /// every [nodeStart]). The core normalizes and copies the tokens before
+  /// returning, so the array and the strings are freed right here.
+  ///
+  /// A rejected list (code 1 for a malformed token) leaves the previous one in
+  /// place core-side; nothing is applied halfway.
+  void nodeSetBlockedTokens(List<String> tokens) {
+    final h = _requireNode();
+    if (tokens.isEmpty) {
+      _check(_nodeSetBlocked(h, nullptr, 0));
+      return;
+    }
+    final array = calloc<Pointer<Char>>(tokens.length);
+    final strings = <Pointer<Utf8>>[];
+    try {
+      for (var i = 0; i < tokens.length; i++) {
+        final cstr = tokens[i].toNativeUtf8();
+        // Registered before the array write so a throw mid-loop still frees it.
+        strings.add(cstr);
+        array[i] = cstr.cast<Char>();
+      }
+      _check(_nodeSetBlocked(h, array, tokens.length));
+    } finally {
+      for (final cstr in strings) {
+        malloc.free(cstr);
+      }
+      calloc.free(array);
+    }
+  }
+
   void nodeSend({required String peerToken, required Uint8List frame}) {
     final h = _requireNode();
     final token = peerToken.toNativeUtf8();
@@ -436,6 +558,39 @@ class EncrypchatCore {
     required Uint8List ciphertext,
   }) {
     return utf8.decode(decrypt(secret: secret, ciphertext: ciphertext));
+  }
+
+  /// Relay PoP proof (32 bytes) for `POST /v1/pull`.
+  Uint8List popProof({
+    required Uint8List secret,
+    required Uint8List ephPubkey,
+    required Uint8List nonce,
+    required String destToken,
+  }) {
+    _require32(secret);
+    _require32(ephPubkey);
+    final secretPtr = _copyBytes(secret);
+    final ephPtr = _copyBytes(ephPubkey);
+    final noncePtr = nonce.isEmpty ? nullptr : _copyBytes(nonce);
+    final token = destToken.toNativeUtf8();
+    final out = calloc<Uint8>(32);
+    try {
+      _check(_popProof(
+        secretPtr,
+        ephPtr,
+        noncePtr,
+        nonce.length,
+        token.cast<Char>(),
+        out,
+      ));
+      return Uint8List.fromList(out.asTypedList(32));
+    } finally {
+      calloc.free(secretPtr);
+      calloc.free(ephPtr);
+      if (noncePtr != nullptr) calloc.free(noncePtr);
+      malloc.free(token);
+      calloc.free(out);
+    }
   }
 
   Uint8List _bufOut(

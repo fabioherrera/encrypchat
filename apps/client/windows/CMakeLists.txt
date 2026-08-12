@@ -87,6 +87,17 @@ if(PLUGIN_BUNDLED_LIBRARIES)
     COMPONENT Runtime)
 endif()
 
+# Bundled encrypchat_core (Rust FFI), next to the .exe where
+# lib/core/native_library.dart looks for it. Built by scripts/package-windows.sh.
+set(ENCRYPCHAT_CORE_DLL "${CMAKE_CURRENT_SOURCE_DIR}/../native/encrypchat_core.dll")
+if(EXISTS "${ENCRYPCHAT_CORE_DLL}")
+  install(FILES "${ENCRYPCHAT_CORE_DLL}"
+    DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+    COMPONENT Runtime)
+else()
+  message(WARNING "encrypchat_core.dll missing — build crates/core for windows before flutter build windows")
+endif()
+
 # Copy the native assets provided by the build.dart from all packages.
 set(NATIVE_ASSETS_DIR "${PROJECT_BUILD_DIR}native_assets/windows/")
 install(DIRECTORY "${NATIVE_ASSETS_DIR}"

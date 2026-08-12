@@ -13,12 +13,26 @@ class ChatsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final contacts = session.contacts;
     final listen = session.hasMessaging ? session.messaging.listenAddr : null;
+    final relayInsecure =
+        session.hasMessaging && session.messaging.relayIsInsecure;
 
     return Scaffold(
       backgroundColor: EncrypchatColors.canvas,
       appBar: AppBar(
         title: const Text('Chats'),
         actions: [
+          IconButton(
+            tooltip: 'Relay ciego',
+            onPressed: session.hasMessaging
+                ? () => showRelayDialog(context, session)
+                : null,
+            icon: Icon(
+              Icons.cloud_outlined,
+              color: session.hasMessaging && session.messaging.relayConfigured
+                  ? EncrypchatColors.relay
+                  : null,
+            ),
+          ),
           IconButton(
             tooltip: 'Conectar peer',
             onPressed: session.hasMessaging
@@ -46,6 +60,7 @@ class ChatsPage extends StatelessWidget {
                 ),
               ),
             ),
+          if (relayInsecure) const RelayInsecureNotice(),
           Expanded(
             child: contacts.isEmpty
                 ? const Center(
@@ -70,8 +85,8 @@ class ChatsPage extends StatelessWidget {
                           ),
                           SizedBox(height: 8),
                           Text(
-                            'Importá un contacto y conectá su IP:puerto '
-                            '(ambos online). Sin relay en Fase 4.',
+                            'Importá un contacto. Preferí P2P; si está offline '
+                            'y configurás relay (☁), el mensaje espera cifrado.',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: EncrypchatColors.muted,
@@ -90,14 +105,21 @@ class ChatsPage extends StatelessWidget {
                     ),
                     itemBuilder: (context, index) {
                       final c = contacts[index];
+                      final blocked = session.isBlocked(c.token);
                       return ListTile(
                         tileColor: EncrypchatColors.paper,
                         leading: CircleAvatar(
-                          backgroundColor: EncrypchatColors.navy,
+                          backgroundColor: blocked
+                              ? EncrypchatColors.offline
+                              : EncrypchatColors.navy,
                           foregroundColor: EncrypchatColors.paper,
-                          child: Text(
-                            c.label.isEmpty ? '?' : c.label[0].toUpperCase(),
-                          ),
+                          child: blocked
+                              ? const Icon(Icons.block, size: 20)
+                              : Text(
+                                  c.label.isEmpty
+                                      ? '?'
+                                      : c.label[0].toUpperCase(),
+                                ),
                         ),
                         title: Text(
                           c.label,
@@ -106,9 +128,11 @@ class ChatsPage extends StatelessWidget {
                             color: EncrypchatColors.ink,
                           ),
                         ),
-                        subtitle: const Text(
-                          'Tocá para chatear · P2P',
-                          style: TextStyle(color: EncrypchatColors.muted),
+                        subtitle: Text(
+                          blocked
+                              ? 'Bloqueado · no recibís nada de este token'
+                              : 'Tocá para chatear · P2P',
+                          style: const TextStyle(color: EncrypchatColors.muted),
                         ),
                         onTap: () {
                           Navigator.of(context).push(

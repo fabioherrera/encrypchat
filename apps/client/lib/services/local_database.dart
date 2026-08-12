@@ -1,8 +1,6 @@
 import 'dart:io';
 import 'dart:math';
-import 'dart:typed_data';
-
-import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -63,12 +61,16 @@ class LocalDatabase {
     _db = await factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 2,
+        version: 4,
         onCreate: (db, version) async {
           await _createV2(db);
+          await _upgradeToV3(db);
+          await _upgradeToV4(db);
         },
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) await _upgradeToV2(db);
+          if (oldVersion < 3) await _upgradeToV3(db);
+          if (oldVersion < 4) await _upgradeToV4(db);
         },
       ),
     );
@@ -111,10 +113,6 @@ class LocalDatabase {
       'key': 'encryption',
       'value': 'local_aead_db_key_v1',
     });
-    await db.insert('meta', {
-      'key': 'db_key_fingerprint',
-      'value': _fingerprint(_dbKey!),
-    });
   }
 
   Future<void> _upgradeToV2(Database db) async {
@@ -129,18 +127,46 @@ class LocalDatabase {
         created_at TEXT NOT NULL
       )
     ''');
+    var copied = true;
     try {
       await db.execute('''
         INSERT INTO messages (id, peer_token, direction, body_sealed, status, created_at)
         SELECT id, peer_token, direction, ciphertext, 'sent', created_at FROM messages_old
       ''');
-    } catch (_) {}
-    await db.execute('DROP TABLE IF EXISTS messages_old');
+    } catch (e) {
+      copied = false;
+      debugPrint('db v1→v2 copy failed: ${e.runtimeType}');
+    }
+    // Keep `messages_old` when the copy failed: dropping it would silently
+    // destroy the only remaining copy of those message bodies.
+    if (copied) {
+      await db.execute('DROP TABLE IF EXISTS messages_old');
+    }
     await db.insert(
       'meta',
       {'key': 'encryption', 'value': 'local_aead_db_key_v1'},
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+  }
+
+  Future<void> _upgradeToV3(Database db) async {
+    await db.execute(
+      "ALTER TABLE messages ADD COLUMN kind TEXT NOT NULL DEFAULT 'text'",
+    );
+    await db.execute('ALTER TABLE messages ADD COLUMN mime TEXT');
+    await db.execute('ALTER TABLE messages ADD COLUMN media_relpath TEXT');
+  }
+
+  /// Blocklist keyed by token, not by contact row: a peer can send frames
+  /// without ever being imported as a contact, and deleting the contact must
+  /// not silently lift the block.
+  Future<void> _upgradeToV4(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS blocked (
+        token TEXT PRIMARY KEY NOT NULL,
+        created_at TEXT NOT NULL
+      )
+    ''');
   }
 
   Future<void> upsertProfile({
@@ -176,6 +202,34 @@ class LocalDatabase {
     await db.delete('contacts', where: 'token = ?', whereArgs: [token]);
   }
 
+  Future<List<String>> listBlockedTokens() async {
+    final rows = await db.query('blocked', orderBy: 'created_at DESC');
+    return [for (final r in rows) r['token']! as String];
+  }
+
+  Future<void> blockToken(String token) async {
+    await db.insert(
+      'blocked',
+      {
+        'token': normalizeToken(token),
+        'created_at': DateTime.now().toUtc().toIso8601String(),
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> unblockToken(String token) async {
+    await db.delete(
+      'blocked',
+      where: 'token = ?',
+      whereArgs: [normalizeToken(token)],
+    );
+  }
+
+  /// Tokens are case-insensitive hex; store and compare one canonical form so a
+  /// block cannot be bypassed by changing the casing of the same identity.
+  static String normalizeToken(String token) => token.trim().toLowerCase();
+
   Future<void> upsertMessage(ChatMessage message) async {
     await db.insert(
       'messages',
@@ -193,14 +247,21 @@ class LocalDatabase {
     );
   }
 
-  Future<List<ChatMessage>> listMessages(String peerToken) async {
+  /// Oldest-first. With [limit] set, returns the newest `limit` messages
+  /// (still oldest-first) so callers can bound what they hold in memory.
+  Future<List<ChatMessage>> listMessages(String peerToken, {int? limit}) async {
     final rows = await db.query(
       'messages',
       where: 'peer_token = ?',
       whereArgs: [peerToken],
-      orderBy: 'created_at ASC',
+      orderBy: limit == null ? 'created_at ASC' : 'created_at DESC',
+      limit: limit,
     );
-    return rows.map((r) => ChatMessage.fromMap(r)).toList();
+    final messages = rows.map((r) => ChatMessage.fromMap(r)).toList();
+    if (limit != null) {
+      return messages.reversed.toList();
+    }
+    return messages;
   }
 
   Future<List<({String peerToken, DateTime? lastAt})>> listChatPeers() async {
@@ -262,10 +323,5 @@ class LocalDatabase {
       out[i] = int.parse(hex.substring(i * 2, i * 2 + 2), radix: 16);
     }
     return out;
-  }
-
-  static String _fingerprint(Uint8List key) {
-    final digest = sha256.convert(key);
-    return digest.toString().substring(0, 16);
   }
 }
