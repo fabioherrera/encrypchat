@@ -71,7 +71,7 @@ mod tests {
     fn roundtrip() {
         let key = [7u8; 32];
         let sealed = seal_local(&key, b"stored body").unwrap();
-        assert!(sealed.len() >= NONCE_LEN + TAG_LEN + 1);
+        assert!(sealed.len() > NONCE_LEN + TAG_LEN);
         let pt = open_local(&key, &sealed).unwrap();
         assert_eq!(pt, b"stored body");
     }

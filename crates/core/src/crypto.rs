@@ -40,7 +40,11 @@ impl std::fmt::Debug for Ciphertext {
     }
 }
 
-fn derive_aead_key(shared: &[u8; 32], ephemeral_pub: &[u8; 32], recipient_pub: &[u8; 32]) -> [u8; 32] {
+fn derive_aead_key(
+    shared: &[u8; 32],
+    ephemeral_pub: &[u8; 32],
+    recipient_pub: &[u8; 32],
+) -> [u8; 32] {
     let mut hasher = Sha256::new();
     hasher.update(b"encrypchat-e2ee-v1");
     hasher.update(shared);

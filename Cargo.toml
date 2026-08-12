@@ -8,3 +8,8 @@ members = [
 [workspace.package]
 edition = "2021"
 license = "LicenseRef-Proprietary"
+
+[profile.release]
+# Exported FFI symbols live in .dynsym and survive stripping; only the debug
+# symbol table is dropped (~30% off libencrypchat_core.so).
+strip = "symbols"

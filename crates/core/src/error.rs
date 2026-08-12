@@ -25,6 +25,8 @@ pub enum CoreError {
     InvalidFrame,
     #[error("peer authentication failed")]
     AuthFailed,
+    #[error("peer token is on the local blocklist")]
+    PeerBlocked,
     #[error("internal error")]
     Internal,
 }
@@ -44,6 +46,7 @@ impl CoreError {
             Self::Empty => 9,
             Self::InvalidFrame => 10,
             Self::AuthFailed => 11,
+            Self::PeerBlocked => 12,
             Self::Internal => 255,
         }
     }

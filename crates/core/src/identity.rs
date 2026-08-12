@@ -73,9 +73,7 @@ impl PublicIdentity {
     }
 
     pub fn try_from_public_key_slice(bytes: &[u8]) -> Result<Self, CoreError> {
-        let arr: [u8; 32] = bytes
-            .try_into()
-            .map_err(|_| CoreError::InvalidPublicKey)?;
+        let arr: [u8; 32] = bytes.try_into().map_err(|_| CoreError::InvalidPublicKey)?;
         Ok(Self::from_public_key_bytes(arr))
     }
 

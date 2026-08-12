@@ -76,9 +76,8 @@ pub fn encode_frame(frame: &WireFrame) -> Result<Vec<u8>, CoreError> {
         return Err(CoreError::InvalidFrame);
     }
 
-    let mut out = Vec::with_capacity(
-        4 + 1 + MSG_ID_LEN + 2 + token_bytes.len() + 4 + frame.ciphertext.len(),
-    );
+    let mut out =
+        Vec::with_capacity(4 + 1 + MSG_ID_LEN + 2 + token_bytes.len() + 4 + frame.ciphertext.len());
     out.extend_from_slice(MAGIC);
     out.push(FRAME_VERSION);
     out.extend_from_slice(&frame.msg_id);
@@ -160,12 +159,18 @@ mod tests {
         let token = Identity::generate().token().as_str().to_string();
         let mut encoded = WireFrame::new(token, vec![9]).unwrap().encode().unwrap();
         encoded[0] = b'X';
-        assert!(matches!(decode_frame(&encoded), Err(CoreError::InvalidFrame)));
+        assert!(matches!(
+            decode_frame(&encoded),
+            Err(CoreError::InvalidFrame)
+        ));
     }
 
     #[test]
     fn truncated_rejected() {
-        assert!(matches!(decode_frame(b"EC04"), Err(CoreError::InvalidFrame)));
+        assert!(matches!(
+            decode_frame(b"EC04"),
+            Err(CoreError::InvalidFrame)
+        ));
     }
 
     #[test]

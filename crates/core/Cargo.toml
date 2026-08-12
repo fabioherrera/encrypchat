@@ -1,6 +1,6 @@
 [package]
 name = "encrypchat_core"
-version = "0.5.0"
+version = "0.7.0"
 edition = "2021"
 description = "Encrypchat local identity, E2EE, at-rest AEAD, and P2P networking core"
 license = "LicenseRef-Proprietary"

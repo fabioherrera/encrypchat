@@ -9,12 +9,15 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::ptr;
 use std::slice;
 
+use zeroize::Zeroizing;
+
 use crate::api_version;
 use crate::crypto::{decrypt, encrypt, Ciphertext};
 use crate::error::CoreError;
 use crate::identity::{Identity, PublicIdentity};
 use crate::local_aead::{open_local, seal_local};
 use crate::net::NodeHandle;
+use crate::pop::{pop_proof, POP_PROOF_LEN};
 
 fn write_cstr(out: *mut c_char, cap: usize, s: &str) -> Result<(), CoreError> {
     let needed = s.len().checked_add(1).ok_or(CoreError::BufferTooSmall)?;
@@ -64,7 +67,15 @@ where
     }
 }
 
-/// Writes semver of the FFI surface, e.g. `"0.5.0"`.
+/// Writes semver of the FFI surface, e.g. `"0.7.0"`.
+///
+/// # Safety
+///
+/// `out` must be null or valid for writes of `cap` bytes until this call returns; null is
+/// rejected with `NullPointer` (7) before any write happens. Writes the version string plus
+/// a NUL terminator (6 bytes for `"0.7.0"`); a smaller `cap` writes nothing and returns
+/// `BufferTooSmall` (6). Nothing is allocated and no state is shared, so any thread may call
+/// this concurrently.
 #[no_mangle]
 pub unsafe extern "C" fn encrypchat_api_version(out: *mut c_char, cap: usize) -> i32 {
     run_ffi(|| {
@@ -76,6 +87,16 @@ pub unsafe extern "C" fn encrypchat_api_version(out: *mut c_char, cap: usize) ->
 }
 
 /// Generate a new identity: 32-byte secret + token (`ec_` + 64 hex + NUL).
+///
+/// # Safety
+///
+/// `out_secret` must be valid for writes of exactly 32 bytes, `out_token` for writes of
+/// `token_cap` bytes; both must stay valid for the whole call and must not overlap. Either
+/// being null returns `NullPointer` (7). `token_cap` must be at least 68 (`ec_` + 64 hex +
+/// NUL) or `BufferTooSmall` (6) is returned. Errors are clean: neither buffer is written, so
+/// a failed call never leaves key material in `out_secret`. On success the caller owns both
+/// buffers; nothing is allocated here. `out_secret` is long-term key material: keep it in OS
+/// secure storage and never log it.
 #[no_mangle]
 pub unsafe extern "C" fn encrypchat_identity_generate(
     out_secret: *mut u8,
@@ -87,13 +108,26 @@ pub unsafe extern "C" fn encrypchat_identity_generate(
             return Err(CoreError::NullPointer);
         }
         let id = Identity::generate();
-        let secret = id.to_secret_bytes();
+        // Token first: `write_cstr` validates capacity before writing, so a too-small
+        // `token_cap` aborts while both caller buffers are still untouched. Writing the
+        // secret first would hand back fresh key material on an error path, and callers
+        // do not zeroize buffers they believe were never filled.
+        write_cstr(out_token, token_cap, id.token().as_str())?;
+        let secret = Zeroizing::new(id.to_secret_bytes());
         ptr::copy_nonoverlapping(secret.as_ptr(), out_secret, 32);
-        write_cstr(out_token, token_cap, id.token().as_str())
+        Ok(())
     })
 }
 
 /// Derive token from a 32-byte secret.
+///
+/// # Safety
+///
+/// `secret` must be valid for reads of exactly 32 bytes and `out_token` for writes of
+/// `token_cap` bytes, both for the duration of the call, and the two regions must not
+/// overlap. Either being null returns `NullPointer` (7). `token_cap` must be at least 68 or
+/// `BufferTooSmall` (6) is returned with nothing written. The secret is copied into a stack
+/// array and never retained; no allocation and no shared state, so any thread may call it.
 #[no_mangle]
 pub unsafe extern "C" fn encrypchat_identity_token(
     secret: *const u8,
@@ -104,14 +138,21 @@ pub unsafe extern "C" fn encrypchat_identity_token(
         if secret.is_null() || out_token.is_null() {
             return Err(CoreError::NullPointer);
         }
-        let mut bytes = [0u8; 32];
+        let mut bytes = Zeroizing::new([0u8; 32]);
         ptr::copy_nonoverlapping(secret, bytes.as_mut_ptr(), 32);
-        let id = Identity::from_secret_bytes(bytes);
+        let id = Identity::from_secret_bytes(*bytes);
         write_cstr(out_token, token_cap, id.token().as_str())
     })
 }
 
 /// Derive X25519 public key from a 32-byte secret.
+///
+/// # Safety
+///
+/// `secret` must be valid for reads of exactly 32 bytes and `out_pub` for writes of exactly
+/// 32 bytes; the regions must not overlap and both must stay valid for the whole call.
+/// Either being null returns `NullPointer` (7). The caller keeps ownership of both buffers
+/// and nothing is allocated. Callable from any thread.
 #[no_mangle]
 pub unsafe extern "C" fn encrypchat_identity_public_key(
     secret: *const u8,
@@ -121,9 +162,9 @@ pub unsafe extern "C" fn encrypchat_identity_public_key(
         if secret.is_null() || out_pub.is_null() {
             return Err(CoreError::NullPointer);
         }
-        let mut bytes = [0u8; 32];
+        let mut bytes = Zeroizing::new([0u8; 32]);
         ptr::copy_nonoverlapping(secret, bytes.as_mut_ptr(), 32);
-        let id = Identity::from_secret_bytes(bytes);
+        let id = Identity::from_secret_bytes(*bytes);
         let pub_bytes = id.public_key_bytes();
         ptr::copy_nonoverlapping(pub_bytes.as_ptr(), out_pub, 32);
         Ok(())
@@ -131,6 +172,18 @@ pub unsafe extern "C" fn encrypchat_identity_public_key(
 }
 
 /// Encrypt plaintext for `recipient_pub`. Allocates ciphertext; caller frees with [`encrypchat_free`].
+///
+/// # Safety
+///
+/// `recipient_pub` must be valid for reads of exactly 32 bytes (X25519 public key).
+/// `plaintext` must be valid for reads of `plaintext_len` bytes, or null when `plaintext_len`
+/// is 0 — an empty plaintext is rejected with `EmptyPlaintext` (5). Both inputs are only read
+/// during the call, so they may be freed once it returns. `out_ciphertext` must be a non-null
+/// slot aligned for `*mut u8` and `out_len` a non-null slot aligned for `usize`; on success
+/// they receive a `malloc`ed buffer (`eph_pub(32) || nonce(12) || ct+tag`) and its length, and
+/// the caller takes ownership and must release it with exactly one [`encrypchat_free`]. On any
+/// error neither out-slot is written, so the caller must not read or free them. A null
+/// required pointer returns `NullPointer` (7). Callable from any thread.
 #[no_mangle]
 pub unsafe extern "C" fn encrypchat_encrypt(
     recipient_pub: *const u8,
@@ -165,6 +218,18 @@ pub unsafe extern "C" fn encrypchat_encrypt(
 }
 
 /// Decrypt ciphertext with recipient secret. Allocates plaintext; caller frees with [`encrypchat_free`].
+///
+/// # Safety
+///
+/// `secret` must be valid for reads of exactly 32 bytes. `ciphertext` must be valid for reads
+/// of `ciphertext_len` bytes, or null when `ciphertext_len` is 0; anything shorter than 60
+/// bytes (`eph_pub(32) || nonce(12) || tag(16)`) returns `CiphertextTooShort` (4). The
+/// ciphertext is copied into an owned `Vec` before decryption, so the caller may free it once
+/// the call returns. `out_plaintext` must be a non-null slot aligned for `*mut u8` and
+/// `out_len` a non-null slot aligned for `usize`; on success they receive a `malloc`ed buffer
+/// and its length that the caller owns and must release with exactly one [`encrypchat_free`].
+/// On error (including AEAD failure, `DecryptionFailed` (3)) neither out-slot is written. A
+/// null required pointer returns `NullPointer` (7). Callable from any thread.
 #[no_mangle]
 pub unsafe extern "C" fn encrypchat_decrypt(
     secret: *const u8,
@@ -181,9 +246,9 @@ pub unsafe extern "C" fn encrypchat_decrypt(
         {
             return Err(CoreError::NullPointer);
         }
-        let mut secret_bytes = [0u8; 32];
+        let mut secret_bytes = Zeroizing::new([0u8; 32]);
         ptr::copy_nonoverlapping(secret, secret_bytes.as_mut_ptr(), 32);
-        let id = Identity::from_secret_bytes(secret_bytes);
+        let id = Identity::from_secret_bytes(*secret_bytes);
         let ct_slice = if ciphertext_len == 0 {
             &[][..]
         } else {
@@ -199,6 +264,17 @@ pub unsafe extern "C" fn encrypchat_decrypt(
 }
 
 /// Seal plaintext for local DB storage with `db_key` (32 bytes).
+///
+/// # Safety
+///
+/// `key` must be valid for reads of exactly 32 bytes (the device `db_key`). `plaintext` must
+/// be valid for reads of `plaintext_len` bytes, or null when `plaintext_len` is 0 — empty
+/// input returns `EmptyPlaintext` (5). Both are only read during the call. `out` must be a
+/// non-null slot aligned for `*mut u8` and `out_len` a non-null slot aligned for `usize`; on
+/// success they receive a `malloc`ed buffer (`nonce(12) || ct+tag`) and its length, owned by
+/// the caller and released with exactly one [`encrypchat_free`]. On error neither out-slot is
+/// written. A null required pointer returns `NullPointer` (7). The key is secret material:
+/// never log it. Callable from any thread.
 #[no_mangle]
 pub unsafe extern "C" fn encrypchat_local_seal(
     key: *const u8,
@@ -215,7 +291,7 @@ pub unsafe extern "C" fn encrypchat_local_seal(
         {
             return Err(CoreError::NullPointer);
         }
-        let mut key_bytes = [0u8; 32];
+        let mut key_bytes = Zeroizing::new([0u8; 32]);
         ptr::copy_nonoverlapping(key, key_bytes.as_mut_ptr(), 32);
         let pt = if plaintext_len == 0 {
             &[][..]
@@ -231,6 +307,17 @@ pub unsafe extern "C" fn encrypchat_local_seal(
 }
 
 /// Open a local-sealed blob with `db_key`.
+///
+/// # Safety
+///
+/// `key` must be valid for reads of exactly 32 bytes. `sealed` must be valid for reads of
+/// `sealed_len` bytes, or null when `sealed_len` is 0; anything under 28 bytes
+/// (`nonce(12) || tag(16)`) returns `CiphertextTooShort` (4). Inputs are only read during the
+/// call. `out` must be a non-null slot aligned for `*mut u8` and `out_len` a non-null slot
+/// aligned for `usize`; on success they receive a `malloc`ed plaintext buffer and its length
+/// that the caller owns and must release with exactly one [`encrypchat_free`]. On error
+/// (including a wrong key, `DecryptionFailed` (3)) neither out-slot is written. A null
+/// required pointer returns `NullPointer` (7). Callable from any thread.
 #[no_mangle]
 pub unsafe extern "C" fn encrypchat_local_open(
     key: *const u8,
@@ -247,7 +334,7 @@ pub unsafe extern "C" fn encrypchat_local_open(
         {
             return Err(CoreError::NullPointer);
         }
-        let mut key_bytes = [0u8; 32];
+        let mut key_bytes = Zeroizing::new([0u8; 32]);
         ptr::copy_nonoverlapping(key, key_bytes.as_mut_ptr(), 32);
         let sealed_slice = if sealed_len == 0 {
             &[][..]
@@ -263,6 +350,18 @@ pub unsafe extern "C" fn encrypchat_local_open(
 }
 
 /// Start a P2P node. On success writes an opaque handle; free with [`encrypchat_node_stop`].
+///
+/// # Safety
+///
+/// `secret` must be valid for reads of exactly 32 bytes and is copied into the node before the
+/// call returns; the node holds that session-long copy in a zeroizing buffer wiped when
+/// [`encrypchat_node_stop`] shuts the runtime down. The caller's own buffer is never modified and
+/// stays the caller's to zeroize. `out_handle` must be a non-null slot aligned for `*mut NodeHandle`. Either
+/// being null returns `NullPointer` (7). On success `*out_handle` receives a boxed handle that
+/// the caller owns and must release with exactly one [`encrypchat_node_stop`]; it must never be
+/// passed to [`encrypchat_free`], since it is not a `malloc` allocation. On error `*out_handle`
+/// is left untouched. The call blocks up to 5 s while the embedded Tokio runtime binds its TCP
+/// listener and returns `Internal` (255) if that times out.
 #[no_mangle]
 pub unsafe extern "C" fn encrypchat_node_start(
     secret: *const u8,
@@ -273,7 +372,7 @@ pub unsafe extern "C" fn encrypchat_node_start(
         if secret.is_null() || out_handle.is_null() {
             return Err(CoreError::NullPointer);
         }
-        let mut secret_bytes = [0u8; 32];
+        let mut secret_bytes = Zeroizing::new([0u8; 32]);
         ptr::copy_nonoverlapping(secret, secret_bytes.as_mut_ptr(), 32);
         let handle = NodeHandle::start(secret_bytes, listen_port)?;
         *out_handle = Box::into_raw(Box::new(handle));
@@ -282,6 +381,15 @@ pub unsafe extern "C" fn encrypchat_node_start(
 }
 
 /// Stop and free a node handle.
+///
+/// # Safety
+///
+/// `handle` must be null (no-op) or a pointer produced by [`encrypchat_node_start`] that has not
+/// been stopped yet. This call takes ownership and drops it, so passing the same pointer twice,
+/// or a pointer from any other source, is undefined behaviour. The caller must guarantee no
+/// other thread is inside — or afterwards enters — any `encrypchat_node_*` call with this
+/// handle: those entry points build a shared reference and cannot detect the teardown. Inbound
+/// frames still queued and not drained by [`encrypchat_node_try_recv`] are dropped.
 #[no_mangle]
 pub unsafe extern "C" fn encrypchat_node_stop(handle: *mut NodeHandle) {
     if handle.is_null() {
@@ -294,6 +402,15 @@ pub unsafe extern "C" fn encrypchat_node_stop(handle: *mut NodeHandle) {
 }
 
 /// Copy local token into `out_token` (NUL-terminated).
+///
+/// # Safety
+///
+/// `handle` must be null or a live handle from [`encrypchat_node_start`] that has not been passed
+/// to [`encrypchat_node_stop`]; `out_token` must be valid for writes of `cap` bytes for the
+/// duration of the call. Either being null returns `NullPointer` (7). `cap` must be at least 68
+/// (`ec_` + 64 hex + NUL) or `BufferTooSmall` (6) is returned. `NodeHandle` is `Sync`, so
+/// several threads may share one handle across the read-only `encrypchat_node_*` calls as long
+/// as none of them stops it concurrently.
 #[no_mangle]
 pub unsafe extern "C" fn encrypchat_node_local_token(
     handle: *mut NodeHandle,
@@ -310,6 +427,18 @@ pub unsafe extern "C" fn encrypchat_node_local_token(
 }
 
 /// Send opaque frame bytes to `token_cstr`. Fails with PeerOffline (8) if unknown.
+///
+/// # Safety
+///
+/// `handle` must be null or a live handle from [`encrypchat_node_start`]. `token_cstr` must point
+/// to a NUL-terminated byte string that stays valid and unmodified for the whole call, with its
+/// terminator inside the caller's allocation — no length cap is applied before scanning; contents
+/// must be UTF-8 or `InvalidToken` (1) is returned. `frame` must be valid for reads of
+/// `frame_len` bytes, or null when `frame_len` is 0. The frame is copied into an owned `Vec`
+/// before transmission, so the caller may free it as soon as the call returns; frames over 16 MiB
+/// are rejected with `InvalidFrame` (10). Blocks up to 15 s waiting for the peer ACK; unknown or
+/// offline peers and ACK timeouts map to `PeerOffline` (8). A null required pointer returns
+/// `NullPointer` (7).
 #[no_mangle]
 pub unsafe extern "C" fn encrypchat_node_send(
     handle: *mut NodeHandle,
@@ -318,10 +447,7 @@ pub unsafe extern "C" fn encrypchat_node_send(
     frame_len: usize,
 ) -> i32 {
     run_ffi(|| {
-        if handle.is_null()
-            || token_cstr.is_null()
-            || (frame.is_null() && frame_len != 0)
-        {
+        if handle.is_null() || token_cstr.is_null() || (frame.is_null() && frame_len != 0) {
             return Err(CoreError::NullPointer);
         }
         let node = unsafe { &*handle };
@@ -338,6 +464,22 @@ pub unsafe extern "C" fn encrypchat_node_send(
 }
 
 /// Non-blocking receive. `0` = message in `out`/`out_len`; `9` (Empty) = no message.
+///
+/// # Safety
+///
+/// `handle` must be null or a live handle from [`encrypchat_node_start`]; `out` must be a
+/// non-null slot aligned for `*mut u8` and `out_len` a non-null slot aligned for `usize`, both
+/// valid for the duration of the call. A null pointer returns `NullPointer` (7). On `0` the
+/// out-slots hold a `malloc`ed frame and its length, owned by the caller and released with
+/// exactly one [`encrypchat_free`]; on `Empty` (9) both slots are left untouched, so the caller
+/// must only read them after a `0`. Non-blocking and safe to poll from any thread, but
+/// concurrent pollers split the queue — each frame is delivered to exactly one caller.
+///
+/// Known gap: the frame leaves the inbound queue before its buffer is allocated, so if that
+/// `malloc` fails the frame is lost and only `Internal` (255) surfaces. The sender was already
+/// sent `MSG_ACK` at that point (the node withholds the ACK only when the queue itself is full),
+/// so it considers the message delivered and will not retry. Treat `255` from this call as
+/// possible message loss and re-sync at the application layer if that matters.
 #[no_mangle]
 pub unsafe extern "C" fn encrypchat_node_try_recv(
     handle: *mut NodeHandle,
@@ -363,7 +505,63 @@ pub unsafe extern "C" fn encrypchat_node_try_recv(
     })
 }
 
+/// Replace the local blocklist with `count` tokens read from `tokens`.
+///
+/// Defence in depth behind the Dart-side block list: a blocked peer is refused a P2P session
+/// after EH01, has any live session closed on its next frame, and cannot be sent to.
+///
+/// # Safety
+///
+/// `handle` must be null or a live handle from [`encrypchat_node_start`]. `tokens` must be an
+/// array of `count` non-null, NUL-terminated UTF-8 C strings, each valid and unmodified for the
+/// duration of the call; the array itself may be null when `count` is 0, which clears the list.
+/// A null `handle`, a null array with a non-zero `count`, or a null entry returns `NullPointer`
+/// (7). Entries are copied into owned Rust strings before the call returns, so the caller may
+/// free the array and the strings immediately afterwards.
+///
+/// The set is **replaced**, never merged, so the caller can keep one source of truth and rewrite
+/// it wholesale. Tokens are trimmed and lowercased before comparison; a malformed entry (bad
+/// prefix, wrong length, non-hex, or non-UTF-8) returns `InvalidToken` (1) and leaves the
+/// previous list untouched, so a partially-applied list can never happen. Callable from any
+/// thread while the node runs, including concurrently with other `encrypchat_node_*` calls.
+#[no_mangle]
+pub unsafe extern "C" fn encrypchat_node_set_blocked_tokens(
+    handle: *mut NodeHandle,
+    tokens: *const *const c_char,
+    count: usize,
+) -> i32 {
+    run_ffi(|| {
+        if handle.is_null() || (tokens.is_null() && count != 0) {
+            return Err(CoreError::NullPointer);
+        }
+        let node = unsafe { &*handle };
+        let mut list: Vec<&str> = Vec::with_capacity(count);
+        if count != 0 {
+            let raw = unsafe { slice::from_raw_parts(tokens, count) };
+            for entry in raw {
+                if entry.is_null() {
+                    return Err(CoreError::NullPointer);
+                }
+                let token = unsafe { CStr::from_ptr(*entry) }
+                    .to_str()
+                    .map_err(|_| CoreError::InvalidToken)?;
+                list.push(token);
+            }
+        }
+        node.set_blocked_tokens(&list)
+    })
+}
+
 /// Write discovered peer count to `out_count`.
+///
+/// # Safety
+///
+/// `handle` must be null or a live handle from [`encrypchat_node_start`] and `out_count` a
+/// non-null slot aligned for `usize`, valid for the duration of the call; either being null
+/// returns `NullPointer` (7). The count is queried from the node's command loop with a 2 s
+/// budget; a timeout or a dead loop returns `Internal` (255) and leaves `out_count` untouched,
+/// so a written `0` always means "no peers" and never "no answer". Nothing is allocated for
+/// the caller.
 #[no_mangle]
 pub unsafe extern "C" fn encrypchat_node_peer_count(
     handle: *mut NodeHandle,
@@ -374,14 +572,23 @@ pub unsafe extern "C" fn encrypchat_node_peer_count(
             return Err(CoreError::NullPointer);
         }
         let node = unsafe { &*handle };
+        let count = node.known_peers()?.len();
         unsafe {
-            *out_count = node.known_peers().len();
+            *out_count = count;
         }
         Ok(())
     })
 }
 
 /// Copy first listen multiaddr (e.g. `/ip4/127.0.0.1/tcp/41234`) into `out`.
+///
+/// # Safety
+///
+/// `handle` must be null or a live handle from [`encrypchat_node_start`]; `out` must be valid for
+/// writes of `cap` bytes for the duration of the call. Either being null returns `NullPointer`
+/// (7). Writes the multiaddr plus a NUL terminator, so `cap` must cover it (64 bytes is enough
+/// for `/ip4/A.B.C.D/tcp/PORT`) or `BufferTooSmall` (6) is returned with nothing written; a node
+/// with no bound address yet returns `Internal` (255).
 #[no_mangle]
 pub unsafe extern "C" fn encrypchat_node_listen_addr(
     handle: *mut NodeHandle,
@@ -403,6 +610,15 @@ pub unsafe extern "C" fn encrypchat_node_listen_addr(
 }
 
 /// Dial a peer multiaddr (e.g. `/ip4/192.168.1.10/tcp/41234`). Maps peer via hello token.
+///
+/// # Safety
+///
+/// `handle` must be null or a live handle from [`encrypchat_node_start`]. `multiaddr_cstr` must
+/// point to a NUL-terminated byte string, valid and unmodified for the whole call, with its
+/// terminator inside the caller's allocation; the string is only read during the call. Either
+/// being null returns `NullPointer` (7); non-UTF-8 input and addresses this build cannot resolve
+/// to a socket (only `/ip4` or `/ip6` plus `/tcp`) return `Internal` (255). Blocks up to 10 s
+/// while dialing and completing the EH01 hello. Nothing is allocated for the caller.
 #[no_mangle]
 pub unsafe extern "C" fn encrypchat_node_connect(
     handle: *mut NodeHandle,
@@ -421,7 +637,74 @@ pub unsafe extern "C" fn encrypchat_node_connect(
     })
 }
 
+/// Compute relay PoP proof: SHA-256(domain || ECDH(secret, eph_pub) || nonce || token).
+///
+/// `out_proof` must point to a 32-byte buffer. `token_cstr` is the destination token
+/// (`ec_` + 64 hex). Used by Flutter before `POST /v1/pull`.
+///
+/// # Safety
+///
+/// `secret` and `eph_pub` must each be valid for reads of exactly 32 bytes and `out_proof` for
+/// writes of exactly [`POP_PROOF_LEN`] (32) bytes. `nonce` must be valid for reads of `nonce_len`
+/// bytes, or null when `nonce_len` is 0 as elsewhere in this module; either spelling of an empty
+/// nonce is rejected with `AuthFailed` (11), since a proof over no challenge is worthless.
+/// `token_cstr` must be a NUL-terminated UTF-8 string valid for the whole call, with its
+/// terminator inside the caller's allocation; a malformed token returns `InvalidToken` (1). Any
+/// other null pointer returns `NullPointer` (7). Inputs are only read during the call,
+/// `out_proof` is written only on success, and nothing is allocated. `secret` is long-term key
+/// material — do not log it. Callable from any thread.
+#[no_mangle]
+pub unsafe extern "C" fn encrypchat_pop_proof(
+    secret: *const u8,
+    eph_pub: *const u8,
+    nonce: *const u8,
+    nonce_len: usize,
+    token_cstr: *const c_char,
+    out_proof: *mut u8,
+) -> i32 {
+    run_ffi(|| {
+        if secret.is_null()
+            || eph_pub.is_null()
+            || token_cstr.is_null()
+            || out_proof.is_null()
+            || (nonce.is_null() && nonce_len != 0)
+        {
+            return Err(CoreError::NullPointer);
+        }
+        let mut secret_arr = Zeroizing::new([0u8; 32]);
+        // `eph_arr` is the relay's ephemeral *public* key: not secret, left bare.
+        let mut eph_arr = [0u8; 32];
+        unsafe {
+            ptr::copy_nonoverlapping(secret, secret_arr.as_mut_ptr(), 32);
+            ptr::copy_nonoverlapping(eph_pub, eph_arr.as_mut_ptr(), 32);
+        }
+        let nonce_slice = if nonce_len == 0 {
+            &[][..]
+        } else {
+            unsafe { slice::from_raw_parts(nonce, nonce_len) }
+        };
+        let token = unsafe { CStr::from_ptr(token_cstr) }
+            .to_str()
+            .map_err(|_| CoreError::InvalidToken)?;
+        let proof = pop_proof(&secret_arr, &eph_arr, nonce_slice, token)?;
+        unsafe {
+            ptr::copy_nonoverlapping(proof.as_ptr(), out_proof, POP_PROOF_LEN);
+        }
+        Ok(())
+    })
+}
+
 /// Free a buffer returned by encrypt/decrypt/seal/open/try_recv.
+///
+/// # Safety
+///
+/// `ptr` must be null (no-op) or the exact pointer written by [`encrypchat_encrypt`],
+/// [`encrypchat_decrypt`], [`encrypchat_local_seal`], [`encrypchat_local_open`] or
+/// [`encrypchat_node_try_recv`], passed exactly once and never dereferenced afterwards. Those
+/// buffers come from `malloc`, so passing an interior offset, a pointer from another allocator,
+/// or a [`NodeHandle`] (which needs [`encrypchat_node_stop`]) is undefined behaviour. The buffer
+/// may be freed from a different thread than the one that produced it, but not while another
+/// thread still reads it.
 #[no_mangle]
 pub unsafe extern "C" fn encrypchat_free(ptr: *mut std::ffi::c_void) {
     if ptr.is_null() {
@@ -440,12 +723,12 @@ mod tests {
     const TOKEN_CAP: usize = 68;
 
     #[test]
-    fn api_version_writes_0_5_0() {
+    fn api_version_writes_0_7_0() {
         let mut buf = [0u8; 16];
         let rc = unsafe { encrypchat_api_version(buf.as_mut_ptr() as *mut c_char, buf.len()) };
         assert_eq!(rc, 0);
         let s = unsafe { CStr::from_ptr(buf.as_ptr() as *const c_char) };
-        assert_eq!(s.to_str().unwrap(), "0.5.0");
+        assert_eq!(s.to_str().unwrap(), "0.7.0");
     }
 
     #[test]
@@ -600,6 +883,24 @@ mod tests {
         assert_eq!(rc, CoreError::BufferTooSmall.as_code());
     }
 
+    /// `BufferTooSmall` must be a clean failure: no key material may reach the caller on an
+    /// error path, because a buffer the caller believes was never filled never gets zeroized.
+    #[test]
+    fn buffer_too_small_leaves_out_secret_untouched() {
+        let mut secret = [0xA5u8; 32];
+        let mut tiny = [0xA5u8; 8];
+        let rc = unsafe {
+            encrypchat_identity_generate(
+                secret.as_mut_ptr(),
+                tiny.as_mut_ptr() as *mut c_char,
+                tiny.len(),
+            )
+        };
+        assert_eq!(rc, CoreError::BufferTooSmall.as_code());
+        assert_eq!(secret, [0xA5u8; 32], "secret buffer must survive intact");
+        assert_eq!(tiny, [0xA5u8; 8], "token buffer must survive intact");
+    }
+
     #[test]
     fn empty_plaintext_rejected() {
         let mut secret = [0u8; 32];
@@ -650,12 +951,124 @@ mod tests {
         assert_eq!(rc, CoreError::Empty.as_code());
 
         let mut count: usize = 999;
-        assert_eq!(
-            unsafe { encrypchat_node_peer_count(handle, &mut count) },
-            0
-        );
+        assert_eq!(unsafe { encrypchat_node_peer_count(handle, &mut count) }, 0);
         assert_eq!(count, 0);
 
         unsafe { encrypchat_node_stop(handle) };
+    }
+
+    #[test]
+    fn set_blocked_tokens_ffi_contract() {
+        let mut secret = [0u8; 32];
+        let mut token_buf = [0u8; TOKEN_CAP];
+        unsafe {
+            encrypchat_identity_generate(
+                secret.as_mut_ptr(),
+                token_buf.as_mut_ptr() as *mut c_char,
+                TOKEN_CAP,
+            );
+        }
+        let mut handle: *mut NodeHandle = ptr::null_mut();
+        assert_eq!(
+            unsafe { encrypchat_node_start(secret.as_ptr(), 0, &mut handle) },
+            0
+        );
+
+        let blocked = std::ffi::CString::new(Identity::generate().token().as_str()).unwrap();
+        let bad = std::ffi::CString::new("nope").unwrap();
+
+        // Empty list: a null array is legal when count is 0.
+        assert_eq!(
+            unsafe { encrypchat_node_set_blocked_tokens(handle, ptr::null(), 0) },
+            0
+        );
+
+        let one = [blocked.as_ptr()];
+        assert_eq!(
+            unsafe { encrypchat_node_set_blocked_tokens(handle, one.as_ptr(), 1) },
+            0
+        );
+
+        let with_bad = [blocked.as_ptr(), bad.as_ptr()];
+        assert_eq!(
+            unsafe { encrypchat_node_set_blocked_tokens(handle, with_bad.as_ptr(), 2) },
+            CoreError::InvalidToken.as_code()
+        );
+
+        let with_null = [blocked.as_ptr(), ptr::null()];
+        assert_eq!(
+            unsafe { encrypchat_node_set_blocked_tokens(handle, with_null.as_ptr(), 2) },
+            CoreError::NullPointer.as_code()
+        );
+        assert_eq!(
+            unsafe { encrypchat_node_set_blocked_tokens(ptr::null_mut(), one.as_ptr(), 1) },
+            CoreError::NullPointer.as_code()
+        );
+        assert_eq!(
+            unsafe { encrypchat_node_set_blocked_tokens(handle, ptr::null(), 1) },
+            CoreError::NullPointer.as_code()
+        );
+
+        unsafe { encrypchat_node_stop(handle) };
+    }
+
+    #[test]
+    fn pop_proof_ffi_matches_rust() {
+        let id = Identity::generate();
+        let eph = crate::pop::pop_generate_ephemeral();
+        let nonce = crate::pop::pop_generate_nonce();
+        let token = id.token();
+        let mut out = [0u8; 32];
+        let token_c = std::ffi::CString::new(token.as_str()).unwrap();
+        let rc = unsafe {
+            encrypchat_pop_proof(
+                id.to_secret_bytes().as_ptr(),
+                eph.public.as_ptr(),
+                nonce.as_ptr(),
+                nonce.len(),
+                token_c.as_ptr(),
+                out.as_mut_ptr(),
+            )
+        };
+        assert_eq!(rc, 0);
+        let expected =
+            pop_proof(&id.to_secret_bytes(), &eph.public, &nonce, token.as_str()).unwrap();
+        assert_eq!(out, expected);
+        assert!(crate::pop::pop_verify(
+            &eph.secret,
+            &id.public_key_bytes(),
+            &nonce,
+            token.as_str(),
+            &out
+        )
+        .unwrap());
+    }
+
+    /// An empty nonce is an auth problem, not a null-pointer problem, and both spellings of
+    /// "empty" (null + 0, or a real pointer + 0) must agree — the Dart binding sends the
+    /// former because it maps empty lists to `nullptr`.
+    #[test]
+    fn pop_proof_empty_nonce_is_auth_failed() {
+        let id = Identity::generate();
+        let eph = crate::pop::pop_generate_ephemeral();
+        let token_c = std::ffi::CString::new(id.token().as_str()).unwrap();
+        let secret = id.to_secret_bytes();
+        let empty: [u8; 0] = [];
+
+        for nonce_ptr in [ptr::null(), empty.as_ptr()] {
+            let mut out = [0u8; 32];
+            let rc = unsafe {
+                encrypchat_pop_proof(
+                    secret.as_ptr(),
+                    eph.public.as_ptr(),
+                    nonce_ptr,
+                    0,
+                    token_c.as_ptr(),
+                    out.as_mut_ptr(),
+                )
+            };
+            assert_eq!(rc, CoreError::AuthFailed.as_code());
+            assert_eq!(out, [0u8; 32], "no proof may be written on failure");
+        }
     }
 }
