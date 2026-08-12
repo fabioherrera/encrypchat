@@ -21,7 +21,8 @@ services:
     restart: unless-stopped
     command: tunnel --no-autoupdate run
     environment:
-      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?set TUNNEL_TOKEN from Cloudflare Zero Trust}
+      # Set in Dokploy → Environment (do not commit the real token)
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
     networks:
       - dokploy-network
     # Optional: only if you must reach host ports instead of Traefik DNS
