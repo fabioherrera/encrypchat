@@ -11,10 +11,44 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Test core + build relay
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Test core
+        run: cargo test -p encrypchat_core
+      - name: Test relay
+        run: cargo test -p encrypchat_relay
+      - name: Build relay
+        run: cargo build -p encrypchat_relay
+
+  client:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.9"
+          channel: stable
+          cache: true
+      # Dart FFI loads the core at runtime, so the tests need a real .so.
+      - name: Build FFI
         run: |
-          cargo test -p encrypchat_core
-          cargo build -p encrypchat_relay
+          cargo build -p encrypchat_core --release
+          mkdir -p apps/client/native
+          cp -f target/release/libencrypchat_core.so apps/client/native/
+      - name: Flutter test
+        working-directory: apps/client
+        env:
+          ENCRYPCHAT_CORE_LIB: ${{ github.workspace }}/apps/client/native/libencrypchat_core.so
+        run: |
+          flutter pub get
+          flutter test
 
   web:
     runs-on: ubuntu-latest
@@ -31,4 +65,4 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-  # Flutter analyze is local/Makefile for Phase 0; full CI matrix in Phase 8.
+  # Packaging (Linux tarball / Android APK) stays manual — see docs/phase-8.md.

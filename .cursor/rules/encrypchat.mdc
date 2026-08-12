@@ -46,7 +46,7 @@ Paridad funcional entre móvil y desktop. No degradar desktop ni asumir solo mó
 | --- | --- |
 | Cliente | Flutter — `apps/client` (Android, iOS, Linux, Windows) |
 | Core P2P/crypto | Rust + libp2p — `crates/core` (FFI) |
-| DB local | SQLCipher / almacenamiento cifrado en dispositivo |
+| DB local | SQLite en dispositivo con cuerpos y media sellados con AEAD. **SQLCipher pendiente (F10)**: el fichero no está cifrado y los metadatos (token del par, contactos, timestamps, ruta de media) son legibles en disco. No afirmar "SQLCipher" como hecho en copy ni en docs |
 | A/V | WebRTC P2P + señalización mínima |
 | Relay | `services/relay` — ciego |
 | Marketing/SEO | Next.js — `apps/web` en **encrypchat.com** (landing, no chat) |

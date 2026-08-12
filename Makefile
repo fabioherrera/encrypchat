@@ -23,8 +23,14 @@ help:
 check: check-rust check-web build-ffi check-client
 
 check-rust:
+	cargo fmt --all --check
+	cargo clippy --workspace --all-targets -- -D warnings
 	cargo test -p encrypchat_core
+	cargo test -p encrypchat_relay
 	cargo build -p encrypchat_relay
+
+run-relay:
+	cargo run -p encrypchat_relay
 
 build-ffi:
 	cargo build -p encrypchat_core --release

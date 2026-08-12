@@ -16,8 +16,11 @@ make -C "${ROOT}" build-ffi
 echo "==> Flutter Linux release"
 cd "${ROOT}/apps/client"
 run_flutter pub get
+# --tree-shake-icons is currently a no-op on desktop: flutter_tools passes
+# -dTreeShakeIcons="true" (quoted) to `flutter assemble`, so the subsetter stays
+# off and MaterialIcons ships whole (~1.6 MiB). Kept for when upstream fixes it.
 ENCRYPCHAT_CORE_LIB="${ROOT}/apps/client/native/libencrypchat_core.so" \
-  run_flutter build linux --release
+  run_flutter build linux --release --tree-shake-icons
 
 if [[ ! -x "${BUNDLE}/encrypchat" ]]; then
   echo "error: missing binary ${BUNDLE}/encrypchat" >&2
@@ -35,6 +38,28 @@ echo "==> Staging ${OUT_NAME}"
 rm -rf "${STAGE}"
 mkdir -p "${STAGE}/${OUT_NAME}"
 cp -a "${BUNDLE}/." "${STAGE}/${OUT_NAME}/"
+
+ASSETS="${STAGE}/${OUT_NAME}/data/flutter_assets"
+if [[ -f "${ASSETS}/NOTICES.Z" && -f "${ASSETS}/NOTICES" ]]; then
+  # Desktop engines read the gzipped NOTICES.Z; a plain NOTICES left over from
+  # older builds in build/flutter_assets is never loaded (~1.3 MiB).
+  rm -f "${ASSETS}/NOTICES"
+fi
+
+echo "==> Stripping symbols (staged copy only)"
+STRIP_BIN="$(command -v strip || command -v llvm-strip || true)"
+if [[ -n "${STRIP_BIN}" ]]; then
+  BEFORE="$(du -sb "${STAGE}/${OUT_NAME}" | cut -f1)"
+  # Prebuilt plugin libs (libwebrtc.so, libsqlite3.so) ship with debug symbols.
+  # Never fatal: a lib we cannot strip still ships, just bigger.
+  find "${STAGE}/${OUT_NAME}" -name '*.so' -type f \
+    -exec "${STRIP_BIN}" --strip-unneeded {} + || true
+  "${STRIP_BIN}" "${STAGE}/${OUT_NAME}/encrypchat" || true
+  AFTER="$(du -sb "${STAGE}/${OUT_NAME}" | cut -f1)"
+  echo "stripped: $((BEFORE / 1048576)) MiB → $((AFTER / 1048576)) MiB (uncompressed)"
+else
+  echo "warn: no strip/llvm-strip on PATH — shipping unstripped libs" >&2
+fi
 
 cat > "${STAGE}/${OUT_NAME}/install.sh" <<'INSTALL'
 #!/usr/bin/env bash
@@ -74,7 +99,8 @@ INSTALL
 chmod +x "${STAGE}/${OUT_NAME}/install.sh" "${STAGE}/${OUT_NAME}/encrypchat"
 
 echo "==> Creating ${TARBALL}"
-tar -C "${STAGE}" -czf "${TARBALL}" "${OUT_NAME}"
+tar -C "${STAGE}" --owner=0 --group=0 --numeric-owner -cf - "${OUT_NAME}" \
+  | gzip -9 > "${TARBALL}"
 rm -rf "${STAGE}"
 
 ls -lh "${TARBALL}"

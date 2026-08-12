@@ -3,8 +3,8 @@
 Mensajería **P2P** cifrada de extremo a extremo. Cada dispositivo es cliente + nodo local. Contenido **zero-cloud** (chats/media/claves en el dispositivo).
 
 **Roadmap:** [docs/roadmap.md](docs/roadmap.md) — fases 0–10, DoD y agentes.  
-**Siguiente paso:** Fase 8 packaging-first (`make package` → `dist/`); F5–F7 diferidos.  
-F8: [docs/phase-8.md](docs/phase-8.md) · F4: [docs/phase-4.md](docs/phase-4.md).  
+**Siguiente paso:** Probar `dist/` (F4–F7), cerrar F8 (Win/iOS) o completar los campos de operador de F9 (entidad legal, contacto, firma release).  
+F7: [docs/phase-7.md](docs/phase-7.md) · F8: [docs/phase-8.md](docs/phase-8.md) · F9: [docs/phase-9.md](docs/phase-9.md) + [docs/legal-f9-stores.md](docs/legal-f9-stores.md).  
 F1 deploy: `CLOUDFLARE_API_TOKEN` + `apps/web/out`.
 
 ## Dominio y marca
@@ -32,7 +32,7 @@ F1 deploy: `CLOUDFLARE_API_TOKEN` + `apps/web/out`.
 | --- | --- |
 | UI | Flutter |
 | Core | Rust + libp2p + E2EE (`crates/core`) |
-| DB local | SQLCipher |
+| DB local | SQLite en el dispositivo; cuerpos de mensaje y media sellados con AEAD. **SQLCipher (cifrado de fichero completo) pendiente F10** — hoy `peer_token`, contactos, timestamps y `media_relpath` son legibles en disco ([audit-f3-storage.md](docs/audit-f3-storage.md)) |
 | A/V | WebRTC P2P |
 | Offline | Relay ciego (`services/relay`) |
 | Web | Next.js (`apps/web`) |

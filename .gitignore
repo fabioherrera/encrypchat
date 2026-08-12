@@ -7,6 +7,8 @@
 *.pem
 *.p12
 *.keystore
+*.jks
+apps/client/android/key.properties
 secrets/
 credentials.json
 
@@ -69,4 +71,8 @@ apps/client/android/app/src/main/jniLibs/**
 # Packaged installers (keep docs)
 dist/*
 !dist/README.md
+
+# Blind relay local DB
+data/
+services/relay/data/
 

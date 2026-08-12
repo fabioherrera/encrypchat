@@ -18,12 +18,18 @@ Windows / iOS stubs: `scripts/package-windows.sh`, `scripts/package-ios.sh` (doc
 
 ## Expected files (after a successful package)
 
-| File | Platform | Notes |
-| --- | --- | --- |
-| `encrypchat-linux-x64-<version>.tar.gz` | Linux x64 | Portable Flutter bundle + `install.sh` |
-| `encrypchat-android-arm64-<version>.apk` | Android arm64 | Release APK; **debug-signed** OK for sideload — not for Play Store |
+| File | Platform | Size (1.0.0) | Notes |
+| --- | --- | --- | --- |
+| `encrypchat-linux-x64-<version>.tar.gz` | Linux x64 | ~20 MB | Portable Flutter bundle + `install.sh`; libs stripped |
+| `encrypchat-android-arm64-<version>.apk` | Android arm64 | ~16 MB | Release APK, arm64-v8a only; **debug-signed** unless `android/key.properties` exists — not for Play Store |
 
 `<version>` comes from `apps/client/pubspec.yaml` (e.g. `1.0.0`).
+
+The APK ships a single ABI on purpose: `crates/core` is cross-compiled for
+aarch64 only, so any other ABI would install an app that dies loading the FFI
+core. Native libs are compressed inside the APK (~16 MB download, ~35 MB on
+device after install). See [docs/phase-8.md](../docs/phase-8.md) for the full
+size breakdown and release-signing procedure.
 
 ## Install
 
@@ -49,6 +55,12 @@ Public download URLs will land on **GitHub Releases** when publishing starts. Un
 
 ## Gaps
 
-- **iOS** — needs macOS + Xcode + signing.
-- **Windows** — needs a Windows host (or documented cross toolchain); no fake `.exe` here.
-- **F5–F7** (relay, media, WebRTC) deferred relative to packaging-first testing.
+- **iOS** — needs macOS + Xcode + signing, and `crates/core` linked into Runner
+  (`-force_load libencrypchat_core.a`). Exact steps: `scripts/package-ios.sh`.
+- **Windows** — needs a Windows host + VS 2022; no fake `.exe` here. Exact steps:
+  `scripts/package-windows.sh`. The `.dll` install rule is already in
+  `windows/CMakeLists.txt`.
+- **Android release signing** — debug keystore today; drop
+  `apps/client/android/key.properties` to sign for real (see docs/phase-8.md).
+  Changing the signing key forces an uninstall, which wipes the local encrypted
+  database.

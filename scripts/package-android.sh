@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 # Build Android arm64 release APK → dist/encrypchat-android-arm64-<version>.apk
 #
-# Signing: Flutter --release uses the debug keystore by default when no
-# upload/release keystore is configured. That is intentional for sideload
-# testing (Phase 8 packaging-first). Do NOT publish this APK to Play Store.
+# Signing: release uses android/key.properties when present, otherwise the debug
+# keystore (sideload testing only — do NOT publish a debug-signed APK).
+#
+# Size: arm64-v8a only. crates/core is cross-compiled for aarch64 only, so any
+# other ABI in the APK would ship a Flutter engine that cannot load the FFI core.
+# abiFilters in android/app/build.gradle.kts also drops the extra ABIs that come
+# from plugin AARs (flutter_webrtc ships x86_64 + armeabi-v7a jingle libs).
 set -euo pipefail
 # shellcheck source=common.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
@@ -45,18 +49,40 @@ cp -f "${CARGO_TARGET_DIR}/aarch64-linux-android/release/libencrypchat_core.so" 
   "${JNIDIR}/libencrypchat_core.so"
 echo "jniLibs → ${JNIDIR}/libencrypchat_core.so"
 
-echo "==> Flutter APK release (debug-signing OK for sideload)"
+if [[ -f "${ROOT}/apps/client/android/key.properties" ]]; then
+  echo "==> Flutter APK release (signing with android/key.properties)"
+else
+  echo "==> Flutter APK release (debug-signing — sideload only)"
+fi
 cd "${ROOT}/apps/client"
 run_flutter pub get
-run_flutter build apk --release
+run_flutter build apk --release --target-platform android-arm64 --tree-shake-icons
 
 SRC_APK="${ROOT}/apps/client/build/app/outputs/flutter-apk/app-release.apk"
 if [[ ! -f "${SRC_APK}" ]]; then
   echo "error: missing ${SRC_APK}" >&2
   exit 1
 fi
+
+# Fail loud if an unusable ABI slipped in: without a matching libencrypchat_core.so
+# the app would install and then crash on FFI init.
+if command -v unzip >/dev/null 2>&1; then
+  EXTRA_ABIS="$(unzip -Z1 "${SRC_APK}" 'lib/*' 2>/dev/null \
+    | cut -d/ -f2 | sort -u | grep -v '^arm64-v8a$' || true)"
+  if [[ -n "${EXTRA_ABIS}" ]]; then
+    echo "error: APK contains non-arm64 ABIs without an FFI core: ${EXTRA_ABIS}" >&2
+    exit 1
+  fi
+  test -n "$(unzip -Z1 "${SRC_APK}" 'lib/arm64-v8a/libencrypchat_core.so' 2>/dev/null)" || {
+    echo "error: APK is missing lib/arm64-v8a/libencrypchat_core.so" >&2
+    exit 1
+  }
+fi
+
 cp -f "${SRC_APK}" "${OUT_APK}"
 ls -lh "${OUT_APK}"
 echo "OK: ${OUT_APK}"
 echo "Install: adb install -r ${OUT_APK}"
-echo "Note: unsigned/debug-signed for sideload testing only — not for Play Store."
+if [[ ! -f "${ROOT}/apps/client/android/key.properties" ]]; then
+  echo "Note: debug-signed for sideload testing only — not for Play Store."
+fi

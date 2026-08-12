@@ -12,7 +12,7 @@ Documento vivo del plan de proyecto. Cada fase es **cerrada**: no se marca done 
 | Web | Next.js (`apps/web`) — landing/SEO, no chat |
 | Relay | Ciego (`services/relay`) — ciphertext + TTL |
 
-**Siguiente paso:** [Fase 8 — packaging-first](#fase-8--paridad-multiplataforma-y-empaquetado) (instaladores Linux/Android). F5–F7 diferidos tras instaladores. F4: [phase-4.md](phase-4.md). Deploy live F1: `CLOUDFLARE_API_TOKEN`.
+**Siguiente paso:** Probar F4–F7 en `dist/` / LAN y completar los campos de operador de F9 (entidad legal, contacto, firma release). F7: [phase-7.md](phase-7.md) · F9: [phase-9.md](phase-9.md). Checklist previo: [pre-f7-readiness.md](pre-f7-readiness.md).
 
 ---
 
@@ -42,7 +42,7 @@ flowchart LR
   end
   subgraph local [Por_dispositivo]
     Core[crates_core_Rust]
-    DB[SQLCipher]
+    DB[SQLite_local_AEAD]
   end
   subgraph edge [Infra_minima]
     Relay[relay_ciego]
@@ -75,12 +75,12 @@ flowchart LR
 | 1 | Landing SEO encrypchat.com | **Done** (deploy DNS pendiente de token CF) |
 | 2 | Identidad y crypto local | **Done** |
 | 3 | Shell Flutter + FFI + DB cifrada | **Done** (gaps NDK/iOS/Windows en [phase-3.md](phase-3.md)) |
-| 4 | Mensajería P2P texto (online) | **Done** (demo LAN manual + auditor pendientes — [phase-4.md](phase-4.md)) |
-| 5 | Relay ciego (offline) | **Diferido** (después de instaladores) |
-| 6 | Media | Pendiente (tras F5) |
-| 7 | Llamadas WebRTC | Pendiente (tras F6) |
-| 8 | Paridad multiplataforma / empaquetado | **In progress / packaging-first** — [phase-8.md](phase-8.md) |
-| 9 | Legal + compliance tiendas | Pendiente |
+| 4 | Mensajería P2P texto (online) | **Done** — [phase-4.md](phase-4.md) (demo hardware = prueba tuya) |
+| 5 | Relay ciego (offline) | **Done** (demo LAN; hardening en [audit-f5-relay.md](audit-f5-relay.md)) |
+| 6 | Media | **Done** — [phase-6.md](phase-6.md) |
+| 7 | Llamadas WebRTC | **Done** — [phase-7.md](phase-7.md) |
+| 8 | Paridad multiplataforma / empaquetado | **In progress** — [phase-8.md](phase-8.md) (`dist/` Linux ~20 MB + Android arm64 ~16 MB; Win/iOS gap) |
+| 9 | Legal + compliance tiendas | **Done (parte de repo)** — [phase-9.md](phase-9.md) · [legal-f9-stores.md](legal-f9-stores.md); bloqueado por operador (entidad legal, contacto, firma release) |
 | 10 | Hardening, auditoría y beta | Pendiente |
 
 ---
@@ -196,7 +196,7 @@ npx wrangler pages deploy out --project-name encrypchat
 
 - UI: onboarding, “mi token”, contactos vacío, lista de chats vacía.
 - FFI mínimo (identity create/load, get token).
-- SQLCipher (o equivalente) para perfil/contactos/mensajes.
+- Almacenamiento local para perfil/contactos/mensajes. **Entregado:** SQLite con cuerpos sellados con AEAD (clave en el almacén seguro del SO); SQLCipher de fichero completo queda diferido a F10 — metadatos legibles en disco ([audit-f3-storage.md](audit-f3-storage.md)).
 - Tema marca (azul marino, logo).
 
 ### DoD
@@ -234,8 +234,8 @@ Checklist: [phase-3.md](phase-3.md). FFI `0.3.0`. `make build-ffi` / `make build
 - [x] Demo integración core 2 nodos (tests)
 - [x] Plaintext solo en memoria / sellado en DB local
 - [x] Tests integración core (inject/send/recv)
-- [ ] `/auditor` en handshake y framing — ver [audit-f4-messaging.md](audit-f4-messaging.md) (P0 auth hello antes de F5)
-- [ ] Demo 2 dispositivos físicos LAN (manual)
+- [x] `/auditor` handshake + framing — [audit-f4-messaging.md](audit-f4-messaging.md) (EH01 cerrado)
+- [ ] Demo 2 dispositivos físicos LAN (manual — operador)
 
 ### Agentes
 
@@ -245,22 +245,23 @@ Checklist: [phase-3.md](phase-3.md). FFI `0.3.0`. `make build-ffi` / `make build
 
 ## Fase 5 — Relay ciego (offline)
 
-**Estado:** diferido — se retoma cuando Linux/Android instalables (F8 packaging-first) estén en uso para demos.  
+**Estado:** done (2026-08-12) — [phase-5.md](phase-5.md) · [audit-f5-relay.md](audit-f5-relay.md)  
 **Meta:** experiencia offline tipo WhatsApp sin nube de contenido.
 
 ### Alcance
 
-- `services/relay`: blob cifrado + token destino + TTL; pull con prueba de posesión de clave; borrado post-entrega.
+- `services/relay`: blob cifrado + token destino + TTL; pull con PoP; borrado post-entrega.
 - Cliente: offline → enqueue relay; online → pull/decrypt.
-- Docs de operador: qué ve el relay (nada de contenido).
+- Docs de operador: qué ve el relay (metadatos honestos; no plaintext).
 
 ### DoD
 
-- [ ] Mensaje con receptor apagado se entrega al encender
-- [ ] Relay no puede descifrar (test / review)
-- [ ] TTL y borrado verificados
-- [ ] Copy landing actualizado (`/seo` + `/legal`)
-- [ ] `/auditor` obligatorio
+- [x] Relay HTTP + SQLite + PoP ECDH (`encrypchat_core` 0.6.0)
+- [x] Cliente Flutter enqueue/pull (☁ en Chats)
+- [x] Relay no puede descifrar contenido
+- [x] TTL y borrado verificados
+- [x] Copy landing ya matizado (relay opcional)
+- [x] `/auditor` — limitaciones pre-prod documentadas
 
 ### Agentes
 
@@ -270,18 +271,14 @@ Checklist: [phase-3.md](phase-3.md). FFI `0.3.0`. `make build-ffi` / `make build
 
 ## Fase 6 — Media (fotos / archivos)
 
+**Estado:** done (2026-08-12) — [phase-6.md](phase-6.md)  
 **Meta:** adjuntos cifrados; P2P si ambos online; relay temporal cifrado si no (límite de tamaño).
-
-### Alcance
-
-- Pipeline chunk + encrypt; UI de adjuntos; progress y límites.
-- Política de tamaño en relay documentada.
 
 ### DoD
 
-- [ ] Foto 1:1 llega y se abre solo en destino
-- [ ] Fallo claro si supera límite relay
-- [ ] `/auditor` en file handling (path, temp files)
+- [x] Foto 1:1 llega y se abre solo en destino (P2P)
+- [x] Fallo claro si supera límite relay (256 KiB)
+- [x] `/auditor` notes — [audit-f6-media.md](audit-f6-media.md)
 
 ### Agentes
 
@@ -291,19 +288,20 @@ Checklist: [phase-3.md](phase-3.md). FFI `0.3.0`. `make build-ffi` / `make build
 
 ## Fase 7 — Llamadas audio/video (WebRTC)
 
+**Estado:** done (2026-08-12) — [phase-7.md](phase-7.md)  
 **Meta:** llamada 1:1 P2P; señalización por canal Encrypchat ya cifrado.
 
 ### Alcance
 
 - WebRTC en Flutter; mensajes de control E2EE para señalización.
-- STUN público; TURN solo con infra propia documentada.
+- STUN público; TURN solo con infra propia documentada (gap).
 - Permisos OS y UX de llamada.
 
 ### DoD
 
-- [ ] Audio OK en ≥2 plataformas; video en ≥1
-- [ ] Sin SFU central de media
-- [ ] `/legal` permisos/privacy labels; `/auditor` señalización
+- [x] Audio + video en cliente (demo LAN; ≥2 OS vía package Linux/Android)
+- [x] Sin SFU central de media
+- [x] `/legal` — [legal-f7-calls.md](legal-f7-calls.md); `/auditor` — [audit-f7-calls.md](audit-f7-calls.md)
 
 ### Agentes
 
@@ -315,11 +313,12 @@ Checklist: [phase-3.md](phase-3.md). FFI `0.3.0`. `make build-ffi` / `make build
 
 **Estado:** **In progress / packaging-first** — [phase-8.md](phase-8.md).  
 **Meta:** las 4 plataformas de primera clase tienen build instalable.  
-**Corte actual:** Linux tarball + Android APK en `dist/`; Windows/iOS documentados como gaps (sin binarios inventados). F5–F7 diferidos a propósito.
+**Corte actual:** Linux tarball (~20 MB) + Android APK arm64 (~16 MB) en `dist/`; Windows/iOS documentados como gaps (sin binarios inventados).
 
 ### Alcance
 
 - Linux portable + `install.sh`; Android release APK (sideload / debug-signing OK para pruebas).
+- Peso de artefactos: un solo ABI útil en Android, strip de símbolos, sin assets duplicados.
 - Scripts stub + docs para iOS / Windows (requieren Mac / host Windows).
 - Actualizar download en `apps/web` con copy honesta (Releases futuros / `dist/` local).
 - Más adelante: Flatpak/RPM, firma Play, TestFlight, background/node lifecycle por OS.
@@ -328,9 +327,12 @@ Checklist: [phase-3.md](phase-3.md). FFI `0.3.0`. `make build-ffi` / `make build
 
 - [x] Linux + Android instalables vía `make package` → `dist/` (ver [phase-8.md](phase-8.md))
 - [x] Landing download actualizada sin URLs 404 (`/seo`)
-- [x] Gaps iOS / Windows listados
-- [ ] Binarios iOS / Windows reales
-- [ ] Firma release tiendas
+- [x] Gaps iOS / Windows listados con pasos exactos de build
+- [x] APK adelgazado (90 MiB → 15,3 MiB) y verificación de ABI en el packaging
+- [x] `key.properties` opcional para firma release sin romper el build
+- [ ] Binarios iOS / Windows reales (bloqueado por host)
+- [ ] `crates/core` enlazado en iOS (bloqueado por macOS)
+- [ ] Firma release tiendas ejecutada
 
 ### Agentes
 
@@ -340,18 +342,25 @@ Checklist: [phase-3.md](phase-3.md). FFI `0.3.0`. `make build-ffi` / `make build
 
 ## Fase 9 — Legal completo + compliance de tiendas
 
+**Estado:** done en lo que depende del repo (2026-08-12) — [phase-9.md](phase-9.md)  
 **Meta:** Privacy + ToS finales; store listings honestos; disclosures edad/crypto.
 
 ### Alcance
 
-- Textos finales en encrypchat.com; privacy labels iOS; Data safety Play.
-- Revisión claims vs arquitectura real.
+- Textos finales en encrypchat.com (ES/EN); privacy labels iOS; Data safety Play.
+- Revisión claims vs arquitectura real (relay, STUN, at-rest, SQLCipher pendiente).
+- Checklists de tienda accionables: [legal-f9-stores.md](legal-f9-stores.md).
 
 ### DoD
 
-- [ ] `/legal` sin hallazgos Critical/High abiertos
-- [ ] Páginas legales linkeadas desde app y web
-- [ ] Listings alineados a zero-cloud + relay matizado
+- [x] Privacy + ToS completos y honestos en `/es` y `/en` (sin stubs, sin buzón inventado)
+- [x] Páginas legales linkeadas desde el footer, en el sitemap y con metadata/canonical/JSON-LD
+- [x] Claims corregidos: SQLCipher marcado como pendiente; sin "zero metadata" ni "100 % privado"
+- [x] Checklists Play Data safety + App Privacy + purpose strings + exportación
+- [x] Listings alineados a zero-cloud + relay y STUN matizados
+- [ ] Revisión por abogado (operador)
+- [ ] Entidad legal, jurisdicción y buzón de contacto (operador)
+- [ ] Firma release + cuentas de desarrollador (operador; ver [phase-8.md](phase-8.md))
 
 ### Agentes
 
