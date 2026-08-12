@@ -1,5 +1,27 @@
 export type FaqItem = { q: string; a: string };
 
+/** A paragraph (string) or an unordered list (string[]). */
+export type LegalBlock = string | string[];
+
+export type LegalSection = {
+  /** Stable anchor, identical across locales. */
+  id: string;
+  title: string;
+  blocks: LegalBlock[];
+};
+
+export type LegalDoc = {
+  metaTitle: string;
+  metaDescription: string;
+  h1: string;
+  updated: string;
+  /** ISO date used for dateModified in JSON-LD. */
+  updatedIso: string;
+  summary: string;
+  disclaimer: string;
+  sections: LegalSection[];
+};
+
 export type Dictionary = {
   meta: {
     titleDefault: string;
@@ -78,36 +100,11 @@ export type Dictionary = {
     h1: string;
     items: FaqItem[];
   };
-  privacy: {
-    metaTitle: string;
-    metaDescription: string;
-    h1: string;
-    stub: string;
-    collectTitle: string;
-    collectBody: string;
-    deviceTitle: string;
-    deviceBody: string;
-    relayTitle: string;
-    relayBody: string;
-    siteTitle: string;
-    siteBody: string;
-    contactTitle: string;
-    contactBody: string;
+  legal: {
+    relatedAria: string;
   };
-  terms: {
-    metaTitle: string;
-    metaDescription: string;
-    h1: string;
-    stub: string;
-    serviceTitle: string;
-    serviceBody: string;
-    securityTitle: string;
-    securityBody: string;
-    availabilityTitle: string;
-    availabilityBody: string;
-    useTitle: string;
-    useBody: string;
-  };
+  privacy: LegalDoc;
+  terms: LegalDoc;
   redirect: {
     message: string;
     link: string;

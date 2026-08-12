@@ -252,6 +252,29 @@ p {
   border-bottom: 1px solid color-mix(in srgb, var(--navy) 12%, transparent);
 }
 
+.legalSection {
+  margin-top: 2rem;
+}
+
+.legalSection h2 {
+  font-size: clamp(1.15rem, 2vw, 1.35rem);
+  margin: 0 0 0.6rem;
+  scroll-margin-top: 1.5rem;
+}
+
+.legalSection li {
+  margin-bottom: 0.5rem;
+}
+
+.legalNav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 2.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid color-mix(in srgb, var(--navy) 12%, transparent);
+}
+
 .faq dt {
   font-weight: 700;
   color: var(--navy);

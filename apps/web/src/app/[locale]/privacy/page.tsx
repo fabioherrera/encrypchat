@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { LegalArticle } from "@/components/LegalArticle";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/getDictionary";
 import { buildPageMetadata } from "@/lib/seo";
@@ -30,25 +31,5 @@ export default async function PrivacyPage({
   const locale: Locale = raw;
   const t = getDictionary(locale).privacy;
 
-  return (
-    <article className="section prose">
-      <h1>{t.h1}</h1>
-      <p className="muted">{t.stub}</p>
-
-      <h2>{t.collectTitle}</h2>
-      <p>{t.collectBody}</p>
-
-      <h2>{t.deviceTitle}</h2>
-      <p>{t.deviceBody}</p>
-
-      <h2>{t.relayTitle}</h2>
-      <p>{t.relayBody}</p>
-
-      <h2>{t.siteTitle}</h2>
-      <p>{t.siteBody}</p>
-
-      <h2>{t.contactTitle}</h2>
-      <p>{t.contactBody}</p>
-    </article>
-  );
+  return <LegalArticle doc={t} locale={locale} path="/privacy" />;
 }
