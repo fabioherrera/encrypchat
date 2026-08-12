@@ -1,0 +1,34 @@
+# Cloudflare Tunnel (cloudflared) for Encrypchat / Dokploy
+#
+# Joins external network `dokploy-network` so it can resolve `dokploy-traefik`.
+# Public hostnames (encrypchat.com → http://dokploy-traefik:80) are configured
+# in Cloudflare Zero Trust; this compose only runs the connector.
+#
+# Dokploy:
+#   Type: Docker Compose
+#   Compose path: deploy/cloudflared/docker-compose.yml
+#   Env: TUNNEL_TOKEN=<token from Cloudflare Zero Trust>
+#
+# Or on the host:
+#   cd deploy/cloudflared
+#   export TUNNEL_TOKEN=...
+#   docker compose up -d
+
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: encrypchat-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?set TUNNEL_TOKEN from Cloudflare Zero Trust}
+    networks:
+      - dokploy-network
+    # Optional: only if you must reach host ports instead of Traefik DNS
+    # extra_hosts:
+    #   - "host.docker.internal:host-gateway"
+
+networks:
+  dokploy-network:
+    external: true
+    name: dokploy-network

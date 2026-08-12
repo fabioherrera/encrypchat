@@ -34,21 +34,25 @@ docs/              Roadmap and phase checklists
 
 Repo: `https://github.com/fabioherrera/encrypchat.git`
 
-**Recommended (simplest):**
+**Landing**
 
 | Field | Value |
 | --- | --- |
-| Build path / context | `.` (repo root) or leave empty |
+| Context | `.` |
 | Dockerfile | `Dockerfile` |
 | Port | `80` |
 | Branch | `main` |
-| Auto-deploy | ON |
 
-There is a root `Dockerfile` that builds `apps/web` and serves it with nginx.
+**Cloudflared tunnel**
 
-Alternative: context `apps/web` + Dockerfile `Dockerfile` (nested under `apps/web`).
+| Field | Value |
+| --- | --- |
+| Type | Docker Compose |
+| Compose path | `deploy/cloudflared/docker-compose.yml` |
+| Env | `TUNNEL_TOKEN` |
 
-Connect domain `encrypchat.com` via Cloudflare Tunnel → `http://<service>:80`.
+Guide: [`deploy/cloudflared/README.md`](deploy/cloudflared/README.md).  
+CF routes: `encrypchat.com` / `www` → `http://dokploy-traefik:80`.
 
 ## Commands
 
