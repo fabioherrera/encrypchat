@@ -71,7 +71,7 @@ const es: Dictionary = {
       "Cuando ambos están online, el tráfico prioriza un camino directo entre dispositivos. Eso reduce intermediarios en chat en vivo, medios y llamadas.",
     zeroCloudTitle: "Zero-cloud de contenido",
     zeroCloudBody:
-      "El historial y los medios se guardan en tu teléfono o computadora. No operamos un buzón de mensajes que pueda leer tus conversaciones.",
+      "El historial y los medios se guardan en tu teléfono o computadora, en una base de datos cifrada con SQLCipher y con los cuerpos sellados encima. No operamos un buzón de mensajes que pueda leer tus conversaciones.",
     relayTitle: "Relay ciego (opcional, offline)",
     relayBodyBefore: "Si el destinatario está offline, un relay puede guardar temporalmente",
     relayCiphertext: "cifrado",
@@ -119,6 +119,10 @@ const es: Dictionary = {
         a: "Intercambiás tokens criptográficos (por ejemplo con QR). No hay un directorio telefónico central como fuente de verdad.",
       },
       {
+        q: "¿Puede escribirme alguien que no es mi contacto?",
+        a: "Sí, si tiene tu token, pero no entra en tus chats: cae en una bandeja de solicitudes acotada. Solo texto, hasta 5 mensajes de 4 KiB por remitente y 20 remitentes a la vez, sin adjuntos, sin llamadas y sin notificación. Aceptar la solicitud es lo que crea el contacto; también podés descartarla o bloquear el token.",
+      },
+      {
         q: "¿Qué ve exactamente un relay ciego?",
         a: "El token de destino, el tamaño del sobre cifrado, las marcas de tiempo, el TTL y la IP desde la que te conectás. Nunca el contenido ni tus claves. El sobre se borra tras la entrega o al expirar el TTL, y el relay solo entra en juego si lo configurás.",
       },
@@ -128,7 +132,7 @@ const es: Dictionary = {
       },
       {
         q: "¿Están cifrados mis datos dentro del dispositivo?",
-        a: "El cuerpo de cada mensaje y los ficheros de media están sellados con cifrado autenticado bajo una clave del almacén seguro del sistema operativo. El fichero de base de datos en sí todavía no está cifrado por completo: los metadatos de conversación son legibles para quien tenga acceso al dispositivo. Es trabajo pendiente y lo decimos claro.",
+        a: "Sí, en dos capas. El fichero de base de datos está cifrado por completo con SQLCipher (AES-256) bajo una clave derivada de la que guarda el almacén seguro del sistema operativo, y encima el cuerpo de cada mensaje y cada fichero de media van sellados con cifrado autenticado. Eso protege el fichero cuando alguien lo lee desde el disco: portátil robado, móvil apagado, backup recuperado u otra cuenta del mismo sistema. Lo que no protege es un dispositivo desbloqueado con el llavero accesible —quien lee la clave abre la base, y esa frontera la pone la pantalla de bloqueo del sistema, no nuestra capa de cifrado— ni el listado del directorio de media: el contenido de cada fichero está sellado, pero cuántos hay, su tamaño y su fecha son metadatos del sistema de ficheros.",
       },
       {
         q: "¿La app necesita acceso a mis fotos?",
@@ -150,7 +154,7 @@ const es: Dictionary = {
   privacy: {
     metaTitle: "Política de privacidad",
     metaDescription:
-      "Qué datos existen en Encrypchat y dónde viven: identidad y chats en tu dispositivo, relay ciego opcional que solo ve cifrado, llamadas P2P con STUN público. Sin cuentas ni analítica.",
+      "Qué datos existen en Encrypchat y dónde viven: chats en tu dispositivo, en base de datos cifrada. Relay ciego opcional, llamadas P2P, sin cuentas ni analítica.",
     h1: "Política de privacidad",
     updated: "Última actualización: 12 de agosto de 2026 · versión 1.0 (previa a revisión legal)",
     updatedIso: "2026-08-12",
@@ -175,9 +179,10 @@ const es: Dictionary = {
           [
             "Identidad: un par de claves X25519 generado localmente. La clave privada se guarda en el almacén seguro del sistema operativo: en Android, cifrada con una clave del Keystore dentro del directorio de datos de la app; en iOS en el Keychain; en Linux en el llavero libsecret y en Windows en el Administrador de credenciales. La clave pública produce tu token público «ec_…», que es lo único que compartís.",
             "Chats: se guardan en una base de datos local dentro del directorio privado de la app. El cuerpo de cada mensaje está sellado con cifrado autenticado usando una clave que vive en el almacén seguro del SO.",
-            "Media: las fotos enviadas y recibidas se guardan cifradas como ficheros sellados en el almacenamiento privado de la app; no quedan bytes de la foto en claro en disco. En móvil, la copia temporal que crea el selector del sistema se borra en cuanto la foto queda sellada, y al arrancar la app se barren los restos que hubieran quedado de una sesión anterior. En Linux y Windows el selector devuelve tu fichero original: lo leemos para cifrar la copia que se envía, y no lo modificamos ni lo borramos.",
+            "Media: las fotos enviadas y recibidas se guardan cifradas como ficheros sellados en el almacenamiento privado de la app; no quedan bytes de la foto en claro en disco. En móvil, la copia temporal que crea el selector del sistema se borra en cuanto la foto queda sellada, y al arrancar la app se barren los restos que hubieran quedado de una sesión anterior. En Linux y Windows el selector devuelve tu fichero original: lo leemos para cifrar la copia que se envía, y no lo modificamos ni lo borramos. El contenido de cada fichero guardado está sellado, pero el listado del directorio no: cuántos adjuntos tenés, de qué tamaño y de qué fecha son metadatos del sistema de ficheros.",
             "Contactos: alias local, token y clave pública del contacto. Es material público por diseño.",
-            "Metadatos locales: con quién hablás, marcas de tiempo, estado de entrega y la ruta del fichero de media se guardan sin cifrar dentro del fichero de base de datos. El cifrado del fichero completo está pendiente. Quien tenga acceso físico o privilegios de root en tu dispositivo puede reconstruir con quién y cuándo hablaste, aunque no el contenido.",
+            "Solicitudes de desconocidos: quien tiene tu token pero no está en tus contactos puede escribirte, y eso entra en una bandeja de solicitudes separada de tus chats —solo texto, hasta 5 mensajes de 4 KiB por remitente y 20 remitentes a la vez, sin adjuntos, sin llamadas y sin notificación—. Se guarda el token, la clave pública si la ruta la trae, las fechas y el contador. Aceptar la solicitud es lo que crea el contacto; descartarla borra sus mensajes.",
+            "Metadatos locales: con quién hablás, marcas de tiempo, estado de entrega y la ruta del fichero de media viven dentro del fichero de base de datos, cifrado por completo con SQLCipher (AES-256) bajo una clave derivada de la del almacén seguro del SO. Un fichero sacado del disco —portátil robado, móvil apagado, backup recuperado, otra cuenta del sistema— no se puede leer sin esa clave. Con el dispositivo desbloqueado y el llavero accesible es otra cosa: quien obtiene la clave abre la base y ve tanto esos metadatos como el contenido. Esa frontera la pone el bloqueo del sistema operativo.",
           ],
           "No existe cuenta, número de teléfono, correo ni contraseña asociados a vos en ningún servidor nuestro.",
         ],
@@ -208,7 +213,8 @@ const es: Dictionary = {
             "La dirección IP desde la que tu dispositivo deposita o consulta.",
           ],
           "Lo que no puede ver: el texto, las fotos, tu clave privada ni la clave de sesión. El sobre se borra tras la entrega o al expirar el TTL.",
-          "Limitación conocida y honesta: en la ruta de relay, el remitente declarado dentro del sobre todavía no está autenticado criptográficamente. Alguien que conozca tu clave pública podría depositar un mensaje que aparente venir de otro contacto. Está documentado como bloqueante antes de operar relays públicos. Por ese mismo motivo, la señalización de llamadas nunca usa el relay.",
+          "Sobre la autoría, que en versiones anteriores de esta página figuraba como limitación abierta: el remitente sí está autenticado criptográficamente, y en las dos rutas. En el sobre que pasa por un relay, el remitente queda ligado al contenido, así que el token al que se atribuye un mensaje sale del propio criptograma; el campo de remitente que antes viajaba declarado ya no existe en el formato. En la conexión directa, abrir sesión exige probar posesión de la clave privada. Tener tu clave pública —viaja en la tarjeta de contacto que compartís— ya no alcanza para presentarse como vos.",
+          "Por eso bloquear a alguien sirve: la decisión se toma contra esa identidad autenticada y no contra un dato que el emisor elija, y cubre también las codificaciones alternativas de una misma clave, que antes daban un token distinto y servían para volver. Lo que el bloqueo no puede impedir es que la misma persona genere una identidad nueva, ni —siendo local y unilateral— que siga depositando en un buzón que tu dispositivo ya no vacía. Y lo que sigue en pie de este apartado son los metadatos de arriba: no podés comprobar desde fuera que un relay respete el TTL o que no registre esa correlación, así que la conexión directa sigue siendo preferible.",
         ],
       },
       {
@@ -218,6 +224,8 @@ const es: Dictionary = {
           "El audio y el vídeo van directos entre los dos dispositivos por WebRTC con cifrado DTLS-SRTP. No hay SFU, mezclador ni servidor de media de Encrypchat: los paquetes no pasan por nosotros. La señalización (invitación, SDP e ICE) viaja cifrada por el canal P2P ya establecido y nunca por el relay.",
           "Para descubrir la dirección pública de cada extremo se usan servidores STUN públicos de Google (stun.l.google.com y stun1.l.google.com). Google puede ver tu dirección IP y el momento en que intentás una llamada, no el contenido.",
           "Además, en cualquier conexión P2P tu contacto ve tu IP y vos la suya: es inherente a hablar directo, sin intermediario. Hoy no hay servidor TURN, así que en redes con NAT estricto la llamada puede no establecerse.",
+          "Sobre quién llama: la identidad del par se verifica al establecer la conexión, así que una llamada entrante viene de quien es dueño de ese token. Una invitación de un token que no está en tus contactos se descarta sin sonar, y el micrófono y la cámara solo se activan si aceptás. Si bloqueás a alguien con la llamada en curso, se corta.",
+          "El residual honesto aquí no es de autoría, es de exposición: al establecer la conexión, quien llama se identifica primero ante quien contesta. Quien contesta no revela nada hasta haber verificado a la otra parte, pero alguien que genere una identidad desechable y complete el intercambio puede confirmar que ese token está detrás de esa dirección IP. Cerrarlo del todo exige marcar con la clave pública del destino y no con su token, que es un hash.",
         ],
       },
       {
@@ -300,12 +308,25 @@ const es: Dictionary = {
             "No decimos «cero metadatos»: el relay ve destino, tamaño y tiempos, y STUN ve tu IP.",
             "No decimos «imposible de interceptar» ni «100 % privado». El cifrado reduce riesgo, no lo elimina.",
             "El cifrado de extremo a extremo no protege un dispositivo comprometido, una captura de pantalla, ni los backups del sistema operativo que hagas por tu cuenta.",
-            "El fichero de base de datos local todavía no está cifrado por completo: los metadatos de conversación son legibles con acceso al dispositivo.",
+            "El cifrado del fichero de base de datos no protege un dispositivo desbloqueado: quien pueda leer la clave del llavero abre la base. Esa frontera la pone el bloqueo del sistema operativo.",
+            "El listado del directorio de media queda visible aunque el contenido de cada fichero esté sellado: cuántos adjuntos hay, de qué tamaño y de qué fecha.",
+            "El remitente sí está autenticado en las dos rutas y una clave pública ya no alcanza para suplantarte, pero no prometemos anonimato: el relay ve metadatos de red, quien llama se identifica primero ante quien contesta, y lo que hay en disco depende de que el dispositivo no esté comprometido.",
+            "Cualquiera que tenga tu token puede dejarte una solicitud de texto sin ser contacto tuyo: va a una bandeja acotada, sin adjuntos ni llamadas y sin avisarte, pero no hay forma de impedir que ocupe uno de esos huecos ni de saber si tu token le llegó de quien creés.",
             "Desinstalar no borra la clave privada en iOS, Linux y Windows: queda en el llavero del sistema hasta que borres esa entrada a mano.",
             "El portapapeles no es nuestro: exportar un contacto, copiar tu token o guardar un informe de abuso pasan por el portapapeles del sistema, que en Windows conserva historial y en Android pueden leer otras apps.",
             "El sistema operativo guarda una miniatura de la última pantalla de cada app para el conmutador de tareas: si tenías una foto abierta, puede quedar ahí hasta que se refresque.",
             "El software es pre-1.0 y no ha pasado una auditoría de seguridad externa independiente.",
           ],
+        ],
+      },
+      {
+        id: "seguridad",
+        title: "Reportar un fallo de seguridad",
+        blocks: [
+          "Si encontrás una vulnerabilidad en Encrypchat, escribinos a info@elnerd.com.",
+          "Publicamos esa dirección en encrypchat.com, y solo aquí: en esta página y en https://encrypchat.com/.well-known/security.txt. Si la encontraste en otra parte, comprobala en una de las dos antes de escribir.",
+          "Pedimos divulgación coordinada: contanos qué encontraste y dejanos un plazo razonable para corregirlo antes de publicarlo. No comprometemos tiempos de respuesta y no hay programa de recompensas. Sí publicamos los hallazgos y en qué estado están, incluidos los que siguen abiertos.",
+          "Es el canal para fallos de seguridad del software. No es soporte, no es el buzón de privacidad y no sirve para denunciar a otro usuario: el informe de abuso de la app es local y no lo recibe nadie.",
         ],
       },
       {
@@ -321,6 +342,7 @@ const es: Dictionary = {
         blocks: [
           "Pendiente de completar por el operador: entidad legal responsable, domicilio, correo de contacto de privacidad y ley aplicable.",
           "No hay hoy un buzón de privacidad operativo. La dirección que aparecía en el borrador anterior de esta página se ha retirado porque nunca llegó a activarse, y no publicamos direcciones que no funcionan.",
+          "Para reportar un fallo de seguridad sí hay una dirección publicada: está en «Reportar un fallo de seguridad», más arriba.",
         ],
       },
     ],
@@ -412,7 +434,7 @@ const es: Dictionary = {
         id: "exportacion",
         title: "Criptografía y control de exportación",
         blocks: [
-          "Encrypchat incluye criptografía estándar y ampliamente disponible (X25519, ChaCha20-Poly1305 y DTLS-SRTP para llamadas). Sos responsable de cumplir la normativa de importación, uso y exportación de criptografía aplicable en tu jurisdicción.",
+          "Encrypchat incluye criptografía estándar y ampliamente disponible: X25519 y ChaCha20-Poly1305 para mensajes y ficheros, DTLS-SRTP para llamadas, y AES-256 con HMAC-SHA256 para el cifrado de la base de datos local (SQLCipher, que enlaza OpenSSL). Sos responsable de cumplir la normativa de importación, uso y exportación de criptografía aplicable en tu jurisdicción.",
           "La declaración formal de exportación que exigen las tiendas de aplicaciones está pendiente de completarse antes de la publicación.",
         ],
       },
@@ -443,7 +465,7 @@ const es: Dictionary = {
         id: "ley",
         title: "Ley aplicable y contacto",
         blocks: [
-          "Pendiente de completar por el operador: entidad legal, ley aplicable, foro competente y canal de contacto. Hasta entonces no hay una dirección de contacto publicada.",
+          "Pendiente de completar por el operador: entidad legal, ley aplicable, foro competente y canal de contacto. Hasta entonces no hay una dirección de contacto general publicada. Para reportar un fallo de seguridad sí hay una, en la política de privacidad.",
         ],
       },
     ],

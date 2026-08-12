@@ -1,19 +1,17 @@
-import { Manrope } from "next/font/google";
+import localFont from "next/font/local";
 import { notFound } from "next/navigation";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { isLocale, locales, type Locale } from "@/i18n/config";
 
-const manrope = Manrope({
-  subsets: ["latin", "latin-ext"],
+/** Self-hosted so `next build` needs no network — see `../fonts/README.md`. */
+const manrope = localFont({
+  src: "../fonts/manrope-latin-var.woff2",
+  weight: "400 700",
+  style: "normal",
+  display: "swap",
+  preload: true,
   variable: "--font-sans",
-  weight: ["400", "600", "700"],
-});
-
-const manropeDisplay = Manrope({
-  subsets: ["latin", "latin-ext"],
-  variable: "--font-display",
-  weight: ["700"],
 });
 
 export function generateStaticParams() {
@@ -33,7 +31,7 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale}>
-      <body className={`${manrope.variable} ${manropeDisplay.variable}`}>
+      <body className={manrope.variable}>
         <div className="shell">
           <SiteHeader locale={locale} />
           <main>{children}</main>

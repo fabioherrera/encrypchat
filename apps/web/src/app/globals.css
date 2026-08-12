@@ -25,6 +25,9 @@ body {
 }
 
 body {
+  /* One variable font covers 400–700, so display and body share the face.
+     Kept as two tokens because the CSS modules reference both. */
+  --font-display: var(--font-sans);
   font-family: var(--font-sans), "Manrope", system-ui, sans-serif;
   color: var(--ink);
   background:

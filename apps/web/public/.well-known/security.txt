@@ -1,0 +1,11 @@
+# Encrypchat — https://encrypchat.com
+# RFC 9116. Renew Expires before the date below or this file stops counting.
+# The same address is published in the privacy policy (see Policy), which is what
+# ties it to this site: the mailbox is on another domain.
+
+Contact: mailto:info@elnerd.com
+Expires: 2027-08-12T00:00:00.000Z
+Policy: https://encrypchat.com/es/privacy#seguridad
+Policy: https://encrypchat.com/en/privacy#seguridad
+Preferred-Languages: es, en
+Canonical: https://encrypchat.com/.well-known/security.txt

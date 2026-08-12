@@ -8,7 +8,7 @@ import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/getDictionary";
 import { localizedHref } from "@/i18n/path";
 import { buildPageMetadata } from "@/lib/seo";
-import { PLATFORM_IDS, SITE_NAME, SITE_URL, TAGLINE } from "@/lib/site";
+import { PLATFORM_IDS, SECURITY_CONTACT, SITE_NAME, SITE_URL, TAGLINE } from "@/lib/site";
 
 export async function generateMetadata({
   params,
@@ -54,6 +54,15 @@ export default async function HomePage({
     name: SITE_NAME,
     url: SITE_URL,
     logo: `${SITE_URL}/logo-transparent.png`,
+    // The security mailbox sits on another domain, so it is only verifiable if this
+    // domain claims it. Same address as `/.well-known/security.txt` and the privacy page.
+    contactPoint: {
+      "@type": "ContactPoint",
+      contactType: "security",
+      email: SECURITY_CONTACT,
+      url: `${SITE_URL}${localizedHref(locale, "/privacy")}#seguridad`,
+      availableLanguage: ["es", "en"],
+    },
   };
 
   return (

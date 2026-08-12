@@ -71,7 +71,7 @@ const en: Dictionary = {
       "When both sides are online, traffic prefers a direct device-to-device path. That cuts intermediaries for live chat, media, and calls.",
     zeroCloudTitle: "Zero-cloud content",
     zeroCloudBody:
-      "Chat history and media are stored locally on your phone or computer. We do not operate a message inbox that can read your conversations.",
+      "Chat history and media are stored locally on your phone or computer, in a SQLCipher-encrypted database with message bodies sealed on top. We do not operate a message inbox that can read your conversations.",
     relayTitle: "Blind relay (optional, offline)",
     relayBodyBefore: "If the recipient is offline, a relay may temporarily hold",
     relayCiphertext: "ciphertext",
@@ -119,6 +119,10 @@ const en: Dictionary = {
         a: "You exchange cryptographic tokens (for example via QR). There is no central phone-number directory as the source of truth.",
       },
       {
+        q: "Can someone who is not my contact message me?",
+        a: "Yes, if they have your token — but it does not land in your chats: it goes to a bounded requests inbox. Text only, up to 5 messages of 4 KiB per sender and 20 senders at a time, with no attachments, no calls, and no notification. Accepting the request is what creates the contact; you can also discard it or block the token.",
+      },
+      {
         q: "What exactly does a blind relay see?",
         a: "The destination token, the size of the encrypted envelope, timestamps, the TTL, and the IP you connect from. Never the content or your keys. The envelope is deleted after delivery or when the TTL expires, and the relay is only involved if you configure one.",
       },
@@ -128,7 +132,7 @@ const en: Dictionary = {
       },
       {
         q: "Is my data encrypted on the device?",
-        a: "Each message body and every media file is sealed with authenticated encryption under a key held in the operating system's secure store. The database file itself is not yet fully encrypted: conversation metadata is readable to anyone with device access. That work is still pending and we say so plainly.",
+        a: "Yes, in two layers. The database file is fully encrypted with SQLCipher (AES-256) under a key derived from the one held in the operating system's secure store, and on top of that every message body and every media file is sealed with authenticated encryption. That protects the file when someone reads it off the disk: a stolen laptop, a powered-off phone, a recovered backup, or another account on the same system. What it does not protect is an unlocked device with the keyring accessible — whoever reads the key opens the database, and that boundary is the system lock screen, not our encryption layer — nor the media directory listing: each file's contents are sealed, but how many there are, their sizes, and their dates are filesystem metadata.",
       },
       {
         q: "Does Encrypchat need access to my photos?",
@@ -150,7 +154,7 @@ const en: Dictionary = {
   privacy: {
     metaTitle: "Privacy policy",
     metaDescription:
-      "What data exists in Encrypchat and where it lives: identity and chats on your device, an optional blind relay that only sees ciphertext, P2P calls over public STUN. No accounts, no analytics.",
+      "What data exists in Encrypchat and where it lives: chats on your device, in an encrypted database. Optional blind relay, P2P calls, no accounts, no analytics.",
     h1: "Privacy policy",
     updated: "Last updated: 12 August 2026 · version 1.0 (pending counsel review)",
     updatedIso: "2026-08-12",
@@ -175,9 +179,10 @@ const en: Dictionary = {
           [
             "Identity: an X25519 key pair generated locally. The private key is stored in the operating system's secure store: on Android, encrypted under a Keystore key inside the app's data directory; on iOS in the Keychain; on Linux in the libsecret keyring and on Windows in Credential Manager. The public key produces your public token \u201cec_\u2026\u201d, which is the only thing you share.",
             "Chats: stored in a local database inside the app's private directory. Each message body is sealed with authenticated encryption using a key held in the OS secure store.",
-            "Media: photos you send and receive are stored as sealed encrypted files in the app's private storage; no plaintext bytes of the photo are left on disk. On mobile, the temporary copy the system picker creates is deleted as soon as the photo is sealed, and any leftovers from an earlier session are swept when the app starts. On Linux and Windows the picker returns your original file: we read it to encrypt the copy that is sent, and we neither modify nor delete it.",
+            "Media: photos you send and receive are stored as sealed encrypted files in the app's private storage; no plaintext bytes of the photo are left on disk. On mobile, the temporary copy the system picker creates is deleted as soon as the photo is sealed, and any leftovers from an earlier session are swept when the app starts. On Linux and Windows the picker returns your original file: we read it to encrypt the copy that is sent, and we neither modify nor delete it. Each stored file's contents are sealed, but the directory listing is not: how many attachments you have, their sizes, and their dates are filesystem metadata.",
             "Contacts: a local alias, the contact's token, and their public key. This is public material by design.",
-            "Local metadata: who you talk to, timestamps, delivery status, and the media file path are stored unencrypted inside the database file. Full-file encryption is still pending. Anyone with physical access or root privileges on your device can reconstruct who you talked to and when, though not the content.",
+            "Requests from strangers: someone who has your token but is not in your contacts can write to you, and that lands in a requests inbox kept apart from your chats — text only, up to 5 messages of 4 KiB per sender and 20 senders at a time, no attachments, no calls, and no notification. What is stored is the token, the public key when the route carries one, the dates, and the counter. Accepting a request is what creates the contact; discarding it deletes their messages.",
+            "Local metadata: who you talk to, timestamps, delivery status, and the media file path live inside the database file, which is fully encrypted with SQLCipher (AES-256) under a key derived from the one in the OS secure store. A file taken off the disk — a stolen laptop, a powered-off phone, a recovered backup, another account on the system — cannot be read without that key. An unlocked device with the keyring accessible is a different story: whoever obtains the key opens the database and sees both that metadata and the content. That boundary is set by the operating system lock.",
           ],
           "There is no account, phone number, email address, or password tied to you on any server of ours.",
         ],
@@ -208,7 +213,8 @@ const en: Dictionary = {
             "The IP address your device connects from when depositing or polling.",
           ],
           "What it cannot see: the text, the photos, your private key, or the session key. The envelope is deleted after delivery or when the TTL expires.",
-          "A known and honest limitation: on the relay path, the sender declared inside the envelope is not yet cryptographically authenticated. Someone who knows your public key could deposit a message that appears to come from another contact. This is documented as a blocker before operating public relays. For the same reason, call signaling never uses the relay.",
+          "On authorship, which earlier versions of this page listed as an open limitation: the sender is cryptographically authenticated, on both routes. In the envelope that goes through a relay, the sender is bound to the content, so the token a message is attributed to comes out of the ciphertext itself; the declared sender field that used to travel with it no longer exists in the format. On a direct connection, opening a session requires proving possession of the private key. Holding your public key — it travels in the contact card you share — is no longer enough to present themselves as you.",
+          "That is what makes blocking work: the decision is taken against that authenticated identity rather than a value the sender picks, and it covers alternative encodings of the same key, which used to yield a different token and were a way back in. What blocking cannot prevent is the same person generating a new identity, nor — being local and one-sided — them continuing to deposit into a mailbox your device no longer drains. What does remain from this section is the metadata above: you cannot verify from outside that a relay honors the TTL or does not log that correlation, so a direct connection is still preferable.",
         ],
       },
       {
@@ -218,6 +224,8 @@ const en: Dictionary = {
           "Audio and video travel directly between the two devices over WebRTC with DTLS-SRTP encryption. There is no SFU, mixer, or Encrypchat media server: the packets do not pass through us. Signaling (invite, SDP, and ICE) travels encrypted over the already established P2P channel and never over the relay.",
           "To discover each endpoint's public address, the app uses Google's public STUN servers (stun.l.google.com and stun1.l.google.com). Google can see your IP address and when you attempt a call, not its content.",
           "Also, on any P2P connection your contact sees your IP and you see theirs: that is inherent to talking directly, without an intermediary. There is no TURN server today, so calls may fail to connect on strict NAT networks.",
+          "About who is calling: the peer's identity is verified when the connection is established, so an incoming call does come from the owner of that token. An invitation from a token that is not in your contacts is dropped without ringing, and the microphone and camera only turn on if you accept. Blocking someone mid-call ends the call.",
+          "The honest residual here is not about authorship, it is about exposure: when the connection is established, the caller identifies itself first to the party answering. Whoever answers reveals nothing until it has verified the other side, but someone who generates a throwaway identity and completes the exchange can confirm that a given token is behind that IP address. Closing it entirely would require dialing with the destination's public key rather than its token, which is a hash.",
         ],
       },
       {
@@ -300,12 +308,25 @@ const en: Dictionary = {
             "We do not claim \u201czero metadata\u201d: the relay sees destination, size, and timing, and STUN sees your IP.",
             "We do not claim \u201cimpossible to intercept\u201d or \u201c100% private\u201d. Encryption reduces risk; it does not remove it.",
             "End-to-end encryption does not protect a compromised device, a screenshot, or operating-system backups you make yourself.",
-            "The local database file is not yet fully encrypted: conversation metadata is readable with device access.",
+            "Encrypting the database file does not protect an unlocked device: whoever can read the key from the keyring opens the database. That boundary is set by the operating system lock.",
+            "The media directory listing stays visible even though each file's contents are sealed: how many attachments there are, their sizes, and their dates.",
+            "The sender is authenticated on both routes and a public key is no longer enough to impersonate you, but we do not promise anonymity: the relay sees network metadata, the caller identifies itself first to the party answering, and what sits on disk depends on the device not being compromised.",
+            "Anyone holding your token can leave you a text request without being a contact: it goes to a bounded inbox, with no attachments and no calls, and without alerting you — but there is no way to stop them taking one of those slots, nor to know that your token reached them from who you think.",
             "Uninstalling does not delete the private key on iOS, Linux, and Windows: it stays in the system keyring until you remove that entry by hand.",
             "The clipboard is not ours: exporting a contact, copying your token, or saving an abuse report all go through the system clipboard, which keeps a history on Windows and can be read by other apps on Android.",
             "The operating system keeps a thumbnail of each app's last screen for the task switcher: if a photo was open, it can sit there until it is refreshed.",
             "The software is pre-1.0 and has not passed an independent external security audit.",
           ],
+        ],
+      },
+      {
+        id: "seguridad",
+        title: "Reporting a security bug",
+        blocks: [
+          "If you find a vulnerability in Encrypchat, write to info@elnerd.com.",
+          "We publish that address on encrypchat.com, and only here: this page and https://encrypchat.com/.well-known/security.txt. If you found it anywhere else, check it against one of those two before writing.",
+          "We ask for coordinated disclosure: tell us what you found and leave us a reasonable window to fix it before publishing. We do not commit to response times and there is no bug bounty program. We do publish findings and the state they are in, including the ones still open.",
+          "This is the channel for security bugs in the software. It is not support, it is not the privacy mailbox, and it is not for reporting another user: the app's abuse report is local and nobody receives it.",
         ],
       },
       {
@@ -321,6 +342,7 @@ const en: Dictionary = {
         blocks: [
           "Pending from the operator: the responsible legal entity, its address, a privacy contact address, and the governing law.",
           "There is no working privacy mailbox today. The address shown in the earlier draft of this page has been removed because it was never activated, and we do not publish addresses that do not work.",
+          "For security bugs there is a published address: see \u201cReporting a security bug\u201d, above.",
         ],
       },
     ],
@@ -412,7 +434,7 @@ const en: Dictionary = {
         id: "exportacion",
         title: "Cryptography and export control",
         blocks: [
-          "Encrypchat includes standard, widely available cryptography (X25519, ChaCha20-Poly1305, and DTLS-SRTP for calls). You are responsible for complying with the cryptography import, use, and export rules that apply in your jurisdiction.",
+          "Encrypchat includes standard, widely available cryptography: X25519 and ChaCha20-Poly1305 for messages and files, DTLS-SRTP for calls, and AES-256 with HMAC-SHA256 for local database encryption (SQLCipher, which links OpenSSL). You are responsible for complying with the cryptography import, use, and export rules that apply in your jurisdiction.",
           "The formal export declaration required by app stores is still to be completed before publication.",
         ],
       },
@@ -443,7 +465,7 @@ const en: Dictionary = {
         id: "ley",
         title: "Governing law and contact",
         blocks: [
-          "Pending from the operator: legal entity, governing law, competent forum, and contact channel. Until then, no contact address is published.",
+          "Pending from the operator: legal entity, governing law, competent forum, and contact channel. Until then, no general contact address is published. For reporting a security bug there is one, in the privacy policy.",
         ],
       },
     ],
