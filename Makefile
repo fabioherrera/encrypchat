@@ -16,15 +16,20 @@ export CARGO_TARGET_DIR ?= $(ROOT)/target
 # only outbound call left. Also keeps builds identical with and without network.
 export NEXT_TELEMETRY_DISABLED := 1
 
-.PHONY: check check-rust check-web check-client build-ffi build-client-linux \
-	package package-linux package-android help
+.PHONY: check check-rust check-web check-client check-security-txt build-ffi \
+	build-client-linux package package-linux package-android help
 
 help:
-	@echo "Targets: check | check-rust | check-web | check-client | build-ffi | build-client-linux | package | package-linux | package-android | dev-web | dev-client"
+	@echo "Targets: check | check-rust | check-web | check-client | check-security-txt | build-ffi | build-client-linux | package | package-linux | package-android | dev-web | dev-client"
 	@echo "Toolchain: put cmake/ninja in .tools/bin if system packages are unavailable"
 	@echo "Packaging: make package → dist/ (see dist/README.md, docs/phase-8.md)"
 
-check: check-rust check-web build-ffi check-client
+# First because it costs a second and its failure is a deadline, not a bug: better to hear
+# about it before a ten-minute build than after one.
+check: check-security-txt check-rust check-web build-ffi check-client
+
+check-security-txt:
+	$(ROOT)/scripts/check-security-txt.sh
 
 check-rust:
 	cargo fmt --all --check

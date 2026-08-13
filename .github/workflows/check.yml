@@ -83,11 +83,23 @@ jobs:
       - name: Install
         working-directory: apps/web
         run: npm ci
-      # `make check-web`, not a bare `npm run build`: the target builds in an isolated
-      # `distDir` and pins `NEXT_TELEMETRY_DISABLED`, so the gate is the same command a
-      # developer runs locally instead of an approximation of it.
+      # `make check-web`, not a bare `npm run build`: the target clears `.next` and `out`
+      # first and pins `NEXT_TELEMETRY_DISABLED`, so the gate is the same command a developer
+      # runs locally instead of an approximation of it.
       - name: Build
         run: make check-web
+
+  # The other result that changes while the code stands still: security.txt carries an expiry
+  # date, and past it RFC 9116 says a reader must ignore the file. Nothing breaks when that
+  # happens — the page still serves, the mailbox still works — so only a clock catches it.
+  # Runs on the nightly too, where a repository nobody has pushed to for months is exactly
+  # the one whose contact details have gone stale.
+  security-txt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Expiry and matching copies
+        run: ./scripts/check-security-txt.sh
 
   # Dependency advisories, which are the one result in this workflow that changes while the
   # code stands still.

@@ -455,6 +455,12 @@ está confirmada desde el propio producto en
 encontraste en cualquier otro sitio, comprobala contra una de esas dos. Todavía no hay clave
 pública para reportes cifrados; si la necesitás, pedila en un primer correo sin detalles.
 
+Que esas dos fuentes sigan diciendo lo mismo, y que el `security.txt` no esté caducado, no
+depende de que alguien se acuerde: `scripts/check-security-txt.sh` corre en cada build y en la
+pasada nocturna, y falla un mes antes de la fecha o en cuanto una de las copias se desvía. Un
+buzón de seguridad que dejó de existir es peor que no publicar ninguno, porque el que encuentra
+el fallo cree que avisó.
+
 Pedimos divulgación coordinada: contanos qué encontraste y dejanos un plazo razonable para
 corregirlo antes de publicarlo. No hay programa de recompensas. Sí publicamos los hallazgos y
 su estado en `docs/`, incluidos los que no hemos cerrado.

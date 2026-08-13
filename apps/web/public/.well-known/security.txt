@@ -1,5 +1,7 @@
 # Encrypchat — https://encrypchat.com
-# RFC 9116. Renew Expires before the date below or this file stops counting.
+# RFC 9116. Past Expires a reader must ignore this file, and nothing else breaks when that
+# happens — so `scripts/check-security-txt.sh` fails the build a month before, and again if
+# the address here stops matching the site. Renew the date; do not stretch it past a year.
 # The same address is published in the privacy policy (see Policy), which is what
 # ties it to this site: the mailbox is on another domain.
 
