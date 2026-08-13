@@ -84,6 +84,11 @@ p {
   background: var(--navy-mid);
 }
 
+.btnSm {
+  padding: 0.4rem 0.9rem;
+  font-size: 0.875rem;
+}
+
 .btnGhost {
   display: inline-flex;
   align-items: center;
@@ -250,9 +255,27 @@ p {
 .platformList li {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 1rem;
   padding: 0.9rem 0;
   border-bottom: 1px solid color-mix(in srgb, var(--navy) 12%, transparent);
+}
+
+.platformActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.downloadExtras {
+  margin: 1.25rem 0 1.5rem;
+}
+
+.downloadExtras a {
+  color: var(--navy);
+  font-weight: 600;
 }
 
 .legalSection {

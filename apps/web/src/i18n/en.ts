@@ -39,6 +39,9 @@ const en: Dictionary = {
     linux: "Linux (Fedora)",
     windows: "Windows",
     comingSoon: "Coming soon",
+    apk: "APK arm64",
+    rpm: "Fedora RPM",
+    tarball: "portable tar.gz",
   },
   home: {
     heroAria: "Hero",
@@ -55,6 +58,8 @@ const en: Dictionary = {
     privacyP2After:
       "when sealed ciphertext waits offline, and offline when the device cannot reach the network.",
     platformsTitle: "Platforms",
+    platformsNote:
+      "Android and Linux are test builds. The repository is private: GitHub will ask you to sign in. iOS and Windows have no package here yet.",
     softwareDescription:
       "Peer-to-peer encrypted messenger. Messages stay on your devices; optional blind relays hold ciphertext only.",
   },
@@ -84,14 +89,20 @@ const en: Dictionary = {
     cta: "Get Encrypchat",
   },
   download: {
-    metaTitle: "Download",
+    metaTitle: "Download — Android and Linux",
     metaDescription:
-      "Encrypchat native apps for Android, iOS, Linux, and Windows. Test builds via GitHub Releases or local dist/; see docs/phase-8.md.",
+      "Android APK and Linux RPM or tar.gz. Unsigned test builds. iOS and Windows not yet. The repo is private: GitHub asks you to sign in.",
     h1: "Download",
     intro:
-      "Native apps for Android, iOS, Linux (Fedora), and Windows. Public installers will ship on GitHub Releases when published — we do not link to URLs that are not live yet.",
+      "Android and Linux have an installer. iOS needs a Mac; Windows is built on a Windows machine. None of this is a store listing.",
+    privateNote:
+      "The repository is private: GitHub will ask you to sign in. When the app is ready, the repo goes public and these same links stop asking for an account.",
+    unsignedNote:
+      "Nothing is signed. Fedora will say so on install. The APK uses the debug key: it is for sideload, not Play Store, and changing that key later forces an uninstall — which on Android does wipe the local database.",
+    checksums: "Check SHA-256",
+    releasePage: "Notes for this batch",
     sourceNote:
-      "Test builds: see docs/phase-8.md in the repository (make package → dist/ for Linux tarball and Android APK). iOS and Windows packages still need Mac / Windows hosts.",
+      "Windows: on the machine, scripts\\package-windows.ps1. iOS: needs a macOS host (scripts/package-ios.sh). The code is in the same repository.",
   },
   faq: {
     metaTitle: "FAQ",
@@ -113,7 +124,7 @@ const en: Dictionary = {
       },
       {
         q: "Which platforms are supported?",
-        a: "Android, iOS, Linux (Fedora), and Windows are first-class targets. Linux and Android test packages are built into dist/ (see docs/phase-8.md); store links and GitHub Releases follow when publishing starts.",
+        a: "Android, iOS, Linux (Fedora), and Windows are first-class targets. There is an Android APK and a Linux RPM or tar.gz as test builds on GitHub Releases. iOS and Windows have no package on that list yet. Store links come when publishing starts.",
       },
       {
         q: "How do I add a contact?",

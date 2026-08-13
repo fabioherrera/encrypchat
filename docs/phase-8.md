@@ -12,7 +12,7 @@
 | Android arm64 release APK | **Sí** → `make package-android` (debug-signed sideload) |
 | Windows x64 `.zip` | **Sí, en Windows** → `scripts\package-windows.ps1`, o `gh workflow run windows.yml`; no se puede cross-compilar desde Linux |
 | iOS IPA / TestFlight | **Gap** — sin macOS/firma; pasos exactos en `scripts/package-ios.sh` |
-| Landing download | Copia honesta: builds locales / Releases futuros — sin URLs inventadas |
+| Landing download | Enlaces reales a GitHub Releases (repo privado hoy; mismos URLs cuando sea público) |
 
 ### Fedora, y por qué además del tarball
 
@@ -204,7 +204,7 @@ Ninguno se puede buildar en este host Linux. Lo que sí quedó verificado/prepar
 - [x] Linux tarball + Android APK
 - [x] APK adelgazado a un solo ABI útil (arm64-v8a) con verificación automática
 - [x] Docs / how-to-test / roadmap actualizados
-- [x] Landing download sin URLs 404
+- [x] Landing download: APK, RPM y tar.gz de la tanda de prueba; iOS/Windows sin URL inventada
 - [x] `build.gradle.kts` listo para keystore de release opcional
 - [x] Windows: regla de instalación del `.dll` del core
 - [x] Fedora `.rpm`, con comprobación de que no depende de sus propias bibliotecas

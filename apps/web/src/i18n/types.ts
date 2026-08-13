@@ -63,6 +63,9 @@ export type Dictionary = {
     linux: string;
     windows: string;
     comingSoon: string;
+    apk: string;
+    rpm: string;
+    tarball: string;
   };
   home: {
     heroAria: string;
@@ -77,6 +80,7 @@ export type Dictionary = {
     privacyP2Relay: string;
     privacyP2After: string;
     platformsTitle: string;
+    platformsNote: string;
     softwareDescription: string;
   };
   features: {
@@ -103,6 +107,10 @@ export type Dictionary = {
     metaDescription: string;
     h1: string;
     intro: string;
+    privateNote: string;
+    unsignedNote: string;
+    checksums: string;
+    releasePage: string;
     sourceNote: string;
   };
   faq: {

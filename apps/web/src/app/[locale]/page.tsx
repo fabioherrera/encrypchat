@@ -4,11 +4,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/JsonLd";
 import { LiveChatDevices } from "@/components/LiveChatDevices";
+import { PlatformDownloadList } from "@/components/PlatformDownloadList";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/getDictionary";
 import { localizedHref } from "@/i18n/path";
 import { buildPageMetadata } from "@/lib/seo";
-import { PLATFORM_IDS, SECURITY_CONTACT, SITE_NAME, SITE_URL, TAGLINE } from "@/lib/site";
+import { SECURITY_CONTACT, SITE_NAME, SITE_URL, TAGLINE } from "@/lib/site";
 
 export async function generateMetadata({
   params,
@@ -30,7 +31,6 @@ export default async function HomePage({
   const locale: Locale = raw;
   const dict = getDictionary(locale);
   const t = dict.home;
-  const platforms = dict.platforms;
 
   const softwareLd = {
     "@context": "https://schema.org",
@@ -112,14 +112,8 @@ export default async function HomePage({
 
       <section className="section">
         <h2>{t.platformsTitle}</h2>
-        <ul className="platformList">
-          {PLATFORM_IDS.map((id) => (
-            <li key={id}>
-              <span>{platforms[id]}</span>
-              <span className="muted">{platforms.comingSoon}</span>
-            </li>
-          ))}
-        </ul>
+        <p className="muted prose">{t.platformsNote}</p>
+        <PlatformDownloadList labels={dict.platforms} />
       </section>
     </>
   );

@@ -82,22 +82,19 @@ Unsigned, so SmartScreen blocks the first run: "More info" → "Run anyway".
 
 ## Distribution
 
-Test builds go to **GitHub Releases** as prereleases, so the same file lands on
-every machine under test with its checksum, instead of a USB stick:
+Test builds go to **GitHub Releases** as prereleases, and the landing links
+those files: https://encrypchat.com/es/download (and `/en/download`). The repo
+is private, so GitHub asks for a session; the same URLs keep working when it
+goes public. Tag names avoid the `v*` pattern on purpose — that one triggers
+`windows.yml`.
 
 ```bash
-gh release download pruebas-2026-08-13 --dir .
+gh release download pruebas-2026-08-13-scan --dir .
 sha256sum -c SHA256SUMS
 ```
 
-Release assets do not run Actions and do not count against the storage quota
-that CI artifacts consume, which is why this path still works with Actions
-billing blocked. The repo is private: downloading needs an authenticated
-session. Tag names avoid the `v*` pattern on purpose — that one triggers
-`windows.yml`.
-
-Public download URLs land here when publishing starts — see
-[docs/phase-8.md](../docs/phase-8.md). Do not invent live CDN links that 404.
+Do not invent a CDN in front of this. When a new batch replaces the previous
+one, bump `TEST_RELEASE_TAG` in `apps/web/src/lib/site.ts`.
 
 ## Gaps
 

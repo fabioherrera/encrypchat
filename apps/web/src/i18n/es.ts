@@ -39,6 +39,9 @@ const es: Dictionary = {
     linux: "Linux (Fedora)",
     windows: "Windows",
     comingSoon: "Próximamente",
+    apk: "APK arm64",
+    rpm: "RPM Fedora",
+    tarball: "tar.gz portable",
   },
   home: {
     heroAria: "Hero",
@@ -55,6 +58,8 @@ const es: Dictionary = {
     privacyP2After:
       "cuando el cifrado sellado espera offline, y offline cuando el dispositivo no alcanza la red.",
     platformsTitle: "Plataformas",
+    platformsNote:
+      "Android y Linux son builds de prueba. El repositorio es privado: GitHub te pide iniciar sesión. iOS y Windows todavía no tienen paquete aquí.",
     softwareDescription:
       "Mensajero cifrado de igual a igual. Los mensajes permanecen en tus dispositivos; los relays ciegos opcionales solo guardan cifrado.",
   },
@@ -84,14 +89,20 @@ const es: Dictionary = {
     cta: "Obtener Encrypchat",
   },
   download: {
-    metaTitle: "Descargar",
+    metaTitle: "Descargar — Android y Linux",
     metaDescription:
-      "Apps nativas Encrypchat para Android, iOS, Linux y Windows. Builds de prueba en GitHub Releases o dist/ local; ver docs/phase-8.md.",
+      "APK Android y RPM o tar.gz para Linux. Builds de prueba, sin firmar. iOS y Windows todavía no. El repo es privado: GitHub pide sesión.",
     h1: "Descargar",
     intro:
-      "Apps nativas para Android, iOS, Linux (Fedora) y Windows. Los instaladores públicos irán a GitHub Releases cuando se publiquen — no enlazamos URLs que aún no existen.",
+      "Android y Linux tienen instalador. iOS necesita un Mac; Windows se compila en una máquina Windows. Nada de esto es una ficha de tienda.",
+    privateNote:
+      "El repositorio es privado: GitHub te va a pedir iniciar sesión. Cuando la app esté lista, el repo se hace público y estos mismos enlaces dejan de pedir cuenta.",
+    unsignedNote:
+      "Nada está firmado. Fedora lo dice al instalar. El APK va con la clave de depuración: sirve para sideload, no para Play Store, y cambiar esa clave más adelante obliga a desinstalar — lo que en Android sí borra la base local.",
+    checksums: "Comprobar SHA-256",
+    releasePage: "Notas de esta tanda",
     sourceNote:
-      "Builds de prueba: ver docs/phase-8.md en el repositorio (make package → dist/ para tarball Linux y APK Android). iOS y Windows siguen necesitando host Mac / Windows.",
+      "Windows: en la máquina, scripts\\package-windows.ps1. iOS: hace falta un host macOS (scripts/package-ios.sh). El código está en el mismo repositorio.",
   },
   faq: {
     metaTitle: "FAQ",
@@ -113,7 +124,7 @@ const es: Dictionary = {
       },
       {
         q: "¿Qué plataformas soportan?",
-        a: "Android, iOS, Linux (Fedora) y Windows son objetivos de primera clase. Paquetes de prueba Linux/Android en dist/ (ver docs/phase-8.md); tiendas y GitHub Releases cuando empiece la publicación.",
+        a: "Android, iOS, Linux (Fedora) y Windows son objetivos de primera clase. Hoy hay APK para Android y RPM o tar.gz para Linux, como builds de prueba en GitHub Releases. iOS y Windows todavía no tienen paquete en esa lista. Las tiendas, cuando empiece la publicación.",
       },
       {
         q: "¿Cómo agrego un contacto?",

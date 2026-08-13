@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import {
+  DownloadReleaseLinks,
+  PlatformDownloadList,
+} from "@/components/PlatformDownloadList";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/getDictionary";
 import { buildPageMetadata } from "@/lib/seo";
-import { PLATFORM_IDS } from "@/lib/site";
 
 export async function generateMetadata({
   params,
@@ -31,21 +34,16 @@ export default async function DownloadPage({
   const locale: Locale = raw;
   const dict = getDictionary(locale);
   const t = dict.download;
-  const platforms = dict.platforms;
 
   return (
     <article className="section prose">
       <h1>{t.h1}</h1>
       <p className="muted">{t.intro}</p>
-      <ul className="platformList">
-        {PLATFORM_IDS.map((id) => (
-          <li key={id}>
-            <span>{platforms[id]}</span>
-            <span className="muted">{platforms.comingSoon}</span>
-          </li>
-        ))}
-      </ul>
-      <p>{t.sourceNote}</p>
+      <PlatformDownloadList labels={dict.platforms} />
+      <DownloadReleaseLinks checksums={t.checksums} releasePage={t.releasePage} />
+      <p>{t.privateNote}</p>
+      <p>{t.unsignedNote}</p>
+      <p className="muted">{t.sourceNote}</p>
     </article>
   );
 }

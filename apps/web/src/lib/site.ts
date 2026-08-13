@@ -15,3 +15,49 @@ export const PLATFORM_IDS = [
 ] as const;
 
 export type PlatformId = (typeof PLATFORM_IDS)[number];
+
+/** GitHub repo that holds the test installers. Private today; the same URLs
+ *  keep working when it is made public. */
+export const GITHUB_REPO = "https://github.com/fabioherrera/encrypchat";
+
+/** Bump this when a new test batch replaces the previous one. Not a `v*` tag:
+ *  that pattern starts the Windows CI workflow. */
+export const TEST_RELEASE_TAG = "pruebas-2026-08-13-scan";
+
+export const TEST_RELEASE_URL = `${GITHUB_REPO}/releases/tag/${TEST_RELEASE_TAG}`;
+
+export type DownloadKind = "apk" | "rpm" | "tarball";
+
+export type PlatformDownload = {
+  href: string;
+  kind: DownloadKind;
+};
+
+function releaseAsset(name: string): string {
+  return `${GITHUB_REPO}/releases/download/${TEST_RELEASE_TAG}/${name}`;
+}
+
+/** What `/download` and the home platform list actually link to. `null` means
+ *  there is no file yet — the UI says so instead of inventing a URL. */
+export const PLATFORM_DOWNLOADS: Record<PlatformId, PlatformDownload[] | null> = {
+  android: [
+    {
+      href: releaseAsset("encrypchat-android-arm64-1.0.0.apk"),
+      kind: "apk",
+    },
+  ],
+  linux: [
+    {
+      href: releaseAsset("encrypchat-1.0.0-1.fc44.x86_64.rpm"),
+      kind: "rpm",
+    },
+    {
+      href: releaseAsset("encrypchat-linux-x64-1.0.0.tar.gz"),
+      kind: "tarball",
+    },
+  ],
+  ios: null,
+  windows: null,
+};
+
+export const CHECKSUMS_URL = releaseAsset("SHA256SUMS");
