@@ -16,8 +16,7 @@ export const PLATFORM_IDS = [
 
 export type PlatformId = (typeof PLATFORM_IDS)[number];
 
-/** GitHub repo that holds the test installers. Private today; the same URLs
- *  keep working when it is made public. */
+/** GitHub repo that holds the test installers. */
 export const GITHUB_REPO = "https://github.com/fabioherrera/encrypchat";
 
 /** Bump this when a new test batch replaces the previous one. Not a `v*` tag:

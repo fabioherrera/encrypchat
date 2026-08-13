@@ -59,7 +59,7 @@ const es: Dictionary = {
       "cuando el cifrado sellado espera offline, y offline cuando el dispositivo no alcanza la red.",
     platformsTitle: "Plataformas",
     platformsNote:
-      "Estamos en testing. Android y Linux tienen build de prueba; GitHub pide sesión mientras el repo sea privado. iOS y Windows todavía no tienen paquete aquí.",
+      "Estamos en testing. Android y Linux tienen build de prueba. iOS y Windows todavía no tienen paquete aquí.",
     testingBadge: "En pruebas",
     softwareDescription:
       "Mensajero cifrado de igual a igual. Los mensajes permanecen en tus dispositivos; los relays ciegos opcionales solo guardan cifrado.",
@@ -92,7 +92,7 @@ const es: Dictionary = {
   download: {
     metaTitle: "Descargar — en pruebas",
     metaDescription:
-      "Encrypchat está en pruebas. APK Android y RPM o tar.gz para Linux, sin firmar. iOS y Windows todavía no. El repo es privado: GitHub pide sesión.",
+      "Encrypchat está en pruebas. APK Android y RPM o tar.gz para Linux, sin firmar. iOS y Windows todavía no.",
     h1: "Descargar",
     testingBadge: "En pruebas",
     testingLead:
@@ -100,7 +100,7 @@ const es: Dictionary = {
     intro:
       "Android y Linux tienen paquete. iOS necesita un Mac; Windows se compila en una máquina Windows.",
     privateNote:
-      "El repositorio es privado: GitHub te va a pedir iniciar sesión. Cuando la app esté lista, el repo se hace público y estos mismos enlaces dejan de pedir cuenta.",
+      "El código y estos instaladores están en GitHub. Siguen siendo de prueba: no hay ficha de tienda ni lanzamiento público.",
     unsignedNote:
       "Nada está firmado. Fedora lo dice al instalar. El APK va con la clave de depuración: sirve para sideload, no para Play Store, y cambiar esa clave más adelante obliga a desinstalar — lo que en Android sí borra la base local.",
     checksums: "Comprobar SHA-256",

@@ -83,10 +83,8 @@ Unsigned, so SmartScreen blocks the first run: "More info" → "Run anyway".
 ## Distribution
 
 Test builds go to **GitHub Releases** as prereleases, and the landing links
-those files: https://encrypchat.com/es/download (and `/en/download`). The repo
-is private, so GitHub asks for a session; the same URLs keep working when it
-goes public. Tag names avoid the `v*` pattern on purpose — that one triggers
-`windows.yml`.
+those files: https://encrypchat.com/es/download (and `/en/download`). Tag names
+avoid the `v*` pattern on purpose — that one triggers `windows.yml`.
 
 ```bash
 gh release download pruebas-2026-08-13-icon --dir .

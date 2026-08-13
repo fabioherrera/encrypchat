@@ -12,7 +12,7 @@
 | Android arm64 release APK | **Sí** → `make package-android` (debug-signed sideload) |
 | Windows x64 `.zip` | **Sí, en Windows** → `scripts\package-windows.ps1`, o `gh workflow run windows.yml`; no se puede cross-compilar desde Linux |
 | iOS IPA / TestFlight | **Gap** — sin macOS/firma; pasos exactos en `scripts/package-ios.sh` |
-| Landing download | Enlaces reales a GitHub Releases (repo privado hoy; mismos URLs cuando sea público) |
+| Landing download | Enlaces a GitHub Releases; la página dice que estamos en pruebas |
 
 ### Fedora, y por qué además del tarball
 
