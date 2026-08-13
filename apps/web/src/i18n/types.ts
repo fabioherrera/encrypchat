@@ -81,6 +81,7 @@ export type Dictionary = {
     privacyP2After: string;
     platformsTitle: string;
     platformsNote: string;
+    testingBadge: string;
     softwareDescription: string;
   };
   features: {
@@ -106,6 +107,8 @@ export type Dictionary = {
     metaTitle: string;
     metaDescription: string;
     h1: string;
+    testingBadge: string;
+    testingLead: string;
     intro: string;
     privateNote: string;
     unsignedNote: string;

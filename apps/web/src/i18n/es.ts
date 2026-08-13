@@ -59,7 +59,8 @@ const es: Dictionary = {
       "cuando el cifrado sellado espera offline, y offline cuando el dispositivo no alcanza la red.",
     platformsTitle: "Plataformas",
     platformsNote:
-      "Android y Linux son builds de prueba. El repositorio es privado: GitHub te pide iniciar sesión. iOS y Windows todavía no tienen paquete aquí.",
+      "Estamos en testing. Android y Linux tienen build de prueba; GitHub pide sesión mientras el repo sea privado. iOS y Windows todavía no tienen paquete aquí.",
+    testingBadge: "En pruebas",
     softwareDescription:
       "Mensajero cifrado de igual a igual. Los mensajes permanecen en tus dispositivos; los relays ciegos opcionales solo guardan cifrado.",
   },
@@ -89,12 +90,15 @@ const es: Dictionary = {
     cta: "Obtener Encrypchat",
   },
   download: {
-    metaTitle: "Descargar — Android y Linux",
+    metaTitle: "Descargar — en pruebas",
     metaDescription:
-      "APK Android y RPM o tar.gz para Linux. Builds de prueba, sin firmar. iOS y Windows todavía no. El repo es privado: GitHub pide sesión.",
+      "Encrypchat está en pruebas. APK Android y RPM o tar.gz para Linux, sin firmar. iOS y Windows todavía no. El repo es privado: GitHub pide sesión.",
     h1: "Descargar",
+    testingBadge: "En pruebas",
+    testingLead:
+      "Estamos en testing. Estos instaladores sirven para probar en dispositivos reales, no son una versión de tienda ni un lanzamiento público.",
     intro:
-      "Android y Linux tienen instalador. iOS necesita un Mac; Windows se compila en una máquina Windows. Nada de esto es una ficha de tienda.",
+      "Android y Linux tienen paquete. iOS necesita un Mac; Windows se compila en una máquina Windows.",
     privateNote:
       "El repositorio es privado: GitHub te va a pedir iniciar sesión. Cuando la app esté lista, el repo se hace público y estos mismos enlaces dejan de pedir cuenta.",
     unsignedNote:

@@ -37,6 +37,10 @@ export default async function DownloadPage({
 
   return (
     <article className="section prose">
+      <p className="testingNotice">
+        <span className="testingBadge">{t.testingBadge}</span>
+        {t.testingLead}
+      </p>
       <h1>{t.h1}</h1>
       <p className="muted">{t.intro}</p>
       <PlatformDownloadList labels={dict.platforms} />

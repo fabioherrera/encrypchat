@@ -278,6 +278,32 @@ p {
   font-weight: 600;
 }
 
+.testingNotice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.65rem 0.85rem;
+  margin: 0 0 1.25rem;
+  padding: 0.85rem 1rem;
+  background: color-mix(in srgb, var(--relay) 12%, var(--paper));
+  border: 1px solid color-mix(in srgb, var(--relay) 35%, transparent);
+  border-radius: 12px;
+  color: var(--ink);
+  line-height: 1.45;
+}
+
+.testingBadge {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: var(--relay);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .legalSection {
   margin-top: 2rem;
 }

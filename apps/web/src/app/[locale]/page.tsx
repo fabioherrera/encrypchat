@@ -112,7 +112,10 @@ export default async function HomePage({
 
       <section className="section">
         <h2>{t.platformsTitle}</h2>
-        <p className="muted prose">{t.platformsNote}</p>
+        <p className="testingNotice">
+          <span className="testingBadge">{t.testingBadge}</span>
+          {t.platformsNote}
+        </p>
         <PlatformDownloadList labels={dict.platforms} />
       </section>
     </>
