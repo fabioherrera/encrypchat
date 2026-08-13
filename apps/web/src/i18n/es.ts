@@ -117,7 +117,7 @@ const es: Dictionary = {
       },
       {
         q: "¿Cómo agrego un contacto?",
-        a: "Intercambiás tokens criptográficos (por ejemplo con QR). No hay un directorio telefónico central como fuente de verdad.",
+        a: "El otro escanea el QR de Mi token con la cámara (en Linux y Windows se pega el export, o se lee una foto del QR). No hay un directorio telefónico central como fuente de verdad.",
       },
       {
         q: "¿Puede escribirme alguien que no es mi contacto?",
@@ -237,13 +237,13 @@ const es: Dictionary = {
           "La app pide cada permiso en el momento en que hace falta y solo para la función indicada:",
           [
             "Micrófono (Android RECORD_AUDIO, iOS NSMicrophoneUsageDescription): capturar tu voz al iniciar o aceptar una llamada.",
-            "Cámara (Android CAMERA, iOS NSCameraUsageDescription): capturar tu vídeo en una videollamada.",
+            "Cámara (Android CAMERA, iOS NSCameraUsageDescription): escanear el QR de un contacto y capturar tu vídeo en una videollamada. En los dos casos los fotogramas se procesan en el dispositivo y no se suben a ningún servidor de Encrypchat. En Linux y Windows no hay cámara en vivo para el QR: se lee desde una imagen o se pega el export.",
             "Ajustes de audio y Bluetooth (Android MODIFY_AUDIO_SETTINGS, BLUETOOTH_CONNECT): rutear el audio de la llamada al altavoz o a unos auriculares.",
             "Fototeca en iOS (NSPhotoLibraryUsageDescription): el sistema puede pedirte acceso cuando elegís una foto para adjuntar. La app recibe solo la imagen que seleccionaste.",
             "Internet: conectar con tu contacto y, si lo configuraste, con el relay.",
           ],
           "En Android no pedimos permiso de galería: la app ya no declara READ_MEDIA_IMAGES ni READ_EXTERNAL_STORAGE. Al adjuntar se abre el selector de fotos del sistema, que nos entrega únicamente la foto que elegiste; el resto de tu galería sigue fuera de nuestro alcance. En dispositivos antiguos que no traen ese selector se abre el explorador de ficheros del sistema: cambia la experiencia, no el permiso, porque tampoco pide ninguno y también devuelve solo el fichero elegido. En Linux y Windows el diálogo de ficheros del sistema funciona igual.",
-          "Ninguno de estos permisos se usa para recopilar datos en segundo plano ni para perfilar. El micrófono y la cámara solo se activan durante una llamada en curso.",
+          "Ninguno de estos permisos se usa para recopilar datos en segundo plano ni para perfilar. El micrófono solo se activa durante una llamada. La cámara se activa durante una videollamada y mientras está abierta la pantalla de escanear un contacto; al salir, se apaga.",
         ],
       },
       {

@@ -109,7 +109,10 @@ apksigner verify --print-certs dist/encrypchat-android-arm64-*.apk
 
 ## Demo 2 dispositivos (misma Wi‑Fi)
 
-1. Ambos crean identidad e importan el contacto del otro.
+1. Ambos crean identidad. Uno abre **Mi token** y muestra el QR; el otro va a
+   **Contactos → Escanear QR** y apunta la cámara. En Linux y Windows no hay
+   cámara en vivo: **Pegar export**, o una foto del QR. Hace falta el intercambio
+   en los dos sentidos.
 2. Chats → icono link → copiar multiaddr / puerto.
 3. El otro conecta con IP LAN + puerto.
 4. Abrir chat y mandar texto (o adjuntar foto 🖼). En Android debe abrirse el
@@ -212,7 +215,7 @@ make package
 
 | Pieza | Estado |
 | --- | --- |
-| Identidad + QR/contactos | Sí |
+| Identidad + QR/contactos | Sí (cámara en Android/iOS; en Linux/Windows, imagen o pegar) |
 | Chat 1:1 E2EE + handshake EH02 | Sí (hasta `0.7.x` era EH01, que no autenticaba — F-1) |
 | Fotos E2EE (P2P; relay ≤256 KiB) | Sí (F6) |
 | Llamadas audio/video P2P | Sí (F7; STUN; sin TURN) |

@@ -117,7 +117,7 @@ const en: Dictionary = {
       },
       {
         q: "How do I add a contact?",
-        a: "You exchange cryptographic tokens (for example via QR). There is no central phone-number directory as the source of truth.",
+        a: "The other person scans the QR on My token with the camera (on Linux and Windows you paste the export, or read a photo of the QR). There is no central phone-number directory as the source of truth.",
       },
       {
         q: "Can someone who is not my contact message me?",
@@ -237,13 +237,13 @@ const en: Dictionary = {
           "The app requests each permission at the moment it is needed, and only for the stated purpose:",
           [
             "Microphone (Android RECORD_AUDIO, iOS NSMicrophoneUsageDescription): capture your voice when you start or accept a call.",
-            "Camera (Android CAMERA, iOS NSCameraUsageDescription): capture your video on a video call.",
+            "Camera (Android CAMERA, iOS NSCameraUsageDescription): scan a contact QR code, and capture your video on a video call. In both cases the frames are processed on this device and are not uploaded to any Encrypchat server. On Linux and Windows there is no live camera for the QR: it is read from an image, or you paste the export.",
             "Audio routing and Bluetooth (Android MODIFY_AUDIO_SETTINGS, BLUETOOTH_CONNECT): route call audio to the speaker or a headset.",
             "Photo library on iOS (NSPhotoLibraryUsageDescription): the system may ask for access when you pick a photo to attach. The app only receives the image you selected.",
             "Internet: connect to your contact and, if you configured one, to the relay.",
           ],
           "On Android we request no gallery permission: the app no longer declares READ_MEDIA_IMAGES or READ_EXTERNAL_STORAGE. Attaching opens the system photo picker, which hands us only the photo you chose; the rest of your gallery stays out of our reach. On older devices without that picker, the system file browser opens instead: the experience changes, not the permission, because it asks for none either and also returns only the file you chose. On Linux and Windows the system file dialog works the same way.",
-          "None of these permissions are used for background collection or profiling. The microphone and camera are only active during an ongoing call.",
+          "None of these permissions are used for background collection or profiling. The microphone is only active during a call. The camera is active during a video call and while the scan-a-contact screen is open; leaving that screen turns it off.",
         ],
       },
       {

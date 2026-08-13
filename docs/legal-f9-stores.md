@@ -108,7 +108,7 @@ Ya presentes en `Info.plist` (texto exacto, en inglés, en el fichero):
 | Clave | Estado |
 | --- | --- |
 | `NSMicrophoneUsageDescription` | Presente — llamadas cifradas P2P; dice explícitamente que el audio no se sube a servidores de Encrypchat |
-| `NSCameraUsageDescription` | Presente — videollamadas cifradas P2P |
+| `NSCameraUsageDescription` | Presente — escanear el QR de un contacto y videollamadas cifradas P2P; dice que los fotogramas se procesan en el dispositivo |
 | `NSPhotoLibraryUsageDescription` | **Presente** — acceso solo al elegir una foto para un chat; dice que la foto se cifra en el dispositivo y no se sube a servidores de Encrypchat |
 
 Frases prohibidas en purpose strings y en la ficha (ver [legal-f7-calls.md](legal-f7-calls.md)): "cero metadatos", "el contenido nunca sale del dispositivo" (los paquetes van al par), "imposible de interceptar", "zero-knowledge".

@@ -10,8 +10,8 @@
 
 | Platform | Keys / permissions | Honesty |
 | --- | --- | --- |
-| iOS | `NSMicrophoneUsageDescription`, `NSCameraUsageDescription` | OK for demo: content not uploaded to Encrypchat servers; do not imply zero network/third-party |
-| Android | `RECORD_AUDIO`, `CAMERA`, `MODIFY_AUDIO_SETTINGS`, `BLUETOOTH_CONNECT` | Declare for live calls only |
+| iOS | `NSMicrophoneUsageDescription`, `NSCameraUsageDescription` | Camera string covers QR scan of a contact card **and** video calls; frames processed on device. Do not imply zero network/third-party |
+| Android | `RECORD_AUDIO`, `CAMERA`, `MODIFY_AUDIO_SETTINGS`, `BLUETOOTH_CONNECT` | Mic for live calls. Camera for live calls **and** for scanning a contact QR, only while that screen is open |
 
 **Safer phrasing:** “Call media is not sent to Encrypchat servers; it goes peer-to-peer. Connectivity helpers (STUN) may see IP/network metadata.”
 
@@ -28,7 +28,7 @@
 - [ ] Play Data safety + permission purposes for mic/camera
 - [ ] App Privacy nutrition labels (Apple)
 - [ ] Live privacy policy mentioning calls + STUN nuance
-- [ ] Request mic/camera only at call start
+- [ ] Request mic only at call start; request camera at call start **or** when opening the contact QR scanner
 
 ## Verdict
 
