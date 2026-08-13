@@ -15,7 +15,7 @@ make package-android
 ```
 
 Scripts: `scripts/package-linux.sh`, `scripts/package-rpm.sh`, `scripts/package-android.sh`, `scripts/package-all.sh`.  
-Windows comes from CI: `gh workflow run windows.yml`, then `gh run download`. iOS still needs a macOS host (`scripts/package-ios.sh`, exit 2).
+Windows is built on Windows (`scripts\package-windows.ps1`) or in CI (`gh workflow run windows.yml`, then `gh run download`) — the runner bills Actions minutes at 2x on a private repo. iOS still needs a macOS host (`scripts/package-ios.sh`, exit 2).
 
 ## Expected files (after a successful package)
 
@@ -24,7 +24,7 @@ Windows comes from CI: `gh workflow run windows.yml`, then `gh run download`. iO
 | `encrypchat-linux-x64-<version>.tar.gz` | Linux x64 | ~21 MB | Portable Flutter bundle + `install.sh`; libs stripped |
 | `encrypchat-<version>-1.fc*.x86_64.rpm` | Fedora x64 | ~18 MB | Same bundle under `/usr/lib64/encrypchat`; unsigned |
 | `encrypchat-android-arm64-<version>.apk` | Android arm64 | ~17 MB | Release APK, arm64-v8a only; **debug-signed** unless `android/key.properties` exists — not for Play Store |
-| `encrypchat-windows-x64-<version>.zip` | Windows x64 | — | Built by CI on `windows-latest`; artifact kept 30 days |
+| `encrypchat-windows-x64-<version>.zip` | Windows x64 | ~25 MB | Built on a Windows host, or by CI on `windows-latest` (artifact kept 30 days) |
 
 `<version>` comes from `apps/client/pubspec.yaml` (e.g. `1.0.0`).
 
@@ -65,7 +65,13 @@ encrypted database, and only the in-app identity delete removes it.
 adb install -r encrypchat-android-arm64-<version>.apk
 ```
 
-**Windows**
+**Windows** — on the Windows machine, from the repo root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\package-windows.ps1
+```
+
+Or from CI, when there are Actions minutes:
 
 ```bash
 gh workflow run windows.yml
@@ -76,14 +82,30 @@ Unsigned, so SmartScreen blocks the first run: "More info" → "Run anyway".
 
 ## Distribution
 
-Public download URLs will land on **GitHub Releases** when publishing starts. Until then, use local `dist/` or build from source — see [docs/phase-8.md](../docs/phase-8.md). Do not invent live CDN links that 404.
+Test builds go to **GitHub Releases** as prereleases, so the same file lands on
+every machine under test with its checksum, instead of a USB stick:
+
+```bash
+gh release download pruebas-2026-08-13 --dir .
+sha256sum -c SHA256SUMS
+```
+
+Release assets do not run Actions and do not count against the storage quota
+that CI artifacts consume, which is why this path still works with Actions
+billing blocked. The repo is private: downloading needs an authenticated
+session. Tag names avoid the `v*` pattern on purpose — that one triggers
+`windows.yml`.
+
+Public download URLs land here when publishing starts — see
+[docs/phase-8.md](../docs/phase-8.md). Do not invent live CDN links that 404.
 
 ## Gaps
 
 - **iOS** — needs macOS + Xcode + signing, and `crates/core` linked into Runner
   (`-force_load libencrypchat_core.a`). Exact steps: `scripts/package-ios.sh`.
-- **Windows** — no longer a gap in *producing* a binary (CI does it), but nothing
-  here is signed and nobody has run it on real hardware yet.
+- **Windows** — no longer a gap in *producing* a binary (a script on a Windows
+  host, or CI), but nothing here is signed and nobody has run it on real
+  hardware yet.
 - **Android release signing** — debug keystore today; drop
   `apps/client/android/key.properties` to sign for real (see docs/phase-8.md).
   Changing the signing key forces an uninstall, which wipes the local encrypted
