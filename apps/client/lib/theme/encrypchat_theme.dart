@@ -29,5 +29,19 @@ ThemeData buildEncrypchatLightTheme() {
       foregroundColor: EncrypchatColors.paper,
     ),
     dividerColor: EncrypchatColors.navy.withValues(alpha: 0.12),
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: EncrypchatColors.paper,
+      indicatorColor: EncrypchatColors.bubbleOut,
+      elevation: 8,
+      shadowColor: EncrypchatColors.ink.withValues(alpha: 0.12),
+      labelTextStyle: WidgetStateProperty.resolveWith((states) {
+        final selected = states.contains(WidgetState.selected);
+        return TextStyle(
+          fontSize: 12,
+          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+          color: selected ? EncrypchatColors.navy : EncrypchatColors.muted,
+        );
+      }),
+    ),
   );
 }

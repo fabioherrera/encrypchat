@@ -1,6 +1,7 @@
 import 'dart:async';
-import 'dart:typed_data';
+import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -13,13 +14,22 @@ import '../services/messaging_service.dart';
 import '../services/relay_client.dart';
 import '../services/session_controller.dart';
 import '../theme/encrypchat_colors.dart';
+import '../widgets/raised_controls.dart';
 import 'safety_actions.dart';
 
 class ChatPage extends StatefulWidget {
-  const ChatPage({super.key, required this.session, required this.peer});
+  const ChatPage({
+    super.key,
+    required this.session,
+    required this.peer,
+    this.embedded = false,
+  });
 
   final SessionController session;
   final Contact peer;
+
+  /// Desktop split: no back button, header sits next to the list.
+  final bool embedded;
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -190,11 +200,11 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
-  Future<void> _pickAndSendImage() async {
+  Future<void> _pickAndSendImage(ImageSource source) async {
     if (_sending) return;
     final picker = ImagePicker();
     final x = await picker.pickImage(
-      source: ImageSource.gallery,
+      source: source,
       maxWidth: 1600,
       maxHeight: 1600,
       imageQuality: 75,
@@ -280,18 +290,15 @@ class _ChatPageState extends State<ChatPage> {
     return Scaffold(
       backgroundColor: EncrypchatColors.canvas,
       appBar: AppBar(
+        automaticallyImplyLeading: !widget.embedded,
         titleSpacing: 0,
         title: Row(
           children: [
-            CircleAvatar(
+            StatusAvatar(
+              label: widget.peer.label,
               radius: 18,
-              backgroundColor: EncrypchatColors.navy,
-              foregroundColor: EncrypchatColors.paper,
-              child: Text(
-                widget.peer.label.isEmpty
-                    ? '?'
-                    : widget.peer.label[0].toUpperCase(),
-              ),
+              blocked: blocked,
+              online: online && !blocked,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -325,22 +332,26 @@ class _ChatPageState extends State<ChatPage> {
           ],
         ),
         actions: [
-          IconButton(
-            tooltip: 'Llamada de audio',
-            onPressed: online && !blocked
-                ? () => _startCall(CallMediaMode.audio)
-                : null,
-            icon: const Icon(Icons.call),
-          ),
-          IconButton(
+          RaisedCircleButton(
             tooltip: 'Videollamada',
             onPressed: online && !blocked
                 ? () => _startCall(CallMediaMode.av)
                 : null,
-            icon: const Icon(Icons.videocam),
+            icon: Icons.videocam,
+            iconColor: EncrypchatColors.navyMid,
+          ),
+          const SizedBox(width: 8),
+          RaisedCircleButton(
+            tooltip: 'Llamada de audio',
+            onPressed: online && !blocked
+                ? () => _startCall(CallMediaMode.audio)
+                : null,
+            icon: Icons.call,
+            iconColor: EncrypchatColors.p2p,
           ),
           PopupMenuButton<String>(
             tooltip: 'Más acciones',
+            padding: EdgeInsets.zero,
             onSelected: (value) async {
               switch (value) {
                 case 'block':
@@ -367,7 +378,24 @@ class _ChatPageState extends State<ChatPage> {
                 child: Text('Reportar abuso'),
               ),
             ],
+            icon: DecoratedBox(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: EncrypchatColors.paper,
+                boxShadow: EncrypchatColors.raisedShadow,
+              ),
+              child: const SizedBox(
+                width: 40,
+                height: 40,
+                child: Icon(
+                  Icons.more_horiz,
+                  color: EncrypchatColors.muted,
+                  size: 18,
+                ),
+              ),
+            ),
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: Column(
@@ -549,6 +577,7 @@ class _ChatPageState extends State<ChatPage> {
         decoration: BoxDecoration(
           color: mine ? EncrypchatColors.bubbleOut : EncrypchatColors.paper,
           borderRadius: BorderRadius.circular(14),
+          boxShadow: EncrypchatColors.raisedShadow,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
@@ -603,54 +632,69 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _composer() {
-    return Row(
-      children: [
-        IconButton(
-          tooltip: 'Adjuntar foto',
-          onPressed: _sending ? null : _pickAndSendImage,
-          icon: const Icon(Icons.image_outlined, color: EncrypchatColors.navy),
-        ),
-        Expanded(
-          child: TextField(
-            controller: _controller,
-            minLines: 1,
-            maxLines: 4,
-            textInputAction: TextInputAction.send,
-            onSubmitted: (_) => _send(),
-            decoration: InputDecoration(
-              hintText: 'Mensaje',
-              filled: true,
-              fillColor: EncrypchatColors.paper,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
+    final mobileCamera = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: EncrypchatColors.paper,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: EncrypchatColors.raisedShadow,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
+        child: Row(
+          children: [
+            RaisedCircleButton(
+              tooltip: 'Adjuntar foto',
+              onPressed: _sending
+                  ? null
+                  : () => _pickAndSendImage(ImageSource.gallery),
+              icon: Icons.attach_file,
+              iconColor: EncrypchatColors.navy,
+              size: 38,
+            ),
+            if (mobileCamera) ...[
+              const SizedBox(width: 4),
+              RaisedCircleButton(
+                tooltip: 'Cámara',
+                onPressed: _sending
+                    ? null
+                    : () => _pickAndSendImage(ImageSource.camera),
+                icon: Icons.photo_camera_outlined,
+                iconColor: EncrypchatColors.iconContacts,
+                size: 38,
               ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(24),
-                borderSide: BorderSide.none,
+            ],
+            Expanded(
+              child: TextField(
+                controller: _controller,
+                minLines: 1,
+                maxLines: 4,
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => _send(),
+                decoration: const InputDecoration(
+                  hintText: 'Mensaje',
+                  filled: true,
+                  fillColor: EncrypchatColors.paper,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  border: InputBorder.none,
+                ),
               ),
             ),
-          ),
+            RaisedCircleButton(
+              tooltip: 'Enviar',
+              onPressed: _sending ? null : _send,
+              icon: Icons.send,
+              background: EncrypchatColors.navy,
+              iconColor: EncrypchatColors.paper,
+              size: 44,
+              iconSize: 20,
+            ),
+          ],
         ),
-        const SizedBox(width: 8),
-        Material(
-          color: EncrypchatColors.navy,
-          shape: const CircleBorder(),
-          child: IconButton(
-            onPressed: _sending ? null : _send,
-            icon: _sending
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: EncrypchatColors.paper,
-                    ),
-                  )
-                : const Icon(Icons.send, color: EncrypchatColors.paper),
-          ),
-        ),
-      ],
+      ),
     );
   }
 

@@ -8,13 +8,21 @@ import 'safety_actions.dart';
 import 'scan_contact_page.dart';
 
 class ContactsPage extends StatefulWidget {
-  const ContactsPage({super.key, required this.session, this.scanCard});
+  const ContactsPage({
+    super.key,
+    required this.session,
+    this.scanCard,
+    this.onOpenContact,
+  });
 
   final SessionController session;
 
   /// Production opens the camera (or an image picker on desktop). Tests pass
   /// a card without touching either.
   final Future<String?> Function(BuildContext context)? scanCard;
+
+  /// Desktop split: opening a contact shows the chat in the right pane.
+  final ValueChanged<Contact>? onOpenContact;
 
   @override
   State<ContactsPage> createState() => _ContactsPageState();
@@ -249,6 +257,9 @@ class _ContactsPageState extends State<ContactsPage> {
                       color: EncrypchatColors.muted,
                     ),
                   ),
+                  onTap: widget.onOpenContact == null
+                      ? null
+                      : () => widget.onOpenContact!(c),
                   trailing: PopupMenuButton<String>(
                     onSelected: (value) async {
                       if (value == 'copy') {
