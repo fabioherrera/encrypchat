@@ -10,11 +10,14 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
-  // Next emits `favicon.ico` from the file convention on its own, but declaring
-  // `icons` here suppresses that convention for `apple-icon.png`, so the Apple
-  // touch icon has to be listed or iOS falls back to a screenshot.
+  // Declaring `icons` suppresses the file convention, so every icon is listed here
+  // and every file lives in `public/`. `favicon.ico` carries three frames: from
+  // `app/` Next read only the first one and advertised `sizes="16x16"`, which made
+  // browsers at 2x skip the .ico and downscale the 192 logo instead of using the
+  // 32 px mark drawn for that size.
   icons: {
     icon: [
+      { url: "/favicon.ico", type: "image/x-icon", sizes: "16x16 32x32 48x48" },
       { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
       { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
     ],
