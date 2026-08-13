@@ -43,8 +43,8 @@ class MyTokenPage extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Compartí el QR o el export con contactos de confianza. '
-            'Nunca compartas la clave secreta del dispositivo.',
+            'Mostrá el QR al otro dispositivo, o exportá el contacto y '
+            'pegáselo. Nunca compartas la clave secreta del dispositivo.',
             style: TextStyle(color: EncrypchatColors.muted, height: 1.4),
           ),
           const SizedBox(height: 28),

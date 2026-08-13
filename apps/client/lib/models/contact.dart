@@ -102,6 +102,12 @@ class Contact {
     return 'encrypchat:contact:v1:$token:$publicKeyHex:$name';
   }
 
+  /// True for a complete export line or for the QR that carries the same
+  /// string. A bare `ec_…` token is not a card: it has no public key, so it
+  /// cannot be imported.
+  static bool looksLikeCard(String raw) =>
+      raw.trim().startsWith('encrypchat:contact:v1:');
+
   /// Parses an export line or a scanned QR (they carry the same string).
   ///
   /// The 32 bytes come out exactly as they were written: this never masks,

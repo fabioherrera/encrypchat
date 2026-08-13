@@ -5,24 +5,56 @@ import '../models/contact.dart';
 import '../services/session_controller.dart';
 import '../theme/encrypchat_colors.dart';
 import 'safety_actions.dart';
+import 'scan_contact_page.dart';
 
 class ContactsPage extends StatefulWidget {
-  const ContactsPage({super.key, required this.session});
+  const ContactsPage({super.key, required this.session, this.scanCard});
 
   final SessionController session;
+
+  /// Production opens the camera (or an image picker on desktop). Tests pass
+  /// a card without touching either.
+  final Future<String?> Function(BuildContext context)? scanCard;
 
   @override
   State<ContactsPage> createState() => _ContactsPageState();
 }
 
 class _ContactsPageState extends State<ContactsPage> {
+  Future<void> _importRaw(String raw) async {
+    try {
+      await widget.session.importContact(raw);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Contacto guardado')));
+      }
+    } on ContactCardException catch (e) {
+      // The card is wrong and will stay wrong: shown as its own dialog, with
+      // what to ask for, and no invitation to try the same text again.
+      if (mounted) await _cardRejected(e);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('No se pudo importar: $e')));
+      }
+    }
+  }
+
+  Future<void> _scan() async {
+    final raw = await (widget.scanCard ?? scanContactCard)(context);
+    if (raw == null || raw.trim().isEmpty) return;
+    await _importRaw(raw);
+  }
+
   Future<void> _importDialog() async {
     final controller = TextEditingController();
     final raw = await showDialog<String>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Importar contacto'),
+          title: const Text('Pegar export'),
           content: TextField(
             controller: controller,
             maxLines: 4,
@@ -43,26 +75,9 @@ class _ContactsPageState extends State<ContactsPage> {
           ],
         );
       },
-    );
+    ).whenComplete(controller.dispose);
     if (raw == null || raw.trim().isEmpty) return;
-    try {
-      await widget.session.importContact(raw);
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Contacto guardado')));
-      }
-    } on ContactCardException catch (e) {
-      // The card is wrong and will stay wrong: shown as its own dialog, with
-      // what to ask for, and no invitation to try the same text again.
-      if (mounted) await _cardRejected(e);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('No se pudo importar: $e')));
-      }
-    }
+    await _importRaw(raw);
   }
 
   Future<void> _cardRejected(ContactCardException error) {
@@ -123,7 +138,12 @@ class _ContactsPageState extends State<ContactsPage> {
         title: const Text('Contactos'),
         actions: [
           IconButton(
-            tooltip: 'Importar',
+            tooltip: 'Escanear QR',
+            onPressed: _scan,
+            icon: const Icon(Icons.qr_code_scanner),
+          ),
+          IconButton(
+            tooltip: 'Pegar export',
             onPressed: _importDialog,
             icon: const Icon(Icons.person_add_alt_1),
           ),
@@ -152,14 +172,21 @@ class _ContactsPageState extends State<ContactsPage> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Importá un export o QR de otro dispositivo.',
+                      'Escaneá el QR de Mi token del otro dispositivo, '
+                      'o pegá el export.',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: EncrypchatColors.muted),
                     ),
                     const SizedBox(height: 20),
-                    FilledButton(
+                    FilledButton.icon(
+                      onPressed: _scan,
+                      icon: const Icon(Icons.qr_code_scanner),
+                      label: const Text('Escanear QR'),
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton(
                       onPressed: _importDialog,
-                      child: const Text('Importar contacto'),
+                      child: const Text('Pegar export'),
                     ),
                   ],
                 ),
