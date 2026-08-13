@@ -21,7 +21,7 @@ export const GITHUB_REPO = "https://github.com/fabioherrera/encrypchat";
 
 /** Bump this when a new test batch replaces the previous one. Not a `v*` tag:
  *  that pattern starts the Windows CI workflow. */
-export const TEST_RELEASE_TAG = "pruebas-2026-08-13-icon";
+export const TEST_RELEASE_TAG = "pruebas-2026-08-13-ventana";
 
 export const TEST_RELEASE_URL = `${GITHUB_REPO}/releases/tag/${TEST_RELEASE_TAG}`;
 
@@ -41,17 +41,17 @@ function releaseAsset(name: string): string {
 export const PLATFORM_DOWNLOADS: Record<PlatformId, PlatformDownload[] | null> = {
   android: [
     {
-      href: releaseAsset("encrypchat-android-arm64-1.0.0.apk"),
+      href: releaseAsset("encrypchat-android-arm64-1.0.2.apk"),
       kind: "apk",
     },
   ],
   linux: [
     {
-      href: releaseAsset("encrypchat-1.0.0-1.fc44.x86_64.rpm"),
+      href: releaseAsset("encrypchat-1.0.2-1.fc44.x86_64.rpm"),
       kind: "rpm",
     },
     {
-      href: releaseAsset("encrypchat-linux-x64-1.0.0.tar.gz"),
+      href: releaseAsset("encrypchat-linux-x64-1.0.2.tar.gz"),
       kind: "tarball",
     },
   ],

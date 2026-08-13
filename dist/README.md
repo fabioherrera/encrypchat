@@ -87,7 +87,7 @@ those files: https://encrypchat.com/es/download (and `/en/download`). Tag names
 avoid the `v*` pattern on purpose — that one triggers `windows.yml`.
 
 ```bash
-gh release download pruebas-2026-08-13-icon --dir .
+gh release download pruebas-2026-08-13-ui --dir .
 sha256sum -c SHA256SUMS
 ```
 

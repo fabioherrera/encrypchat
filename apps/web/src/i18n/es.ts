@@ -105,6 +105,8 @@ const es: Dictionary = {
       "Nada está firmado. Fedora lo dice al instalar. El APK va con la clave de depuración: sirve para sideload, no para Play Store, y cambiar esa clave más adelante obliga a desinstalar — lo que en Android sí borra la base local.",
     androidSideload:
       "En Android el sistema bloquea el APK porque no está en Play Store. Eso es lo esperado. Bajalo, abrilo desde Archivos o Descargas, y cuando avise «por tu seguridad» o Play Protect: Ajustes → Aplicaciones → Acceso especial → Instalar apps desconocidas → Chrome o Archivos → Permitir. Después «Instalar de todos modos». Solo teléfonos arm64 (casi todos los de los últimos años).",
+    upgradeNote:
+      "Si ya tenés Encrypchat instalado, la app te avisa cuando hay una versión nueva. El aviso es explícito: actualiza solo el programa (seguridad, estabilidad y funciones), no hay nada oculto, y tus chats, fotos y claves se quedan en el dispositivo. Si aceptás, descarga el paquete, comprueba su SHA-256 e invoca el instalador del sistema (contraseña en Fedora, instalador en Android). No se reemplaza el binario en silencio.",
     checksums: "Comprobar SHA-256",
     releasePage: "Notas de esta tanda",
     sourceNote:
@@ -162,7 +164,11 @@ const es: Dictionary = {
       },
       {
         q: "¿Usan analítica o publicidad?",
-        a: "No. La app no incluye SDK de métricas, crash reporting ni identificadores de publicidad, y encrypchat.com no usa cookies propias ni analítica.",
+        a: "No. La app no incluye SDK de métricas, crash reporting ni identificadores de publicidad, y encrypchat.com no usa cookies propias ni analítica. Lo único que la app puede pedir a la web es un fichero público de versión (latest.json) para avisarte si hay un paquete nuevo; esa petición no lleva tu token ni tus chats.",
+      },
+      {
+        q: "¿La app se actualiza sola si ya la instalé?",
+        a: "Te avisa, no lo hace en silencio. El diálogo dice que la actualización es solo de la aplicación —seguridad, estabilidad y funciones—, que no hay nada oculto y que tus chats, fotos y claves se quedan en este dispositivo. Si aceptás, descarga el paquete, comprueba su SHA-256 e invoca el instalador del sistema. La consulta de versión lee encrypchat.com/latest.json y no lleva tu token ni tus chats.",
       },
     ],
   },
@@ -174,8 +180,8 @@ const es: Dictionary = {
     metaDescription:
       "Qué datos existen en Encrypchat y dónde viven: chats en tu dispositivo, en base de datos cifrada. Relay ciego opcional, llamadas P2P, sin cuentas ni analítica.",
     h1: "Política de privacidad",
-    updated: "Última actualización: 12 de agosto de 2026 · versión 1.0 (previa a revisión legal)",
-    updatedIso: "2026-08-12",
+    updated: "Última actualización: 13 de agosto de 2026 · versión 1.0 (previa a revisión legal)",
+    updatedIso: "2026-08-13",
     summary:
       "Encrypchat no tiene cuentas, no guarda tus conversaciones en la nube y no usa analítica ni publicidad. Tu clave privada, tus chats y tu media viven en tu dispositivo. Lo único que puede tocar un servidor es material cifrado que no podemos leer: el sobre que un relay ciego opcional guarda hasta la entrega, y los servidores STUN públicos que ayudan a montar una llamada y ven direcciones IP.",
     disclaimer:
@@ -213,7 +219,7 @@ const es: Dictionary = {
           [
             "Sin registro ni cuenta: no pedimos teléfono, correo ni nombre.",
             "Sin agenda: no subimos tus contactos ni operamos un directorio telefónico central.",
-            "Sin analítica ni telemetría en la app: no hay SDK de métricas, ni crash reporting, ni identificadores de publicidad.",
+            "Sin analítica ni telemetría en la app: no hay SDK de métricas, ni crash reporting, ni identificadores de publicidad. La consulta de versión a encrypchat.com/latest.json se describe en Actualizaciones de la app.",
             "Sin publicidad y sin venta ni cesión de datos a terceros.",
             "Sin copia de seguridad en la nube: en Android el backup automático del sistema está desactivado para la app.",
           ],
@@ -264,6 +270,16 @@ const es: Dictionary = {
         ],
       },
       {
+        id: "actualizaciones",
+        title: "Actualizaciones de la app",
+        blocks: [
+          "Cuando hay una versión nueva, Encrypchat te lo dice con un diálogo explícito. La actualización es solo de la aplicación (seguridad, estabilidad y mejoras de funciones): no hay nada oculto, y tus chats, fotos y claves privadas no se suben ni se modifican; siguen en este dispositivo. Si aceptás, la app descarga el paquete del catálogo público, comprueba su SHA-256 e invoca el instalador del sistema (en Fedora puede pedir tu contraseña; en Android, el instalador de paquetes). Nunca reemplaza el binario en silencio.",
+          "Para saber si hay versión nueva, la app consulta un fichero público (https://encrypchat.com/latest.json). Esa petición no lleva tu token, ni tus chats, ni un identificador de dispositivo. El hosting del sitio (Cloudflare) registra IP, user agent y hora, igual que con cualquier visita a encrypchat.com. La descarga del paquete, si la aceptás, es una segunda petición HTTPS al archivo publicado (hoy, GitHub Releases).",
+          "En Fedora, el RPM nuevo reemplaza los archivos en /usr/lib64/encrypchat y deja tus chats en tu directorio de usuario. En Android, el APK encima conserva los datos si la firma es la misma. En el tarball Linux, se descarga el archivo y hay que correr install.sh. Desinstalar o cambiar la clave de firma en Android sí borra la base local.",
+        ],
+        links: [{ path: "/download", label: "Descargar" }],
+      },
+      {
         id: "sitio-web",
         title: "Este sitio (encrypchat.com)",
         blocks: [
@@ -282,6 +298,7 @@ const es: Dictionary = {
         blocks: [
           [
             "Cloudflare: hosting del sitio web.",
+            "GitHub Releases: hospeda los instaladores que la app descarga si aceptás una actualización.",
             "Google STUN: conectividad de llamadas (ve IP y momento de la llamada).",
             "El operador del relay que elijas, si activás la entrega offline.",
             "Google Play y App Store cuando la app se publique: gestionan la descarga y sus propios datos de cuenta, fuera de nuestro alcance.",
