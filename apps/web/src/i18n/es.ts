@@ -103,6 +103,8 @@ const es: Dictionary = {
       "El código y estos instaladores están en GitHub. Siguen siendo de prueba: no hay ficha de tienda ni lanzamiento público.",
     unsignedNote:
       "Nada está firmado. Fedora lo dice al instalar. El APK va con la clave de depuración: sirve para sideload, no para Play Store, y cambiar esa clave más adelante obliga a desinstalar — lo que en Android sí borra la base local.",
+    androidSideload:
+      "En Android el sistema bloquea el APK porque no está en Play Store. Eso es lo esperado. Bajalo, abrilo desde Archivos o Descargas, y cuando avise «por tu seguridad» o Play Protect: Ajustes → Aplicaciones → Acceso especial → Instalar apps desconocidas → Chrome o Archivos → Permitir. Después «Instalar de todos modos». Solo teléfonos arm64 (casi todos los de los últimos años).",
     checksums: "Comprobar SHA-256",
     releasePage: "Notas de esta tanda",
     sourceNote:

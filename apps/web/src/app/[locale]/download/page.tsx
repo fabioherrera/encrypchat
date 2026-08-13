@@ -47,6 +47,7 @@ export default async function DownloadPage({
       <DownloadReleaseLinks checksums={t.checksums} releasePage={t.releasePage} />
       <p>{t.privateNote}</p>
       <p>{t.unsignedNote}</p>
+      <p>{t.androidSideload}</p>
       <p className="muted">{t.sourceNote}</p>
     </article>
   );

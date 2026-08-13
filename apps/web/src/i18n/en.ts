@@ -103,6 +103,8 @@ const en: Dictionary = {
       "The code and these installers are on GitHub. They are still test builds: there is no store listing and no public launch.",
     unsignedNote:
       "Nothing is signed. Fedora will say so on install. The APK uses the debug key: it is for sideload, not Play Store, and changing that key later forces an uninstall — which on Android does wipe the local database.",
+    androidSideload:
+      "On Android the system blocks the APK because it is not on the Play Store. That is expected. Download it, open it from Files or Downloads, and when it warns «for your security» or Play Protect: Settings → Apps → Special app access → Install unknown apps → Chrome or Files → Allow. Then «Install anyway». arm64 phones only (almost every phone from the last few years).",
     checksums: "Check SHA-256",
     releasePage: "Notes for this batch",
     sourceNote:

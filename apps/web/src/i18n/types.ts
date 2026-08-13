@@ -112,6 +112,7 @@ export type Dictionary = {
     intro: string;
     privateNote: string;
     unsignedNote: string;
+    androidSideload: string;
     checksums: string;
     releasePage: string;
     sourceNote: string;
