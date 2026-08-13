@@ -51,16 +51,26 @@ project and `wrangler` plays no part in a deploy.
 
 Anything under [`public/`](public/) ships as a plain file at the site root:
 `/latest.json` is the update catalogue the installed app polls, so a stale build
-there is what an old client keeps seeing. nginx resolves unknown paths with
-`try_files $uri $uri.html $uri/ /index.html`, so a missing file answers `200` with
-the home page instead of `404` — a broken catalogue looks like a working request
-that returns HTML.
+there is what an old client keeps seeing. A missing file now answers `404` — it
+used to fall back to `/index.html` with a `200`, which made a broken catalogue
+look like a working request that returns HTML, and made every mistyped URL a soft
+404 that bounced the visitor to `/en`. A trailing slash redirects: `/es/` answered
+`403` (the exported directory has no `index.html`) and `/es/privacy/` answered the
+root redirect, so both now `301` to the canonical form without the slash.
 
 ## SEO
 
 - Canonical base: `https://encrypchat.com`
-- `/sitemap.xml`, `/robots.txt`
-- OG image: `/og.png` (from brand logo)
+- `/sitemap.xml` (`lastmod` only where a real content date exists: the three legal
+  pages carry theirs in the dictionary), `/robots.txt`
+- OG image: `/og.png`, 1200×630 — the size the metadata declares and the size
+  `summary_large_image` needs
+- Icons live in [`public/`](public/) and are declared in
+  [`src/app/layout.tsx`](src/app/layout.tsx), none by file convention: declaring
+  `icons` suppresses the convention for every file except `favicon.ico`, which
+  Next kept emitting with `sizes="16x16"` (the first of its three frames), so
+  browsers at 2x downscaled the 192 logo instead of using the 32 px mark.
+  Changing a brand asset needs a Cloudflare purge — the URLs have no fingerprint.
 
 ## Contenido preparado y **no** publicado todavía
 
