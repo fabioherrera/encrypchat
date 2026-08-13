@@ -19,11 +19,11 @@ Windows is built on Windows (`scripts\package-windows.ps1`) or in CI (`gh workfl
 
 ## Expected files (after a successful package)
 
-| File | Platform | Size (1.0.0) | Notes |
+| File | Platform | Size (1.0.2) | Notes |
 | --- | --- | --- | --- |
-| `encrypchat-linux-x64-<version>.tar.gz` | Linux x64 | ~21 MB | Portable Flutter bundle + `install.sh`; libs stripped |
-| `encrypchat-<version>-1.fc*.x86_64.rpm` | Fedora x64 | ~18 MB | Same bundle under `/usr/lib64/encrypchat`; unsigned |
-| `encrypchat-android-arm64-<version>.apk` | Android arm64 | ~17 MB | Release APK, arm64-v8a only; **debug-signed** unless `android/key.properties` exists — not for Play Store |
+| `encrypchat-linux-x64-<version>.tar.gz` | Linux x64 | ~22 MB | Portable Flutter bundle + `install.sh`; libs stripped |
+| `encrypchat-<version>-1.fc*.x86_64.rpm` | Fedora x64 | ~19 MB | Same bundle under `/usr/lib64/encrypchat`; unsigned |
+| `encrypchat-android-arm64-<version>.apk` | Android arm64 | ~22 MB | Release APK, arm64-v8a only; **debug-signed** unless `android/key.properties` exists — not for Play Store |
 | `encrypchat-windows-x64-<version>.zip` | Windows x64 | ~25 MB | Built on a Windows host, or by CI on `windows-latest` (artifact kept 30 days) |
 
 `<version>` comes from `apps/client/pubspec.yaml` (e.g. `1.0.0`).

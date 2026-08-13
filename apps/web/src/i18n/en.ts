@@ -274,7 +274,7 @@ const en: Dictionary = {
         title: "App updates",
         blocks: [
           "When a newer version exists, Encrypchat tells you with an explicit dialog. The update is the application only (security, stability, and feature improvements): nothing is hidden, and your chats, photos, and private keys are not uploaded or modified; they stay on this device. If you accept, the app downloads the package from the public catalog, checks its SHA-256, and hands it to the system installer (on Fedora it may ask for your password; on Android, the package installer). It never replaces the binary in silence.",
-          "To learn whether a newer version exists, the app fetches a public file (https://encrypchat.com/latest.json). That request does not carry your token, your chats, or a device identifier. The site host (Cloudflare) logs IP, user agent, and time, as with any visit to encrypchat.com. Downloading the package, if you accept, is a second HTTPS request to the published file (today, GitHub Releases).",
+          "To learn whether a newer version exists, the app fetches a public file (https://encrypchat.com/latest.json). That request does not carry your token, your chats, or a device identifier. Cloudflare and our own server see the IP, user agent, and time, as with any visit to encrypchat.com. Downloading the package, if you accept, is a second HTTPS request to the published file (today, GitHub Releases).",
           "On Fedora, the new RPM replaces the files in /usr/lib64/encrypchat and leaves your chats in your home directory. On Android, installing the APK over the current one keeps the data if the signing key is the same. For the Linux tarball, the file is downloaded and you still run install.sh. Uninstalling, or changing the Android signing key, does wipe the local database.",
         ],
         links: [{ path: "/download", label: "Download" }],
@@ -287,7 +287,8 @@ const en: Dictionary = {
           [
             "No first-party cookies, no analytics, no third-party pixels.",
             "Fonts are served from our own domain: visiting the site does not trigger a request to Google Fonts.",
-            "The hosting provider (Cloudflare Pages) records standard access logs (IP, user agent, timestamp) to serve the site and mitigate abuse, subject to their own policy.",
+            "encrypchat.com is served from a server we run ourselves, hosted on Oracle Cloud, with Cloudflare in front of it as a CDN and proxy.",
+            "Cloudflare records standard access logs (IP, user agent, timestamp) to serve the site and mitigate abuse, also subject to their own policy. Our server receives your IP in a header Cloudflare adds, and keeps a standard log of the requests it serves.",
           ],
           "If we ever add analytics, it will be announced on this page before it is enabled.",
         ],
@@ -297,7 +298,8 @@ const en: Dictionary = {
         title: "Third parties involved",
         blocks: [
           [
-            "Cloudflare: website hosting.",
+            "Cloudflare: CDN and proxy in front of the website (sees IP, user agent, and time of each visit).",
+            "Oracle Cloud: provider of the server the website runs on. That machine holds the public pages only — no chats, no media, no keys.",
             "GitHub Releases: hosts the installers the app downloads if you accept an update.",
             "Google STUN: call connectivity (sees IP and call timing).",
             "The relay operator you choose, if you enable offline delivery.",
@@ -517,8 +519,8 @@ const en: Dictionary = {
     metaDescription:
       "What Encrypchat protects against and what it does not: adversaries, metadata, the list of open limitations, and how to report a vulnerability.",
     h1: "Security and threat model",
-    updated: "Last reviewed: 12 August 2026 · product state: pre-beta (phase 10)",
-    updatedIso: "2026-08-12",
+    updated: "Last reviewed: 13 August 2026 · product state: pre-beta (phase 10)",
+    updatedIso: "2026-08-13",
     summary:
       "Encrypchat encrypts content on the sending device and has no server that stores it. This page says what that protects, what it does not, and who learns what. A privacy product that does not publish its limits is lying by omission, so the important part is the list of known limitations, and it is here in full.",
     disclaimer:
@@ -645,7 +647,7 @@ const en: Dictionary = {
             "Google's public STUN learns your public IP address and the moment you start or receive a call. It does not learn who you talk to, what you say, or your token.",
             "Your peer learns your token, your public key, your IP address for the duration of the connection, and everything you send them. They do not learn your other conversations.",
             "Whoever holds your unlocked device learns everything.",
-            "Encrypchat — that is, us — learns nothing from the app: we operate no content servers and there is no telemetry or analytics. The one exception is not in the app but on this website, which is served by Cloudflare and records standard access logs — IP address, user agent, and timestamp — like any hosting provider.",
+            "Encrypchat — that is, us — learns nothing from the app: we operate no content servers and there is no telemetry or analytics. The one exception is not in the app but on this website: it is served by a server we run ourselves, hosted on Oracle Cloud, with Cloudflare in front of it as a CDN and proxy. Cloudflare sees the IP address, user agent, and time of each visit. That machine holds the public pages only — no chats, no media, no keys.",
           ],
           "Three honest notes on that list. The relay sees the recipient's token: that is unavoidable, because without it there is no mailbox to leave the blob in, which is why it is optional and why we always prefer a direct connection. Google's STUN sees your IP when you call: it is a third party we do not control, and it is there because without it calls do not traverse most home NATs — if that does not work for you, do not use calls. And correlation is the realistic attack: nobody is going to break ChaCha20, they are going to look at who talked to whom and when.",
         ],

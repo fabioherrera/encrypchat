@@ -49,8 +49,9 @@ class UpdatePackage {
 /// Result of comparing this binary to the public catalog on encrypchat.com.
 ///
 /// The catalog is a static JSON file. The request carries no token, no chat
-/// data, and no device id. Cloudflare still sees IP / user-agent / time, as
-/// with any visit to the site — see the privacy page, section actualizaciones.
+/// data, and no device id. Cloudflare and the origin server still see IP /
+/// user-agent / time, as with any visit to the site — see the privacy page,
+/// section actualizaciones.
 @immutable
 class UpdateInfo {
   const UpdateInfo({

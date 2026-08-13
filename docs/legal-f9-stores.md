@@ -16,7 +16,7 @@ Limitaciones reales del producto: [audit-f5-relay.md](audit-f5-relay.md) · [aud
 | 2 | Sin build iOS: `crates/core` no está enlazado (requiere macOS) | App Store | Operador (host Mac) |
 | 3 | Sin cuenta de desarrollador (Play 25 USD única / Apple 99 USD anual) ni verificación de identidad | Ambas | Operador |
 | 4 | Sin entidad legal, domicilio, jurisdicción ni buzón de contacto → la política de privacidad no puede cerrarse | Ambas | Operador |
-| 5 | `https://encrypchat.com` todavía no está live (falta `CLOUDFLARE_API_TOKEN` + DNS); las tiendas exigen una URL de privacidad accesible | Ambas | Operador |
+| 5 | ~~`https://encrypchat.com` todavía no está live~~ → **hecho** (Dokploy + Cloudflare Tunnel, 2026-08-13): las páginas legales ya son accesibles | Ambas | Operador ✅ |
 | 6 | ~~Sin mecanismos de **reporte y bloqueo** de usuarios~~ → **hecho** (bloqueo local que corta chat, media y llamadas + informe local de abuso) | Ambas | `/frontend` ✅ |
 | 7 | ~~La app no enlaza privacidad ni términos desde su propia UI~~ → **hecho** (Mi token → Acerca de) | Ambas | `/frontend` ✅ |
 | 8 | Sin revisión de abogado | Ambas | Operador |
@@ -232,7 +232,7 @@ El copy de la ficha debe pasar por `/seo` y `/legal` antes de enviarse, igual qu
 ## Orden sugerido
 
 1. Operador: entidad legal, jurisdicción, buzón de contacto → cerrar los huecos de `/privacy` y `/terms`.
-2. Operador: DNS + `CLOUDFLARE_API_TOKEN` → `https://encrypchat.com` live con las páginas legales accesibles (los enlaces de la app ya apuntan ahí y hoy dan 404).
+2. ~~Operador: `https://encrypchat.com` live con las páginas legales accesibles.~~ Hecho (Dokploy + Cloudflare Tunnel): los enlaces de la app ya resuelven.
 3. ~~`/frontend`: reporte y bloqueo de usuarios, enlaces legales dentro de la app, `NSPhotoLibraryUsageDescription`.~~ Hecho.
 4. Operador: keystore de release + AAB ([phase-8.md](phase-8.md)); host macOS para el build iOS.
 5. Abogado: revisión de privacidad, términos, clasificación por edad y exportación.

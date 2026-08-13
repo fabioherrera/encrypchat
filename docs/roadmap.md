@@ -28,7 +28,7 @@ Construir Encrypchat de cero: app P2P E2EE multiplataforma + sitio indexable en 
 | Identidad | Token = hash de clave pública; intercambio por QR / pegar token |
 | Offline | Relay ciego (ciphertext + destino + TTL); no nube de contenido |
 | Orden estratégico | Landing SEO temprano (fase 1) en paralelo al core |
-| Hosting web | Cloudflare Pages (default) |
+| Hosting web | Dokploy (VPS propio) + nginx, detrás de Cloudflare Tunnel. Cloudflare Pages se evaluó y **no** se usa |
 
 ## Arquitectura
 
@@ -128,7 +128,7 @@ Completada. Siguiente: **Fase 1** (landing SEO) y/o **Fase 2** (crypto).
 
 ## Fase 1 — Landing SEO en encrypchat.com (prioridad alta)
 
-**Estado:** done (código + SEO estático; 2026-08-11) — HTTPS en dominio pendiente de `CLOUDFLARE_API_TOKEN` + DNS  
+**Estado:** done — código + SEO estático (2026-08-11) y HTTPS live en encrypchat.com (2026-08-13)  
 **Meta:** sitio público indexable que explica el producto y convierte a descarga.
 
 ### Alcance
@@ -137,7 +137,7 @@ Completada. Siguiente: **Fase 1** (landing SEO) y/o **Fase 2** (crypto).
 - Metadata, canonical `https://encrypchat.com`, sitemap, robots, OG con logo.
 - Schema `SoftwareApplication` + `Organization` + `FAQPage` (sin ratings inventados).
 - Claims honestos (relay ciego matizado).
-- Cloudflare Pages: `apps/web/wrangler.jsonc`.
+- Contenedor propio: `Dockerfile` en la raíz (build Next → nginx), desplegado por Dokploy.
 
 ### Entregables
 
@@ -148,14 +148,22 @@ Completada. Siguiente: **Fase 1** (landing SEO) y/o **Fase 2** (crypto).
 - [x] title/description/OG/canonical/sitemap/robots/FAQ AEO en el build
 - [x] Checklist SEO + stubs legales revisados
 - [x] CTAs Android, iOS, Linux Fedora, Windows
-- [ ] HTTPS live en encrypchat.com + redirect www (operador: token Cloudflare)
+- [x] HTTPS live en encrypchat.com + redirect www
 
 ### Deploy
 
+El sitio lo publica **Dokploy** desde el repo: construye el `Dockerfile` de la raíz
+(Next `output: "export"` → nginx) y lo expone por Cloudflare Tunnel. Publicar es,
+por tanto, hacer push:
+
 ```bash
-cd apps/web && npm run build
-npx wrangler pages deploy out --project-name encrypchat
+git push origin main
+# luego, en el panel de Dokploy: Deploy
 ```
+
+El auto-deploy por webhook quedó apuntando al endpoint anterior cuando el panel se
+movió a un subdominio, así que **hoy hay que lanzarlo a mano**. Detalles y campos del
+servicio: [apps/web/README.md](../apps/web/README.md#deploy-dokploy).
 
 ### Agentes
 

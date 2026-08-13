@@ -5,7 +5,7 @@ Mensajería **P2P** cifrada de extremo a extremo. Cada dispositivo es cliente + 
 **Roadmap:** [docs/roadmap.md](docs/roadmap.md) — fases 0–10, DoD y agentes.  
 **Siguiente paso:** Probar `dist/` (F4–F7), cerrar F8 (Win/iOS) o completar los campos de operador de F9 (entidad legal, contacto, firma release).  
 F7: [docs/phase-7.md](docs/phase-7.md) · F8: [docs/phase-8.md](docs/phase-8.md) · F9: [docs/phase-9.md](docs/phase-9.md) + [docs/legal-f9-stores.md](docs/legal-f9-stores.md).  
-F1 deploy: `CLOUDFLARE_API_TOKEN` + `apps/web/out`.
+Deploy web: **Dokploy** construye el `Dockerfile` de la raíz y sirve el export con nginx; Cloudflare solo hace de túnel/CDN por delante. No es Cloudflare Pages y no hace falta `CLOUDFLARE_API_TOKEN` — ver [apps/web/README.md](apps/web/README.md#deploy-dokploy).
 
 ## Dominio y marca
 

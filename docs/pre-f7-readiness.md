@@ -27,7 +27,7 @@ Verificación automática: `make check` + `make package`.
 
 | Ítem | Quién |
 | --- | --- |
-| Deploy HTTPS encrypchat.com | Operador (`CLOUDFLARE_API_TOKEN`) |
+| ~~Deploy HTTPS encrypchat.com~~ → **hecho** (Dokploy + Cloudflare Tunnel, 2026-08-13) | Operador |
 | Windows / iOS instaladores | Host Win/Mac — F8 gap |
 | SQLCipher full-file | Hardening F10 |
 | Auth `from` en relay (spoof) | Pre-prod — audit-f5/f6 |

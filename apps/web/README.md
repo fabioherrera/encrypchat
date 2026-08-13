@@ -1,6 +1,6 @@
 # Encrypchat web (encrypchat.com)
 
-Static Next.js export for Cloudflare Pages.
+Static Next.js export, served by nginx from a container that Dokploy builds.
 
 ## Local
 
@@ -36,18 +36,25 @@ without them. Drop the overrides when a `next` release pins the patched versions
 | Port | `80` |
 | Domain | `encrypchat.com` |
 
-Auto-deploy on push to `main`.
-
 Alternative: context `apps/web`, Dockerfile `Dockerfile`.
 
-## Deploy (Cloudflare Pages)
+**Trigger it by hand.** Auto-deploy on push to `main` was configured, but the GitHub
+webhook still points at the address the panel had before it moved to its own
+subdomain, so a push no longer starts a build — verified on 2026-08-13, when
+`/latest.json` stayed missing four minutes after the push. Until the webhook is
+repointed, publishing is: push, then **Deploy** in the Dokploy panel.
 
-```bash
-npm run build
-npx wrangler pages deploy out --project-name encrypchat
-```
+`encrypchat.com` does not resolve to the server. Cloudflare fronts it and reaches
+Dokploy's Traefik through a tunnel ([`deploy/cloudflared`](../../deploy/cloudflared/docker-compose.yml)),
+which is why the origin IP stays private — and why there is no Cloudflare Pages
+project and `wrangler` plays no part in a deploy.
 
-Point the custom domain **encrypchat.com** (and www → apex redirect) in the Cloudflare dashboard. DNS must be on Cloudflare for HTTPS + redirects.
+Anything under [`public/`](public/) ships as a plain file at the site root:
+`/latest.json` is the update catalogue the installed app polls, so a stale build
+there is what an old client keeps seeing. nginx resolves unknown paths with
+`try_files $uri $uri.html $uri/ /index.html`, so a missing file answers `200` with
+the home page instead of `404` — a broken catalogue looks like a working request
+that returns HTML.
 
 ## SEO
 

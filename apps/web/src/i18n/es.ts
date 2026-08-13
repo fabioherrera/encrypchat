@@ -274,7 +274,7 @@ const es: Dictionary = {
         title: "Actualizaciones de la app",
         blocks: [
           "Cuando hay una versión nueva, Encrypchat te lo dice con un diálogo explícito. La actualización es solo de la aplicación (seguridad, estabilidad y mejoras de funciones): no hay nada oculto, y tus chats, fotos y claves privadas no se suben ni se modifican; siguen en este dispositivo. Si aceptás, la app descarga el paquete del catálogo público, comprueba su SHA-256 e invoca el instalador del sistema (en Fedora puede pedir tu contraseña; en Android, el instalador de paquetes). Nunca reemplaza el binario en silencio.",
-          "Para saber si hay versión nueva, la app consulta un fichero público (https://encrypchat.com/latest.json). Esa petición no lleva tu token, ni tus chats, ni un identificador de dispositivo. El hosting del sitio (Cloudflare) registra IP, user agent y hora, igual que con cualquier visita a encrypchat.com. La descarga del paquete, si la aceptás, es una segunda petición HTTPS al archivo publicado (hoy, GitHub Releases).",
+          "Para saber si hay versión nueva, la app consulta un fichero público (https://encrypchat.com/latest.json). Esa petición no lleva tu token, ni tus chats, ni un identificador de dispositivo. Cloudflare y nuestro servidor ven la IP, el user agent y la hora, igual que con cualquier visita a encrypchat.com. La descarga del paquete, si la aceptás, es una segunda petición HTTPS al archivo publicado (hoy, GitHub Releases).",
           "En Fedora, el RPM nuevo reemplaza los archivos en /usr/lib64/encrypchat y deja tus chats en tu directorio de usuario. En Android, el APK encima conserva los datos si la firma es la misma. En el tarball Linux, se descarga el archivo y hay que correr install.sh. Desinstalar o cambiar la clave de firma en Android sí borra la base local.",
         ],
         links: [{ path: "/download", label: "Descargar" }],
@@ -287,7 +287,8 @@ const es: Dictionary = {
           [
             "Sin cookies propias, sin analítica y sin píxeles de terceros.",
             "Las tipografías se sirven desde nuestro propio dominio: visitar el sitio no genera una petición a Google Fonts.",
-            "El proveedor de hosting (Cloudflare Pages) registra logs de acceso estándar (IP, user agent, hora) para servir el sitio y mitigar abuso, sujetos a su propia política.",
+            "encrypchat.com se sirve desde un servidor que administramos nosotros, alojado en Oracle Cloud, con Cloudflare por delante como CDN y proxy.",
+            "Cloudflare registra logs de acceso estándar (IP, user agent, hora) para servir el sitio y mitigar abuso, sujetos además a su propia política. Nuestro servidor recibe tu IP en una cabecera que añade Cloudflare y guarda un registro estándar de las peticiones.",
           ],
           "Si algún día añadimos analítica, se anunciará en esta página antes de activarla.",
         ],
@@ -297,7 +298,8 @@ const es: Dictionary = {
         title: "Terceros implicados",
         blocks: [
           [
-            "Cloudflare: hosting del sitio web.",
+            "Cloudflare: CDN y proxy por delante del sitio web (ve la IP, el user agent y la hora de cada visita).",
+            "Oracle Cloud: proveedor del servidor donde vive el sitio web. En esa máquina solo están las páginas públicas: ni chats, ni media, ni claves.",
             "GitHub Releases: hospeda los instaladores que la app descarga si aceptás una actualización.",
             "Google STUN: conectividad de llamadas (ve IP y momento de la llamada).",
             "El operador del relay que elijas, si activás la entrega offline.",
@@ -519,8 +521,8 @@ const es: Dictionary = {
     metaDescription:
       "De qué protege Encrypchat y de qué no: adversarios, metadatos, la lista de limitaciones abiertas y cómo reportar una vulnerabilidad.",
     h1: "Seguridad y modelo de amenazas",
-    updated: "Última revisión: 12 de agosto de 2026 · estado del producto: pre-beta (fase 10)",
-    updatedIso: "2026-08-12",
+    updated: "Última revisión: 13 de agosto de 2026 · estado del producto: pre-beta (fase 10)",
+    updatedIso: "2026-08-13",
     summary:
       "Encrypchat cifra el contenido en el dispositivo de origen y no tiene ningún servidor que lo guarde. Esta página dice de qué protege eso, de qué no, y quién aprende qué. Un producto de privacidad que no publica sus límites está mintiendo por omisión, así que la parte importante es la lista de limitaciones conocidas, y está entera más abajo.",
     disclaimer:
@@ -647,7 +649,7 @@ const es: Dictionary = {
             "El STUN público de Google aprende tu dirección IP pública y el momento de iniciar o recibir una llamada. No aprende con quién hablás, qué decís ni tu token.",
             "Tu par aprende tu token, tu clave pública, tu dirección IP durante la conexión y todo lo que le enviás. No aprende tus otras conversaciones.",
             "Quien tenga tu dispositivo desbloqueado aprende todo.",
-            "Encrypchat, es decir nosotros, no aprende nada de la app: no operamos servidores de contenido y no hay telemetría ni analítica. La única excepción no está en la app sino en este sitio web, que sirve Cloudflare y que registra logs de acceso estándar —dirección IP, agente de usuario y hora— como cualquier alojamiento.",
+            "Encrypchat, es decir nosotros, no aprende nada de la app: no operamos servidores de contenido y no hay telemetría ni analítica. La única excepción no está en la app sino en este sitio web: lo sirve un servidor que administramos nosotros, alojado en Oracle Cloud, con Cloudflare por delante como CDN y proxy. Cloudflare ve la dirección IP, el agente de usuario y la hora de cada visita. En esa máquina solo están las páginas públicas: ni chats, ni media, ni claves.",
           ],
           "Tres notas honestas sobre esa lista. El relay ve el token del destinatario: es inevitable, porque sin él no sabe a qué buzón dejar el blob, y por eso es opcional y por eso preferimos siempre la conexión directa. El STUN de Google ve tu IP al llamar: es un tercero que no controlamos, y está ahí porque sin él las llamadas no atraviesan la mayoría de los NAT domésticos — si eso no te sirve, no uses llamadas. Y la correlación es el ataque realista: nadie va a romper ChaCha20, van a mirar quién habló con quién y cuándo.",
         ],
