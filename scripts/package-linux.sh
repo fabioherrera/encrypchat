@@ -1,65 +1,20 @@
 #!/usr/bin/env bash
 # Build Linux x64 release bundle → dist/encrypchat-linux-x64-<version>.tar.gz
+# Portable: extracts anywhere and installs into the user prefix, no root. For Fedora there
+# is scripts/package-rpm.sh, which installs system-wide and uninstalls cleanly.
 set -euo pipefail
 # shellcheck source=common.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 
 VERSION="$(encrypchat_version)"
 OUT_NAME="encrypchat-linux-x64-${VERSION}"
-BUNDLE="${ROOT}/apps/client/build/linux/x64/release/bundle"
 STAGE="${ROOT}/dist/.stage-linux"
 TARBALL="${ROOT}/dist/${OUT_NAME}.tar.gz"
 
-echo "==> FFI (host)"
-make -C "${ROOT}" build-ffi
-
-echo "==> Flutter Linux release"
-cd "${ROOT}/apps/client"
-run_flutter pub get
-# --tree-shake-icons is currently a no-op on desktop: flutter_tools passes
-# -dTreeShakeIcons="true" (quoted) to `flutter assemble`, so the subsetter stays
-# off and MaterialIcons ships whole (~1.6 MiB). Kept for when upstream fixes it.
-ENCRYPCHAT_CORE_LIB="${ROOT}/apps/client/native/libencrypchat_core.so" \
-  run_flutter build linux --release --tree-shake-icons
-
-if [[ ! -x "${BUNDLE}/encrypchat" ]]; then
-  echo "error: missing binary ${BUNDLE}/encrypchat" >&2
-  exit 1
-fi
-
-# Ensure core .so is in the bundle lib/ (CMake should install it; copy as safety net)
-mkdir -p "${BUNDLE}/lib"
-if [[ ! -f "${BUNDLE}/lib/libencrypchat_core.so" ]]; then
-  cp -f "${ROOT}/apps/client/native/libencrypchat_core.so" "${BUNDLE}/lib/libencrypchat_core.so"
-fi
-test -f "${BUNDLE}/lib/libencrypchat_core.so"
+build_linux_bundle
 
 echo "==> Staging ${OUT_NAME}"
-rm -rf "${STAGE}"
-mkdir -p "${STAGE}/${OUT_NAME}"
-cp -a "${BUNDLE}/." "${STAGE}/${OUT_NAME}/"
-
-ASSETS="${STAGE}/${OUT_NAME}/data/flutter_assets"
-if [[ -f "${ASSETS}/NOTICES.Z" && -f "${ASSETS}/NOTICES" ]]; then
-  # Desktop engines read the gzipped NOTICES.Z; a plain NOTICES left over from
-  # older builds in build/flutter_assets is never loaded (~1.3 MiB).
-  rm -f "${ASSETS}/NOTICES"
-fi
-
-echo "==> Stripping symbols (staged copy only)"
-STRIP_BIN="$(command -v strip || command -v llvm-strip || true)"
-if [[ -n "${STRIP_BIN}" ]]; then
-  BEFORE="$(du -sb "${STAGE}/${OUT_NAME}" | cut -f1)"
-  # Prebuilt plugin libs (libwebrtc.so, libsqlite3.so) ship with debug symbols.
-  # Never fatal: a lib we cannot strip still ships, just bigger.
-  find "${STAGE}/${OUT_NAME}" -name '*.so' -type f \
-    -exec "${STRIP_BIN}" --strip-unneeded {} + || true
-  "${STRIP_BIN}" "${STAGE}/${OUT_NAME}/encrypchat" || true
-  AFTER="$(du -sb "${STAGE}/${OUT_NAME}" | cut -f1)"
-  echo "stripped: $((BEFORE / 1048576)) MiB → $((AFTER / 1048576)) MiB (uncompressed)"
-else
-  echo "warn: no strip/llvm-strip on PATH — shipping unstripped libs" >&2
-fi
+stage_linux_bundle "${STAGE}/${OUT_NAME}"
 
 cat > "${STAGE}/${OUT_NAME}/install.sh" <<'INSTALL'
 #!/usr/bin/env bash

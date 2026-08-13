@@ -12,15 +12,20 @@ FLUTTER_HOME := $(ROOT)/.tools/home
 # Prefer repo-local target dir so `native/` can be populated without sandbox cache paths.
 export CARGO_TARGET_DIR ?= $(ROOT)/target
 
+# Keep the builder's home directory out of the binaries: a panic message names the source
+# file that raised it, and the crate registry sits under .tools/. scripts/common.sh sets the
+# identical flag so packaging and `make check` share one cargo fingerprint.
+export RUSTFLAGS := --remap-path-prefix=$(ROOT)=/encrypchat $(RUSTFLAGS)
+
 # The web build is offline by design (fonts are self-hosted); telemetry was the
 # only outbound call left. Also keeps builds identical with and without network.
 export NEXT_TELEMETRY_DISABLED := 1
 
 .PHONY: check check-rust check-web check-client check-security-txt build-ffi \
-	build-client-linux package package-linux package-android help
+	build-client-linux package package-linux package-rpm package-android help
 
 help:
-	@echo "Targets: check | check-rust | check-web | check-client | check-security-txt | build-ffi | build-client-linux | package | package-linux | package-android | dev-web | dev-client"
+	@echo "Targets: check | check-rust | check-web | check-client | check-security-txt | build-ffi | build-client-linux | package | package-linux | package-rpm | package-android | dev-web | dev-client"
 	@echo "Toolchain: put cmake/ninja in .tools/bin if system packages are unavailable"
 	@echo "Packaging: make package → dist/ (see dist/README.md, docs/phase-8.md)"
 
@@ -88,6 +93,11 @@ dev-web:
 
 package-linux:
 	$(ROOT)/scripts/package-linux.sh
+
+# Fedora. The tarball installs into the user prefix and leaves nothing to track; this one
+# `dnf remove` takes back out whole, which is what you want on a machine used for testing.
+package-rpm:
+	$(ROOT)/scripts/package-rpm.sh
 
 package-android:
 	$(ROOT)/scripts/package-android.sh

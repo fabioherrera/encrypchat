@@ -1,0 +1,86 @@
+# Windows binaries, built where they can be built.
+#
+# The Flutter Windows runner is an MSVC project: it cannot be cross-compiled from Linux, and
+# the machine this project is developed on is Fedora. That left Windows as a permanent hole
+# in `make package` — one of the four platforms the product claims parity on, with no way to
+# even see it fail. A hosted Windows runner closes it without anyone buying a second machine.
+#
+# Manual by default: this costs minutes and nobody needs a Windows build on every commit.
+# Tags build automatically, because that is when the artifact is worth keeping.
+name: windows
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.9"
+          channel: stable
+          cache: true
+
+      # Same remap as the Makefile: panic messages carry the path of the source file that
+      # raised them, and there is no reason to ship a runner's directory layout.
+      - name: Build the core
+        shell: bash
+        env:
+          RUSTFLAGS: --remap-path-prefix=${{ github.workspace }}=/encrypchat
+        run: |
+          set -euo pipefail
+          cargo build -p encrypchat_core --release --target x86_64-pc-windows-msvc
+          mkdir -p apps/client/native
+          cp -f target/x86_64-pc-windows-msvc/release/encrypchat_core.dll apps/client/native/
+
+      - name: Build the client
+        shell: bash
+        working-directory: apps/client
+        run: |
+          set -euo pipefail
+          flutter config --enable-windows-desktop
+          flutter pub get
+          flutter build windows --release --tree-shake-icons
+
+      # The failure this build is most likely to have is an .exe that starts and then shows
+      # the core-missing banner, which looks like a broken app rather than a packaging slip.
+      # Cheaper to catch here than on someone's desktop.
+      - name: The core travels with the app
+        shell: bash
+        working-directory: apps/client/build/windows/x64/runner/Release
+        run: |
+          set -euo pipefail
+          test -f encrypchat.exe
+          test -f encrypchat_core.dll
+          test -d data
+
+      - name: Package
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^version:[[:space:]]*\([^+[:space:]]*\).*/\1/p' apps/client/pubspec.yaml | head -1)"
+          name="encrypchat-windows-x64-${version}"
+          mkdir -p dist
+          cd apps/client/build/windows/x64/runner/Release
+          7z a -tzip "../../../../../../../dist/${name}.zip" ./*
+          echo "name=${name}" >> "$GITHUB_OUTPUT"
+
+      # Not a release: unsigned, and Windows will say so loudly when it runs. Retained for a
+      # month, which is the window in which someone is actually testing it.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.package.outputs.name }}
+          path: dist/*.zip
+          retention-days: 30
+          if-no-files-found: error
