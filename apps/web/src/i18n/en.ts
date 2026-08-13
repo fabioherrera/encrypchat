@@ -287,7 +287,7 @@ const en: Dictionary = {
           [
             "No first-party cookies, no analytics, no third-party pixels.",
             "Fonts are served from our own domain: visiting the site does not trigger a request to Google Fonts.",
-            "encrypchat.com is served from a server we run ourselves, hosted on Oracle Cloud, with Cloudflare in front of it as a CDN and proxy.",
+            "encrypchat.com is served from a server we run ourselves, hosted on Oracle Cloud in the United States, with Cloudflare in front of it as a CDN and proxy.",
             "Cloudflare records standard access logs (IP, user agent, timestamp) to serve the site and mitigate abuse, also subject to their own policy. Our server receives your IP in a header Cloudflare adds, and keeps a standard log of the requests it serves.",
           ],
           "If we ever add analytics, it will be announced on this page before it is enabled.",
@@ -299,14 +299,32 @@ const en: Dictionary = {
         blocks: [
           [
             "Cloudflare: CDN and proxy in front of the website (sees IP, user agent, and time of each visit).",
-            "Oracle Cloud: provider of the server the website runs on. That machine holds the public pages only — no chats, no media, no keys.",
+            "Oracle Cloud: provider of the server the website runs on, in the United States. That machine holds the public pages only — no chats, no media, no keys.",
             "GitHub Releases: hosts the installers the app downloads if you accept an update.",
+            "Google Workspace: provides the mailbox behind info@elnerd.com. If you write to that address, your message and your sender address are handled on Google's infrastructure, along with whatever you choose to tell us in it. That email is not end-to-end encrypted: Google reads it like any other email, so do not send anything there you would not send by ordinary email.",
             "Google STUN: call connectivity (sees IP and call timing).",
             "The relay operator you choose, if you enable offline delivery.",
             "Google Play and the App Store once the app is published: they handle the download and their own account data, outside our reach.",
           ],
           "Encrypchat does not send your data to any other third party.",
         ],
+      },
+      {
+        id: "transferencias",
+        title: "International data transfers",
+        blocks: [
+          "The server behind encrypchat.com sits in the United States. Cloudflare, GitHub, and Google run global networks, so what passes through them may be handled outside your country, the United States included.",
+          "It is worth separating what crosses a border from what does not:",
+          [
+            "Crosses: the IP address, user agent, and time of your visits to the site and of the version check the app makes, plus the installer download if you accept an update.",
+            "Crosses, if you choose to write to us: the contents of that email and your sender address.",
+            "Crosses, if you place a call: your IP address and the timing, to Google's public STUN servers.",
+            "Crosses, if you configure a relay: the encrypted envelope, the destination token, its size, the timings, and the IP you deposit or poll from — to wherever that relay is, which may be in another country and may not be ours. The content stays encrypted: what crosses is the envelope and its network metadata.",
+            "Does not cross: your chats in the clear, your media in the clear, and your private keys. They never leave your device, and the most a relay ever holds is that encrypted envelope, never what is inside it.",
+          ],
+          "If you are reading from the European Economic Area, the United Kingdom, or Switzerland, each of these providers publishes its own safeguards for moving data out: the standard contractual clauses in its data processing agreement, with the UK addendum and the Swiss adaptations where they apply, and in some cases an adequacy certification. What we will not claim is that those safeguards are formalized in our name: until a person or entity is designated as controller — we say so above, under \u201cWho publishes this policy\u201d — this is an open gap, not a completed formality. If you want to know which mechanism covers which provider, ask us and we will tell you, with a link to the document.",
+        ],
+        links: [{ path: "/privacy", hash: "responsable", label: "Who publishes this policy" }],
       },
       {
         id: "retencion",
@@ -329,6 +347,7 @@ const en: Dictionary = {
           "Because we run no content server, we hold no copy of your messages to hand over, correct, or erase: you exercise those rights directly on your device, where you have full control over the data.",
           "Access, rectification, erasure, objection, and portability requests (GDPR and equivalents) will be handled through the contact channel once it is live. In practice, the answer will almost always be that we do not hold the data.",
           "Exercising erasure means using \u201cdelete identity\u201d inside the app: it removes the key from the system keyring and then the database and the attachments from this device. Uninstalling also takes chats and media, but on iOS, Linux, and Windows it leaves the private key in the keyring until you delete that entry by hand \u2014 see \u201cRetention and deletion\u201d for the detail.",
+          "Two clarifications, so we neither promise too little nor too much. There are two things we do hold: this website's access logs and, if you wrote to us, that email. For those two you can ask for access or erasure and the answer will be concrete, not \u201cwe do not have it\u201d. The legal basis for that minimal processing is our legitimate interest in serving the site, keeping it up, and replying to you: there is no advertising, no profiling, and no sharing with third parties for their own purposes. And if you think we are getting it wrong, you can lodge a complaint with the data protection authority that covers you: in the European Economic Area, the one where you live or work; in the United Kingdom, the ICO.",
         ],
       },
       {
@@ -647,7 +666,7 @@ const en: Dictionary = {
             "Google's public STUN learns your public IP address and the moment you start or receive a call. It does not learn who you talk to, what you say, or your token.",
             "Your peer learns your token, your public key, your IP address for the duration of the connection, and everything you send them. They do not learn your other conversations.",
             "Whoever holds your unlocked device learns everything.",
-            "Encrypchat — that is, us — learns nothing from the app: we operate no content servers and there is no telemetry or analytics. The one exception is not in the app but on this website: it is served by a server we run ourselves, hosted on Oracle Cloud, with Cloudflare in front of it as a CDN and proxy. Cloudflare sees the IP address, user agent, and time of each visit. That machine holds the public pages only — no chats, no media, no keys.",
+            "Encrypchat — that is, us — learns nothing from the app: we operate no content servers and there is no telemetry or analytics. The exceptions are outside the app. One is this website: it is served by a server we run ourselves, hosted on Oracle Cloud in the United States, with Cloudflare in front of it as a CDN and proxy. Cloudflare sees the IP address, user agent, and time of each visit. That machine holds the public pages only — no chats, no media, no keys. The other is the email you choose to send us, which is not end-to-end encrypted.",
           ],
           "Three honest notes on that list. The relay sees the recipient's token: that is unavoidable, because without it there is no mailbox to leave the blob in, which is why it is optional and why we always prefer a direct connection. Google's STUN sees your IP when you call: it is a third party we do not control, and it is there because without it calls do not traverse most home NATs — if that does not work for you, do not use calls. And correlation is the realistic attack: nobody is going to break ChaCha20, they are going to look at who talked to whom and when.",
         ],
