@@ -16,12 +16,18 @@
 //! from it ([`crate::transport`], F-15): the `EC04` header travels inside the AEAD, so an
 //! observer sees a length prefix and opaque bytes rather than `sender_token`. What is left on
 //! the wire is size above the padding floor, volume and timing. See `docs/threat-model.md` §6.2.
+//!
+//! Post-authentication exposure is bounded too, and in bytes rather than in messages
+//! ([`InboundBudget`], F-9): an authenticated peer is one that generated a keypair, which
+//! costs nothing, so what it can make the device hold has to be capped per connection
+//! ([`MAX_INBOUND_BYTES_PER_PEER`]) and for the node as a whole ([`MAX_INBOUND_BYTES_TOTAL`]).
 
 use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{self as std_mpsc, Receiver as StdReceiver, SyncSender};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use multiaddr::{Multiaddr, Protocol};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -53,6 +59,57 @@ const MAX_PENDING_HANDSHAKES: usize = 32;
 /// Buffer cap for anything read before the peer is authenticated. Post-handshake
 /// data frames keep the [`MAX_FRAME_LEN`] budget.
 const MAX_PREAUTH_LEN: usize = 4 * 1024;
+
+/// Frames the caller may leave undrained. This is the *count* bound; it is what keeps a flood
+/// of tiny records from becoming a flood of allocations, and it says nothing about size —
+/// that is [`MAX_INBOUND_BYTES_TOTAL`]'s job.
+const INBOUND_QUEUE_SLOTS: usize = 256;
+
+/// Inbound bytes one connection may keep resident while the caller has not drained them.
+///
+/// Two maximum-sized frames: one being handed over and one arriving behind it, so a media
+/// transfer never waits on itself. Anything smaller would stall back-to-back attachments;
+/// anything larger buys nothing, because a peer only has one send in flight at a time
+/// (`pending_ack`) and the caller drains the whole queue on every poll.
+const MAX_INBOUND_BYTES_PER_PEER: usize = 2 * MAX_FRAME_LEN;
+
+/// The same budget for the node as a whole, and the number that actually bounds the process.
+///
+/// A per-connection cap alone multiplies by the number of sessions an attacker opens, and
+/// opening one only costs generating a keypair, so the global ceiling is the defensible one.
+/// 64 MiB is sized for the smallest target rather than the largest: a low-end Android process
+/// gets a couple of hundred MiB for *everything* — Dart heap, decoded images, the core — so
+/// this is a share it can lose to undrained network data and survive. It is also only
+/// reachable while the caller has stopped draining: the client polls every 400 ms and empties
+/// the queue each time, so the steady-state occupancy of a healthy device is zero.
+const MAX_INBOUND_BYTES_TOTAL: usize = 4 * MAX_FRAME_LEN;
+
+/// A frame that does not fit must be able to fit *eventually*, or the connection would stall
+/// to death on traffic the wire explicitly allows.
+const _: () = assert!(MAX_INBOUND_BYTES_PER_PEER >= MAX_FRAME_LEN + TRANSPORT_OVERHEAD + PAD_FLOOR);
+const _: () = assert!(MAX_INBOUND_BYTES_TOTAL >= MAX_INBOUND_BYTES_PER_PEER);
+
+/// Records at or below one padded record are not charged against the budget.
+///
+/// Every ACK is exactly this size, and so is a short message — that is the point of the
+/// padding floor. Charging them would let a backlog of *data* delay the ACKs of our own
+/// sends, which is a way of turning one congested direction into two. What they can cost is
+/// bounded by the count instead: [`INBOUND_QUEUE_SLOTS`] × this, about 133 KiB node-wide.
+const INBOUND_FREE_RECORD_LEN: usize = PAD_FLOOR + TRANSPORT_OVERHEAD;
+
+/// How long a connection may wait for room before it is dropped.
+///
+/// Half of the sender's own ACK budget (10 s in [`Command::Send`]), so a frame admitted after
+/// waiting still has time to be acknowledged inside the window the sender is willing to wait.
+/// Waiting longer would hold memory for a peer that already gave up.
+const INBOUND_STALL_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Re-check interval while a connection is waiting for room.
+///
+/// Polling rather than a notifier because the release happens in [`NodeHandle::try_recv`], on
+/// the caller's own thread, which is not a runtime thread. This only runs on a connection that
+/// is already saturated, and 25 ms is well under the 400 ms poll of the client.
+const INBOUND_DRAIN_POLL: Duration = Duration::from_millis(25);
 
 /// Stable peer handle for tests / dial bookkeeping (equals the Encrypchat token).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -114,6 +171,141 @@ fn is_blocked(blocked: &BlockedTokens, token: &str) -> bool {
     }
 }
 
+/// A frame waiting for [`NodeHandle::try_recv`], carrying the budget it is spending.
+///
+/// The permit is released when this is destructured on the way out, so "queued" and
+/// "accounted" cannot drift: dropping the whole queue (node stop, disconnected caller) frees
+/// exactly as much as draining it would.
+struct InboundFrame {
+    bytes: Vec<u8>,
+    _permit: InboundPermit,
+}
+
+/// Node-wide inbound plumbing: the queue the caller drains, and the byte counter shared by
+/// every connection feeding it.
+#[derive(Clone)]
+struct InboundSink {
+    tx: SyncSender<InboundFrame>,
+    queued_bytes: Arc<AtomicUsize>,
+}
+
+impl InboundSink {
+    fn new(tx: SyncSender<InboundFrame>) -> Self {
+        Self {
+            tx,
+            queued_bytes: Arc::new(AtomicUsize::new(0)),
+        }
+    }
+
+    /// One connection's view: same queue and same global counter, plus a share counter that
+    /// dies with the connection.
+    fn for_connection(&self) -> ConnInbound {
+        ConnInbound {
+            tx: self.tx.clone(),
+            budget: InboundBudget {
+                total: Arc::clone(&self.queued_bytes),
+                peer: Arc::new(AtomicUsize::new(0)),
+            },
+        }
+    }
+}
+
+/// What a single reader loop is allowed to put in the queue.
+struct ConnInbound {
+    tx: SyncSender<InboundFrame>,
+    budget: InboundBudget,
+}
+
+/// Two counters, both of which have to have room: the connection's share and the node's total.
+///
+/// A peer that reconnects gets a fresh `peer` counter, but whatever it left queued is still on
+/// `total`, which is why the global one is the bound that matters (F-9).
+struct InboundBudget {
+    total: Arc<AtomicUsize>,
+    peer: Arc<AtomicUsize>,
+}
+
+impl InboundBudget {
+    /// Take `len` bytes from both counters, or neither.
+    ///
+    /// `fetch_update` and not load-then-add: two connections reserving at once must not both
+    /// see the same free space and both take it.
+    fn try_reserve(&self, len: usize) -> Option<InboundPermit> {
+        let fits = |cap: usize| {
+            move |cur: usize| {
+                let next = cur.saturating_add(len);
+                (next <= cap).then_some(next)
+            }
+        };
+        self.total
+            .fetch_update(
+                Ordering::AcqRel,
+                Ordering::Acquire,
+                fits(MAX_INBOUND_BYTES_TOTAL),
+            )
+            .ok()?;
+        if self
+            .peer
+            .fetch_update(
+                Ordering::AcqRel,
+                Ordering::Acquire,
+                fits(MAX_INBOUND_BYTES_PER_PEER),
+            )
+            .is_err()
+        {
+            self.total.fetch_sub(len, Ordering::AcqRel);
+            return None;
+        }
+        Some(InboundPermit {
+            len,
+            total: Arc::clone(&self.total),
+            peer: Arc::clone(&self.peer),
+        })
+    }
+
+    /// [`Self::try_reserve`], waiting up to `grace` for the caller to drain.
+    ///
+    /// Backpressure rather than dropping: nothing has been read off the socket yet, so the
+    /// kernel window closes on the sender and an honest peer that briefly outran a busy UI
+    /// gets its frame through instead of a silent loss. `None` means the wait ran out and the
+    /// caller should close the connection.
+    async fn reserve_within(&self, len: usize, grace: Duration) -> Option<InboundPermit> {
+        let deadline = Instant::now() + grace;
+        loop {
+            if let Some(permit) = self.try_reserve(len) {
+                return Some(permit);
+            }
+            if Instant::now() >= deadline {
+                return None;
+            }
+            tokio::time::sleep(INBOUND_DRAIN_POLL).await;
+        }
+    }
+}
+
+/// Bytes reserved for one inbound frame, returned to both counters on drop.
+struct InboundPermit {
+    len: usize,
+    total: Arc<AtomicUsize>,
+    peer: Arc<AtomicUsize>,
+}
+
+impl Drop for InboundPermit {
+    fn drop(&mut self) {
+        self.total.fetch_sub(self.len, Ordering::AcqRel);
+        self.peer.fetch_sub(self.len, Ordering::AcqRel);
+    }
+}
+
+/// What one record on the wire costs against the budget. See [`INBOUND_FREE_RECORD_LEN`].
+fn inbound_charge(record_len: usize) -> usize {
+    if record_len > INBOUND_FREE_RECORD_LEN {
+        record_len
+    } else {
+        0
+    }
+}
+
 /// Socket half plus the sealing state of this direction.
 ///
 /// They live behind the same mutex on purpose: the counter that becomes the AEAD nonce and
@@ -157,7 +349,7 @@ pub struct NodeHandle {
     peer_id: PeerId,
     listen_addrs: Arc<Mutex<Vec<Multiaddr>>>,
     cmd_tx: UnboundedSender<Command>,
-    inbound_rx: Mutex<StdReceiver<Vec<u8>>>,
+    inbound_rx: Mutex<StdReceiver<InboundFrame>>,
     blocked: BlockedTokens,
 }
 
@@ -187,7 +379,7 @@ impl NodeHandle {
         let secret = Arc::new(secret);
 
         let (cmd_tx, cmd_rx) = unbounded_channel();
-        let (inbound_tx, inbound_rx) = std_mpsc::sync_channel(256);
+        let (inbound_tx, inbound_rx) = std_mpsc::sync_channel(INBOUND_QUEUE_SLOTS);
         let (ready_tx, ready_rx) = std_mpsc::sync_channel(1);
         let listen_addrs = Arc::new(Mutex::new(Vec::new()));
         let listen_addrs_task = Arc::clone(&listen_addrs);
@@ -283,11 +475,15 @@ impl NodeHandle {
     }
 
     /// Non-blocking poll for an inbound frame.
+    ///
+    /// Taking a frame out is also what gives its bytes back to [`InboundBudget`], so a caller
+    /// that stops polling is throttling its own peers rather than growing the queue.
     pub fn try_recv(&self) -> Option<Vec<u8>> {
         self.inbound_rx
             .lock()
             .ok()
             .and_then(|rx| rx.try_recv().ok())
+            .map(|frame| frame.bytes)
     }
 
     /// Tokens of currently registered peers.
@@ -377,10 +573,17 @@ fn multiaddr_to_socket(addr: &Multiaddr) -> Option<SocketAddr> {
 /// The length prefix is the only cleartext left on the wire, and it is bounded before a
 /// single byte is allocated. Everything after it goes through the session cipher, so a
 /// record that is not the next one of this session never reaches the caller.
+///
+/// The budget is charged on the *declared* length, before the body is read, so an
+/// over-budget peer never gets the allocation in the first place; the returned permit covers
+/// the record and the plaintext it yields, and lives until the caller drains it. Failing to
+/// get one within [`INBOUND_STALL_TIMEOUT`] is reported as [`CoreError::PeerOffline`] — from
+/// this node's point of view a peer it can no longer take data from is exactly that.
 async fn read_msg(
     reader: &mut (impl AsyncReadExt + Unpin),
     cipher: &mut RecvCipher,
-) -> Result<(u8, Vec<u8>), CoreError> {
+    budget: &InboundBudget,
+) -> Result<(u8, Vec<u8>, InboundPermit), CoreError> {
     let mut len_buf = [0u8; 4];
     reader
         .read_exact(&mut len_buf)
@@ -390,12 +593,17 @@ async fn read_msg(
     if len == 0 || len > MAX_FRAME_LEN + TRANSPORT_OVERHEAD + PAD_FLOOR {
         return Err(CoreError::InvalidFrame);
     }
+    let permit = budget
+        .reserve_within(inbound_charge(len), INBOUND_STALL_TIMEOUT)
+        .await
+        .ok_or(CoreError::PeerOffline)?;
     let mut buf = vec![0u8; len];
     reader
         .read_exact(&mut buf)
         .await
         .map_err(|_| CoreError::PeerOffline)?;
-    cipher.open(&buf)
+    let (kind, payload) = cipher.open(&buf)?;
+    Ok((kind, payload, permit))
 }
 
 async fn write_hello(
@@ -611,23 +819,28 @@ async fn reader_loop(
     mut reader: tokio::net::tcp::OwnedReadHalf,
     mut cipher: RecvCipher,
     conn: PeerConn,
-    inbound_tx: SyncSender<Vec<u8>>,
+    inbound: ConnInbound,
     authenticated_token: String,
     peers: Arc<AsyncMutex<HashMap<String, PeerConn>>>,
     blocked: BlockedTokens,
 ) {
     loop {
-        match read_msg(&mut reader, &mut cipher).await {
-            Ok((MSG_DATA, frame)) => {
+        match read_msg(&mut reader, &mut cipher, &inbound.budget).await {
+            Ok((MSG_DATA, frame, permit)) => {
                 // Blocked after the session was established: close instead of queueing.
                 if is_blocked(&blocked, &authenticated_token) {
                     break;
                 }
                 match decode_frame(&frame) {
                     Ok(wf) if wf.sender_token == authenticated_token => {
-                        if inbound_tx.try_send(frame).is_err() {
-                            // Inbound queue full: the frame is gone, so withhold the
-                            // ACK rather than let the sender mark it delivered.
+                        let queued = InboundFrame {
+                            bytes: frame,
+                            _permit: permit,
+                        };
+                        if inbound.tx.try_send(queued).is_err() {
+                            // Inbound queue full by count: the frame is gone (and its budget
+                            // with it), so withhold the ACK rather than let the sender mark
+                            // it delivered.
                             continue;
                         }
                         let mut w = conn.writer.lock().await;
@@ -639,7 +852,7 @@ async fn reader_loop(
                     _ => break,
                 }
             }
-            Ok((MSG_ACK, _)) => {
+            Ok((MSG_ACK, _, _)) => {
                 if let Some(tx) = conn.pending_ack.lock().await.take() {
                     let _ = tx.send(Ok(()));
                 }
@@ -663,14 +876,14 @@ async fn reader_loop(
 /// `reader_loop` unregisters on exit so reconnect works after disconnect.
 ///
 /// Single funnel for all three session paths (dial, inject, accept), so it is also where the
-/// blocklist is enforced.
+/// blocklist is enforced and where each connection is given its share of the inbound budget.
 async fn register_peer(
     peers: &Arc<AsyncMutex<HashMap<String, PeerConn>>>,
     remote: String,
     conn: PeerConn,
     reader: tokio::net::tcp::OwnedReadHalf,
     cipher: RecvCipher,
-    inbound_tx: SyncSender<Vec<u8>>,
+    inbound: &InboundSink,
     blocked: &BlockedTokens,
 ) -> Result<(), CoreError> {
     // Authorisation happens here and not earlier because `remote` is only trustworthy once
@@ -698,7 +911,7 @@ async fn register_peer(
         reader,
         cipher,
         conn,
-        inbound_tx,
+        inbound.for_connection(),
         remote,
         peers,
         Arc::clone(blocked),
@@ -710,11 +923,12 @@ async fn run_node(
     local_secret: Arc<Zeroizing<[u8; 32]>>,
     listen_port: u16,
     mut cmd_rx: UnboundedReceiver<Command>,
-    inbound_tx: SyncSender<Vec<u8>>,
+    inbound_tx: SyncSender<InboundFrame>,
     ready_tx: SyncSender<ReadyInfo>,
     listen_addrs_shared: Arc<Mutex<Vec<Multiaddr>>>,
     blocked: BlockedTokens,
 ) -> Result<(), CoreError> {
+    let inbound = InboundSink::new(inbound_tx);
     let listener = TcpListener::bind(SocketAddr::from(([0, 0, 0, 0], listen_port)))
         .await
         .map_err(|_| CoreError::Internal)?;
@@ -763,7 +977,7 @@ async fn run_node(
                                             conn,
                                             reader,
                                             cipher,
-                                            inbound_tx.clone(),
+                                            &inbound,
                                             &blocked,
                                         )
                                         .await
@@ -795,7 +1009,7 @@ async fn run_node(
                                             conn,
                                             reader,
                                             cipher,
-                                            inbound_tx.clone(),
+                                            &inbound,
                                             &blocked,
                                         )
                                         .await
@@ -860,7 +1074,7 @@ async fn run_node(
                             continue;
                         };
                         let peers = Arc::clone(&peers);
-                        let inbound = inbound_tx.clone();
+                        let inbound = inbound.clone();
                         // Refcount bump, not a copy of the secret, per accepted connection.
                         let secret = Arc::clone(&local_secret);
                         let blocked = Arc::clone(&blocked);
@@ -879,7 +1093,7 @@ async fn run_node(
                                 // A blocked peer is refused here; the caller is remote, so
                                 // there is nobody local to report the code to.
                                 let _ = register_peer(
-                                    &peers, remote, conn, reader, cipher, inbound, &blocked,
+                                    &peers, remote, conn, reader, cipher, &inbound, &blocked,
                                 )
                                 .await;
                             }
@@ -1540,6 +1754,237 @@ mod tests {
             let res = server.await.unwrap();
             assert!(matches!(res, Err(CoreError::AuthFailed)));
         });
+    }
+
+    /// A budget for the *test's* own side of a raw session: [`read_msg`] charges whoever is
+    /// reading, and in the tests below that is us, not the node under test.
+    fn test_budget() -> InboundBudget {
+        InboundBudget {
+            total: Arc::new(AtomicUsize::new(0)),
+            peer: Arc::new(AtomicUsize::new(0)),
+        }
+    }
+
+    /// F-9 stated in one place: the ceiling is in bytes, it is charged per connection *and*
+    /// node-wide, and the only thing that gives it back is the caller draining. The two tests
+    /// after this one are the same claim over a real socket.
+    #[test]
+    fn the_inbound_ceiling_is_bytes_per_connection_and_bytes_in_total() {
+        let (tx, _rx) = std_mpsc::sync_channel(INBOUND_QUEUE_SLOTS);
+        let sink = InboundSink::new(tx);
+        let first = sink.for_connection();
+        let second = sink.for_connection();
+        let third = sink.for_connection();
+
+        let mut held: Vec<InboundPermit> = Vec::new();
+        while let Some(permit) = first.budget.try_reserve(MAX_FRAME_LEN) {
+            held.push(permit);
+        }
+        assert_eq!(
+            held.len() * MAX_FRAME_LEN,
+            MAX_INBOUND_BYTES_PER_PEER,
+            "one connection must stop at its own share"
+        );
+
+        // Opening more sessions costs an attacker a keypair, so the per-connection share must
+        // not be a way of multiplying the total.
+        while let Some(permit) = second.budget.try_reserve(MAX_FRAME_LEN) {
+            held.push(permit);
+        }
+        assert_eq!(held.len() * MAX_FRAME_LEN, MAX_INBOUND_BYTES_TOTAL);
+        assert!(
+            third.budget.try_reserve(MAX_FRAME_LEN).is_none(),
+            "a third session must not find bytes the node no longer has"
+        );
+
+        // A padded record is never charged: a saturated node still answers, and a backlog of
+        // data in one direction does not delay the ACKs of our own sends.
+        assert!(third
+            .budget
+            .try_reserve(inbound_charge(INBOUND_FREE_RECORD_LEN))
+            .is_some());
+
+        // Draining is what frees it, not a clock.
+        drop(held);
+        assert!(third.budget.try_reserve(MAX_FRAME_LEN).is_some());
+    }
+
+    /// F-9, over a real socket and built as the report describes the attack: finishing the
+    /// handshake costs only generating a keypair, and the peer that finished it then pushes
+    /// frames as fast as the socket takes them while nobody polls the queue. Bounded by
+    /// message count, that was 256 × 16 MiB the device had to hold.
+    #[test]
+    fn a_flooding_peer_gets_its_share_and_no_more() {
+        const FLOOD_FRAME: usize = 4 * 1024 * 1024;
+
+        let bob = NodeHandle::start(Identity::generate().to_secret_bytes(), 0).expect("bob start");
+        std::thread::sleep(Duration::from_millis(100));
+        let bob_addr = bob.listen_addrs().into_iter().next().expect("bob addr");
+        let bob_sock = multiaddr_to_socket(&bob_addr).expect("socket");
+
+        let mallory = Identity::generate();
+        let flood = WireFrame::new(
+            mallory.token().as_str().to_string(),
+            vec![0x41; FLOOD_FRAME],
+        )
+        .unwrap()
+        .encode()
+        .unwrap();
+
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()
+            .unwrap();
+        let acked = rt.block_on(async move {
+            let stream = TcpStream::connect(bob_sock).await.unwrap();
+            let (_bob_token, conn, mut reader, mut cipher) = open_peer_session(
+                stream,
+                &mallory.to_secret_bytes(),
+                None,
+                HandshakeRole::Dialer,
+                None,
+            )
+            .await
+            .expect("mallory authenticates like anybody else");
+
+            // Several times the whole node ceiling, and without waiting for ACKs: what is
+            // under test is how much of it bob decides to keep.
+            let writer = Arc::clone(&conn.writer);
+            let pump = tokio::spawn(async move {
+                for _ in 0..(2 * MAX_INBOUND_BYTES_TOTAL / FLOOD_FRAME) {
+                    let mut w = writer.lock().await;
+                    if w.send(MSG_DATA, &flood).await.is_err() {
+                        break;
+                    }
+                }
+            });
+
+            // Bob only ACKs what he managed to queue, so counting ACKs measures what he is
+            // holding. Reading until the error rather than polling with a timeout: a read
+            // cancelled halfway through a record would desync this side of the session and
+            // the count would be measuring the test instead of the node.
+            let budget = test_budget();
+            let acked = tokio::time::timeout(Duration::from_secs(60), async {
+                let mut acked = 0usize;
+                loop {
+                    match read_msg(&mut reader, &mut cipher, &budget).await {
+                        Ok((MSG_ACK, _, _)) => acked += 1,
+                        Ok(_) => {}
+                        // Bob stopped being able to read from us and closed: the throttle
+                        // becoming a disconnect is the other half of the fix.
+                        Err(_) => break acked,
+                    }
+                }
+            })
+            .await
+            .expect("bob must close a session he cannot read from, not hold it open");
+            pump.abort();
+            acked
+        });
+
+        assert!(acked > 0, "the session must work before it is throttled");
+        assert!(
+            acked * FLOOD_FRAME <= MAX_INBOUND_BYTES_PER_PEER,
+            "bob acknowledged {acked} frames of 4 MiB, past the per-connection ceiling"
+        );
+
+        // The flood must be a problem for the flooder alone: a peer arriving after it still
+        // gets a session and still gets delivery, and bob's command loop still answers.
+        let alice = NodeHandle::start(Identity::generate().to_secret_bytes(), 0).expect("alice");
+        std::thread::sleep(Duration::from_millis(100));
+        alice
+            .connect_multiaddr(bob_addr)
+            .expect("bob still accepts connections");
+        let hello = WireFrame::new(alice.local_token(), b"unaffected".to_vec())
+            .unwrap()
+            .encode()
+            .unwrap();
+        alice
+            .send_to_token(&bob.local_token(), hello.clone())
+            .expect("an honest peer must not pay for somebody else's flood");
+        assert_eq!(
+            bob.known_peers().expect("bob answers while flooded"),
+            vec![alice.local_token()]
+        );
+
+        let mut drained: Vec<Vec<u8>> = Vec::new();
+        assert!(
+            wait_until(|| {
+                while let Some(frame) = bob.try_recv() {
+                    drained.push(frame);
+                }
+                drained.contains(&hello)
+            }),
+            "the honest frame must come out of the queue the flooder filled"
+        );
+
+        alice.stop();
+        bob.stop();
+        rt.shutdown_background();
+    }
+
+    /// The other half of the fix: a ceiling nobody normal ever touches. Short frames are not
+    /// charged at all, media-sized ones are, and a `send_to_token` throttled by the budget
+    /// would not return an error — it would sit there and then fail on its own ACK timeout.
+    #[test]
+    fn ordinary_traffic_never_meets_the_inbound_ceiling() {
+        const MEDIA_FRAME: usize = 4 * 1024 * 1024;
+
+        let alice = NodeHandle::start(Identity::generate().to_secret_bytes(), 0).expect("alice");
+        let bob = NodeHandle::start(Identity::generate().to_secret_bytes(), 0).expect("bob");
+        std::thread::sleep(Duration::from_millis(100));
+        let bob_addr = bob.listen_addrs().into_iter().next().expect("bob addr");
+        let bob_token = bob.local_token();
+        alice
+            .inject_peer(&bob_token, bob.peer_id(), bob_addr)
+            .expect("inject bob");
+
+        let media = WireFrame::new(alice.local_token(), vec![0xB1; MEDIA_FRAME])
+            .unwrap()
+            .encode()
+            .unwrap();
+        let mut sent = 0usize;
+
+        // A conversation nobody is reading: chat frames sit below the padding floor, so the
+        // budget never even looks at them.
+        for i in 0..40u8 {
+            let frame = WireFrame::new(alice.local_token(), vec![i; 64])
+                .unwrap()
+                .encode()
+                .unwrap();
+            alice
+                .send_to_token(&bob_token, frame)
+                .expect("short frames are not charged");
+            sent += 1;
+        }
+        for _ in 0..2 {
+            alice
+                .send_to_token(&bob_token, media.clone())
+                .expect("media below the per-connection share goes straight through");
+            sent += 1;
+        }
+
+        let mut drained = 0usize;
+        assert!(
+            wait_until(|| {
+                while bob.try_recv().is_some() {
+                    drained += 1;
+                }
+                drained == sent
+            }),
+            "everything sent must arrive: {drained} of {sent}"
+        );
+
+        // And the budget is a rate, not a quota: the same traffic works again once drained.
+        for _ in 0..2 {
+            alice
+                .send_to_token(&bob_token, media.clone())
+                .expect("draining gives the bytes back");
+        }
+
+        alice.stop();
+        bob.stop();
     }
 
     #[test]
