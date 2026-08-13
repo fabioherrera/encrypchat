@@ -47,6 +47,14 @@
 			</array>
 		</dict>
 	</dict>
+	<!-- Shows the app's Documents folder in Files, which is the only way a
+	     report saved on iOS can reach a lawyer or a court: iOS has no save
+	     dialog for the app to offer. Chats, media and keys live in Application
+	     Support, which this does not expose. -->
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Encrypchat needs the microphone for encrypted peer-to-peer voice and video calls. Audio stays on the devices — not uploaded to Encrypchat servers.</string>
 	<key>NSCameraUsageDescription</key>

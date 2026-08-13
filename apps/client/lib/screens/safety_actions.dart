@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/abuse_report.dart';
+import '../services/report_export.dart';
 import '../services/session_controller.dart';
 import '../theme/encrypchat_colors.dart';
 
@@ -83,29 +86,98 @@ Future<bool> confirmUnblock(
   return true;
 }
 
+/// [save] is a test seam; production writes the file with [saveAbuseReport].
 Future<void> showReportDialog(
   BuildContext context,
   SessionController session, {
   required String token,
   required String label,
+  AbuseReportSaver? save,
 }) async {
-  await showDialog<void>(
+  final saved = await showDialog<SavedReport>(
     context: context,
-    builder: (context) =>
-        _ReportDialog(session: session, token: token, label: label),
+    builder: (context) => _ReportDialog(
+      session: session,
+      token: token,
+      label: label,
+      save: save ?? saveAbuseReport,
+    ),
+  );
+  // Shown from here, not from inside the dialog: by then that route is gone and
+  // its context with it.
+  if (saved == null || !context.mounted) return;
+  await _showSavedDialog(context, saved);
+}
+
+Future<void> _showSavedDialog(BuildContext context, SavedReport saved) {
+  return showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Informe guardado'),
+      content: SizedBox(
+        width: 420,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Es un archivo de texto tuyo, en este dispositivo. No se envió '
+                'a ningún lado.',
+              ),
+              const SizedBox(height: 12),
+              SelectableText(
+                saved.path,
+                style: const TextStyle(fontSize: 13, height: 1.4),
+              ),
+              if (saved.location == ReportLocation.appFolder) ...[
+                const SizedBox(height: 12),
+                Text(
+                  _appFolderHint,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    height: 1.4,
+                    color: EncrypchatColors.muted,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        FilledButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Listo'),
+        ),
+      ],
+    ),
   );
 }
+
+/// Said only where the phone gave us no dialog to choose the folder: the file
+/// is somewhere the person did not pick, so the screen has to say how to get
+/// back to it.
+String get _appFolderHint => Platform.isIOS
+    ? 'Acá no hay un diálogo para elegir dónde guardar, así que el archivo '
+          'quedó en la carpeta de Encrypchat. Lo encontrás desde la app '
+          'Archivos, en «En mi iPhone».'
+    : 'Acá no hay un diálogo para elegir dónde guardar, así que el archivo '
+          'quedó en la carpeta de Encrypchat. Para sacarlo del teléfono, '
+          'conectalo a una computadora.';
 
 class _ReportDialog extends StatefulWidget {
   const _ReportDialog({
     required this.session,
     required this.token,
     required this.label,
+    required this.save,
   });
 
   final SessionController session;
   final String token;
   final String label;
+  final AbuseReportSaver save;
 
   @override
   State<_ReportDialog> createState() => _ReportDialogState();
@@ -123,39 +195,67 @@ class _ReportDialogState extends State<_ReportDialog> {
     super.dispose();
   }
 
-  Future<void> _generate() async {
+  /// Applies the block the person ticked and builds the report. Shared by the
+  /// two ways out, so neither can quietly skip the block.
+  Future<AbuseReport> _prepare() async {
+    if (_block && !widget.session.isBlocked(widget.token)) {
+      await widget.session.blockContact(widget.token);
+    }
+    return AbuseReport(
+      peerToken: widget.token,
+      category: _category,
+      createdAt: DateTime.now().toUtc(),
+      reporterToken: widget.session.ownToken,
+      note: _note.text,
+      blocked: widget.session.isBlocked(widget.token),
+    );
+  }
+
+  Future<void> _save() async {
     if (_working) return;
     setState(() => _working = true);
     try {
-      if (_block && !widget.session.isBlocked(widget.token)) {
-        await widget.session.blockContact(widget.token);
+      final saved = await widget.save(await _prepare());
+      if (!mounted) return;
+      if (saved == null) {
+        // Closed the save dialog without choosing: nothing was written, and the
+        // form stays as it was left.
+        setState(() => _working = false);
+        return;
       }
-      final report = AbuseReport(
-        peerToken: widget.token,
-        category: _category,
-        createdAt: DateTime.now().toUtc(),
-        reporterToken: widget.session.identity.token,
-        note: _note.text,
-        blocked: widget.session.isBlocked(widget.token),
-      );
+      Navigator.pop(context, saved);
+    } catch (e) {
+      _reportFailure(e);
+    }
+  }
+
+  Future<void> _copyToClipboard() async {
+    if (_working) return;
+    setState(() => _working = true);
+    try {
+      final report = await _prepare();
       await Clipboard.setData(ClipboardData(text: report.render()));
       if (!mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Informe copiado al portapapeles. Queda en tu dispositivo: '
-            'vos decidís si lo compartís.',
+            'Informe copiado. Pegalo donde lo necesites y después copiá '
+            'cualquier otra cosa.',
           ),
         ),
       );
     } catch (e) {
-      if (!mounted) return;
-      setState(() => _working = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo generar el informe: $e')),
-      );
+      _reportFailure(e);
     }
+  }
+
+  void _reportFailure(Object error) {
+    if (!mounted) return;
+    setState(() => _working = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('No se pudo generar el informe: $error')),
+    );
   }
 
   @override
@@ -172,8 +272,8 @@ class _ReportDialogState extends State<_ReportDialog> {
               const Text(
                 'Encrypchat no tiene servidor de moderación y no puede leer '
                 'esta conversación: va cifrada de extremo a extremo entre los '
-                'dos dispositivos. El informe se arma acá y se copia a tu '
-                'portapapeles; nadie lo recibe automáticamente.',
+                'dos dispositivos. El informe se arma acá y lo guardás vos en '
+                'un archivo; nadie lo recibe automáticamente.',
                 style: TextStyle(
                   fontSize: 13,
                   height: 1.4,
@@ -183,6 +283,9 @@ class _ReportDialogState extends State<_ReportDialog> {
               const SizedBox(height: 16),
               DropdownButtonFormField<AbuseCategory>(
                 initialValue: _category,
+                // Otherwise the field grows to the widest reason, which runs
+                // past the dialog on a narrow window or with large text.
+                isExpanded: true,
                 decoration: const InputDecoration(labelText: 'Motivo'),
                 items: [
                   for (final c in AbuseCategory.values)
@@ -217,6 +320,30 @@ class _ReportDialogState extends State<_ReportDialog> {
                       : 'Bloquear también a este contacto',
                 ),
               ),
+              const SizedBox(height: 8),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+              // The sentence sits above the button on purpose: copying is the
+              // convenient move and its cost is invisible, so it is said before
+              // the press rather than in a warning afterwards.
+              const Text(
+                'El portapapeles es un espacio compartido: otras apps pueden '
+                'leer lo que copiás y en algunos sistemas se sincroniza con tu '
+                'cuenta. Guardar el informe en un archivo lo deja solo acá.',
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.4,
+                  color: EncrypchatColors.muted,
+                ),
+              ),
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: TextButton.icon(
+                  onPressed: _working ? null : _copyToClipboard,
+                  icon: const Icon(Icons.content_copy_outlined, size: 18),
+                  label: const Text('Copiar al portapapeles'),
+                ),
+              ),
             ],
           ),
         ),
@@ -227,8 +354,8 @@ class _ReportDialogState extends State<_ReportDialog> {
           child: const Text('Cancelar'),
         ),
         FilledButton(
-          onPressed: _working ? null : _generate,
-          child: const Text('Copiar informe'),
+          onPressed: _working ? null : _save,
+          child: const Text('Guardar informe…'),
         ),
       ],
     );

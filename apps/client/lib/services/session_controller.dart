@@ -60,6 +60,11 @@ class SessionController extends ChangeNotifier {
 
   LocalDatabase get database => _database;
 
+  /// Token of the identity in use, or null while there is none. Screens that
+  /// only need to name the local identity ask here instead of reaching for the
+  /// service that holds the secret.
+  String? get ownToken => _identity?.token;
+
   MessagingService get messaging {
     final m = _messaging;
     if (m == null) throw StateError('Messaging not initialized');
