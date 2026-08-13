@@ -3,12 +3,14 @@ import 'dart:io';
 
 import 'package:encrypchat/core/encrypchat_core.dart';
 import 'package:encrypchat/models/chat_message.dart';
+import 'package:encrypchat/models/abuse_report.dart';
 import 'package:encrypchat/models/contact.dart';
 import 'package:encrypchat/services/identity_service.dart';
 import 'package:encrypchat/services/identity_wipe.dart';
 import 'package:encrypchat/services/local_database.dart';
 import 'package:encrypchat/services/media_store.dart';
 import 'package:encrypchat/services/messaging_service.dart';
+import 'package:encrypchat/services/report_export.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -27,6 +29,7 @@ void main() {
   late Directory tempDir;
   late Map<String, String> stored;
   late EncrypchatCore core;
+  late String reportPath;
   const storage = FlutterSecureStorage();
 
   setUp(() async {
@@ -70,6 +73,20 @@ void main() {
     final media = MediaStore(core: core, database: database);
     await media.writeSealed(id: 'adjunto-1', plaintextBytes: Uint8List(2048));
 
+    // The one file the app writes in plaintext on purpose, outside the
+    // encrypted store and outside the support directory. It carries the
+    // reporter's token next to the reported one.
+    final saved = await saveAbuseReport(
+      AbuseReport(
+        peerToken: friend.token,
+        category: AbuseCategory.harassment,
+        createdAt: DateTime.utc(2026, 8, 13, 18, 30, 45),
+        reporterToken: identity.token,
+      ),
+      platformPicksPath: false,
+    );
+    reportPath = saved!.path;
+
     final messaging = MessagingService(
       core: core,
       identity: identity,
@@ -106,6 +123,20 @@ void main() {
     for (final path in LocalDatabase.filePathsIn(tempDir)) {
       expect(File(path).existsSync(), isFalse, reason: path);
     }
+  });
+
+  test('a saved report does not outlive the identity it names', () async {
+    await useTheApp();
+    expect(File(reportPath).existsSync(), isTrue);
+
+    await IdentityWipe.run(storage);
+
+    // Not covered by anything above: the report is the only thing the app
+    // leaves outside the support directory, so deleting the database and the
+    // media does not touch it — and it is the file that spells out, in the
+    // clear, who this device was and who it accused.
+    expect(File(reportPath).existsSync(), isFalse);
+    expect(File(reportPath).parent.existsSync(), isFalse);
   });
 
   test('after a wipe the device starts as a new one', () async {

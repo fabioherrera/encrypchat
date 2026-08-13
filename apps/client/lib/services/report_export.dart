@@ -98,6 +98,47 @@ Future<String?> _askWhereToSave(String suggestedName) async {
   return location?.path;
 }
 
+/// Removes the reports this app filed in its own folder, and returns how many
+/// survived.
+///
+/// A saved report is plaintext by design — it exists to leave the app — and it
+/// names the reporter next to the reported. So it cannot outlive the identity
+/// it belongs to, for the same reason the picker's temporary copies cannot: it
+/// is the part that was never inside the encrypted store.
+///
+/// Only this app's folder. A report saved through the system dialog sits
+/// wherever the person put it, and hunting for it would mean deleting a file
+/// they own because its name looks familiar. That one stays theirs to remove,
+/// and the copy says so instead of implying this reaches it.
+Future<int> purgeSavedReports() async {
+  final Directory dir;
+  try {
+    dir = await _appReportsDirectory();
+  } catch (e) {
+    debugPrint('report purge: folder unavailable (${e.runtimeType})');
+    return 1;
+  }
+  if (!dir.existsSync()) return 0;
+
+  var left = 0;
+  for (final file in dir.listSync(followLinks: false).whereType<File>()) {
+    try {
+      await file.delete();
+    } catch (e) {
+      // Never the path: it names the app's own layout and the log survives
+      // release builds.
+      debugPrint('report purge: not removed (${e.runtimeType})');
+      left++;
+    }
+  }
+  try {
+    await dir.delete();
+  } catch (e) {
+    debugPrint('report purge: folder kept (${e.runtimeType})');
+  }
+  return left;
+}
+
 /// The folder used where there is no save dialog.
 ///
 /// On Android this is the app's directory on shared storage, which a computer

@@ -9,6 +9,7 @@ import 'identity_service.dart';
 import 'local_database.dart';
 import 'media_store.dart';
 import 'messaging_service.dart';
+import 'report_export.dart';
 
 /// What a wipe left behind. Everything here is unreadable — the key that opened
 /// it is gone before the first file is touched — but it is still bytes on the
@@ -25,7 +26,9 @@ class IdentityWipeReport {
 }
 
 /// Erasing an identity from this device: the private key, the encrypted
-/// database, the sealed attachments, and the `db_key` that opens both.
+/// database, the sealed attachments, the `db_key` that opens both, and the
+/// plaintext leftovers that were never inside them — picker copies and abuse
+/// reports the app filed in its own folder.
 ///
 /// There is no copy anywhere else — no account, no server, no backup this app
 /// controls — so this is the one destructive operation in the product where a
@@ -139,6 +142,11 @@ abstract final class IdentityWipe {
     // not part of the encrypted store, which is exactly why they cannot be left
     // out of a wipe.
     await purgePickerTemps();
+    // Same category, and the one most worth catching: an abuse report is
+    // plaintext on purpose and puts the reporter's token next to the reported
+    // one. It also lives outside the support directory, so nothing above
+    // reaches it.
+    left += await purgeSavedReports();
     return left;
   }
 
