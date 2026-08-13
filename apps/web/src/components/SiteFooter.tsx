@@ -15,6 +15,7 @@ export function SiteFooter({ locale }: { locale: Locale }) {
       <nav className={styles.links} aria-label={t.aria}>
         <Link href={localizedHref(locale, "/privacy")}>{t.privacy}</Link>
         <Link href={localizedHref(locale, "/terms")}>{t.terms}</Link>
+        <Link href={localizedHref(locale, "/security")}>{t.security}</Link>
         <Link href={localizedHref(locale, "/faq")}>{t.faq}</Link>
         <Link href={localizedHref(locale, "/download")}>{t.download}</Link>
       </nav>

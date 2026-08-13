@@ -180,9 +180,10 @@ Límites honestos, que no se deben ocultar en la ficha:
 
 ### Reportar — lo que sí se puede prometer
 
-No hay servidor de moderación ni forma de mandar el contenido de otra persona a ningún lado sin romper el zero-cloud. En vez de inventar un endpoint, el flujo es local: la persona elige motivo, escribe qué pasó y la app arma un informe de texto con el token reportado, el suyo, la fecha y el estado de bloqueo, y lo **copia al portapapeles**. Decide ella si se lo da a un abogado, a la policía o a otra plataforma donde esa persona también opere.
+No hay servidor de moderación ni forma de mandar el contenido de otra persona a ningún lado sin romper el zero-cloud. En vez de inventar un endpoint, el flujo es local: la persona elige motivo, escribe qué pasó y la app arma un informe de texto con el token reportado, el suyo, la fecha y el estado de bloqueo, y lo **guarda en un archivo** que ella elige. Decide ella si se lo da a un abogado, a la policía o a otra plataforma donde esa persona también opere.
 
 - El informe **no** incluye mensajes ni fotos: exportar el contenido de otro automáticamente sería mover en claro lo que la app promete no mover. Si alguien necesita aportar pruebas, las adjunta a mano.
+- Un archivo y no el portapapeles (F-14 de [audit-f10.md](audit-f10.md)): el informe relaciona la identidad de quien denuncia con la de quien acosa, y el portapapeles lo leen gestores y teclados de terceros y en escritorio se sincroniza a la nube. Copiar sigue estando, como segunda acción y debajo de la frase que dice qué implica — quitarlo dejaba sin salida el caso de pegarlo en un mail desde el teléfono.
 - El copy de la app dice literalmente que no se envió a ningún lado y que Encrypchat no puede leer la conversación. No hay "nuestro equipo revisará" en ninguna parte (hay un test que lo verifica: `test/abuse_report_test.dart`).
 - Por defecto el reporte bloquea también al contacto: el bloqueo es la única acción con efecto real.
 

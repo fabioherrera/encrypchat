@@ -1,13 +1,23 @@
+import type { AppPath } from "./path";
+
 export type FaqItem = { q: string; a: string };
 
-/** A paragraph (string) or an unordered list (string[]). */
-export type LegalBlock = string | string[];
+/**
+ * A paragraph (string), an unordered list (string[]), or a numbered list.
+ * The numbered form exists for the threat model: its limitations are cited by
+ * number in `docs/threat-model.md`, so the web edition has to keep them.
+ */
+export type LegalBlock = string | string[] | { ordered: string[] };
+
+/** Link to another page on the site, rendered under the section it belongs to. */
+export type LegalSectionLink = { path: AppPath; hash?: string; label: string };
 
 export type LegalSection = {
   /** Stable anchor, identical across locales. */
   id: string;
   title: string;
   blocks: LegalBlock[];
+  links?: LegalSectionLink[];
 };
 
 export type LegalDoc = {
@@ -42,6 +52,7 @@ export type Dictionary = {
     note: string;
     privacy: string;
     terms: string;
+    security: string;
     faq: string;
     download: string;
     aria: string;
@@ -105,6 +116,7 @@ export type Dictionary = {
   };
   privacy: LegalDoc;
   terms: LegalDoc;
+  security: LegalDoc;
   redirect: {
     message: string;
     link: string;

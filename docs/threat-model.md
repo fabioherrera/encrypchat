@@ -432,15 +432,28 @@ El detalle técnico está en [audit-f10.md](audit-f10.md).
    conecta, que detrás de un proxy es una sola para todos. Hay techo global de disco (1 GiB por
    defecto, que rechaza en vez de desalojar nada ya aceptado). Sin defensa contra inundación
    distribuida: un flood no lee mensajes ajenos, pero deja el relay inútil para los nuevos.
-11. **El informe de abuso sale por el portapapeles del sistema**, que en escritorio puede
-   sincronizarse a la nube y en Android pueden leer otras apps. El informe se genera local y no
-   se envía a nadie, pero al copiarlo deja de estar solo en tu dispositivo.
-12. **Un par que abre una sesión puede degradar el nodo.** Basta con completar el handshake con
-   una identidad propia —que no cuesta nada— para hacer que el dispositivo reserve memoria por lo
-   que ese par decida mandar y para que la interfaz se quede procesándolo antes de poder
-   rechazarlo. Los límites que hay están puestos en número de mensajes y de conexiones sin
-   autenticar, no en bytes ni en trabajo. Es un problema de disponibilidad contra tu propio
-   dispositivo, no de confidencialidad: nadie lee nada por esta vía. Pendiente antes de 1.0.
+11. **El informe de abuso sale de la app, y dónde acaba depende de la plataforma.** Ya no pasa
+   por el portapapeles: el camino por defecto escribe un archivo, y en Linux y Windows elegís
+   vos la ruta. En Android e iOS el diálogo de guardado no existe, así que el archivo cae en
+   una carpeta de la propia app —visible desde Archivos en iOS, legible por USB en Android—, y
+   eso lo pone al alcance de cualquiera que tenga el teléfono desbloqueado, que es una
+   situación realista para quien está denunciando a alguien cercano. Esa carpeta sí entra en
+   el borrado de identidad —un informe en claro con tu token no sobrevive a la identidad que
+   nombra—; un archivo que guardaste en otra ruta queda fuera de nuestro alcance. Copiar al
+   portapapeles
+   sigue disponible como segunda acción, con lo que eso implica dicho antes de pulsarla: en
+   escritorio puede sincronizarse a la nube y en Android pueden leer otras apps. En los dos
+   casos el informe se genera local y no se envía a nadie; lo que cambia es cuánta gente puede
+   verlo después.
+12. **Un par que abre una sesión te puede hacer trabajar.** Completar el handshake con una
+   identidad propia no cuesta nada, y desde ahí lo que ese par mande te cuesta CPU y batería:
+   descifrarlo para poder decidir si vale. La memoria ya no: lo que puede dejarte residente está
+   acotado en bytes —32 MiB por conexión y 64 MiB en total, se llegue por una sesión o por mil—,
+   y quien se pasa recibe contrapresión primero y se queda sin conexión después, sin arrastrar a
+   las demás. Lo que sigue sin techo es el trabajo: tramas pequeñas que se descifran y se
+   descartan una tras otra, y una interfaz que procesa lo entrante antes de poder rechazarlo. Es
+   un problema de disponibilidad contra tu propio dispositivo, no de confidencialidad: nadie lee
+   nada por esta vía. La parte de trabajo sigue pendiente antes de 1.0.
 13. **Sin verificación de contactos en la app**: ni números de seguridad ni aviso de cambio de
    clave.
 14. **Sin protección contra capturas de pantalla** en ninguna plataforma.
@@ -450,12 +463,14 @@ El detalle técnico está en [audit-f10.md](audit-f10.md).
 
 **info@elnerd.com** — buzón atendido por el operador. Es una dirección de otro dominio, así que
 está confirmada desde el propio producto en
+[encrypchat.com/es/security#reportar](https://encrypchat.com/es/security#reportar) —la versión
+web de este documento, y el destino del campo `Policy:`—, en
 [encrypchat.com/es/privacy#seguridad](https://encrypchat.com/es/privacy#seguridad) y en
 [`/.well-known/security.txt`](https://encrypchat.com/.well-known/security.txt); si la
-encontraste en cualquier otro sitio, comprobala contra una de esas dos. Todavía no hay clave
+encontraste en cualquier otro sitio, comprobala contra una de esas tres. Todavía no hay clave
 pública para reportes cifrados; si la necesitás, pedila en un primer correo sin detalles.
 
-Que esas dos fuentes sigan diciendo lo mismo, y que el `security.txt` no esté caducado, no
+Que esas tres fuentes sigan diciendo lo mismo, y que el `security.txt` no esté caducado, no
 depende de que alguien se acuerde: `scripts/check-security-txt.sh` corre en cada build y en la
 pasada nocturna, y falla un mes antes de la fecha o en cuanto una de las copias se desvía. Un
 buzón de seguridad que dejó de existir es peor que no publicar ninguno, porque el que encuentra

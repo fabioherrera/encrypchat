@@ -2,12 +2,14 @@
 # RFC 9116. Past Expires a reader must ignore this file, and nothing else breaks when that
 # happens — so `scripts/check-security-txt.sh` fails the build a month before, and again if
 # the address here stops matching the site. Renew the date; do not stretch it past a year.
-# The same address is published in the privacy policy (see Policy), which is what
-# ties it to this site: the mailbox is on another domain.
+# The same address is published on the security page (see Policy), which is what
+# ties it to this site: the mailbox is on another domain. That page carries the
+# disclosure terms and the threat model it should be read against; the privacy
+# policy names the address too, at /{es,en}/privacy#seguridad.
 
 Contact: mailto:info@elnerd.com
 Expires: 2027-08-12T00:00:00.000Z
-Policy: https://encrypchat.com/es/privacy#seguridad
-Policy: https://encrypchat.com/en/privacy#seguridad
+Policy: https://encrypchat.com/es/security#reportar
+Policy: https://encrypchat.com/en/security#reportar
 Preferred-Languages: es, en
 Canonical: https://encrypchat.com/.well-known/security.txt

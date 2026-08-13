@@ -391,8 +391,11 @@ Checklist: [phase-3.md](phase-3.md). FFI `0.3.0`. `make build-ffi` / `make build
 - [x] Bloquear corta una llamada en curso (F-4)
 - [x] Nada de un no-contacto se guarda invisible: bandeja de solicitudes de solo texto con cuota, y techo de disco por par y global (F-6)
 - [x] El puente FFI zeroiza cada buffer con clave o texto plano, y las llamadas bloqueantes del nodo corren en su propio isolate (F-10, F-11)
-- [ ] Threat model publicado
-- [ ] Hallazgos P0/P1 cerrados o aceptados por escrito
+- [x] Threat model publicado en encrypchat.com/{es,en}/security (ES + EN, sitemap, hreflang, `Policy:` del security.txt)
+- [ ] Hallazgos P0/P1 cerrados o aceptados por escrito — 14 de 15 cerrados; falta la **firma del
+      operador** sobre el residuo de F-5, que no es un bug pendiente sino una propiedad del
+      patrón de handshake: quien llama se identifica antes de que el otro haya probado nada
+      ([audit-f10.md](audit-f10.md))
 - [ ] Beta en ≥2 plataformas con chat + relay + 1 tipo de media
 - [ ] SEO: changelog/blog opcional sin romper claims
 

@@ -1,17 +1,70 @@
 # Fase 8 — Paridad multiplataforma y empaquetado
 
-**Estado:** **In progress / packaging-first** (Linux + Android listos y adelgazados)  
-**Estrategia:** instaladores en `dist/` para probar F4–F7 en dispositivos reales. Windows/iOS siguen como gaps documentados, con la ruta exacta de build para cuando haya host.
+**Estado:** **In progress / packaging-first** (Linux, Fedora y Android listos; Windows desde CI)  
+**Estrategia:** instaladores en `dist/` para probar F4–F7 en dispositivos reales. iOS sigue como gap documentado, con la ruta exacta de build para cuando haya host macOS.
 
 ## Objetivo de este corte
 
 | Artefacto | Estado |
 | --- | --- |
 | Linux x64 portable `.tar.gz` + `install.sh` | **Sí** → `make package-linux` |
+| Fedora `.rpm` | **Sí** → `make package-rpm` (sin firmar, sin repo detrás) |
 | Android arm64 release APK | **Sí** → `make package-android` (debug-signed sideload) |
-| Windows installer | **Gap** — sin host Windows; pasos exactos en `scripts/package-windows.sh` |
+| Windows x64 `.zip` | **Sí, desde CI** → `gh workflow run windows.yml`; no se puede cross-compilar desde Linux |
 | iOS IPA / TestFlight | **Gap** — sin macOS/firma; pasos exactos en `scripts/package-ios.sh` |
 | Landing download | Copia honesta: builds locales / Releases futuros — sin URLs inventadas |
+
+### Fedora, y por qué además del tarball
+
+El tarball se instala en el prefijo del usuario y no deja nada que el sistema
+pueda seguir. En una máquina de pruebas eso se paga caro: no hay forma de saber
+qué quedó de la instalación anterior, y "probar de cero" deja de significar algo.
+El RPM se quita entero con `dnf remove`.
+
+Es un repack binario, no un build desde fuente: compilar el cliente necesita el
+SDK de Flutter, que Fedora no empaqueta, así que `rpmbuild` no tendría con qué.
+El spec ([`packaging/rpm/encrypchat.spec`](../packaging/rpm/encrypchat.spec)) es
+deliberadamente corto por eso.
+
+Dos comprobaciones antes de escribir el fichero, porque las dos fallan en la
+máquina del otro y no en la tuya: que el paquete no dependa de ninguna de las
+bibliotecas que lleva dentro —eso lo haría *imposible* de instalar— y que no
+anuncie esas bibliotecas al resto del sistema, donde otro paquete podría creer
+que su dependencia está satisfecha por algo que no puede cargar.
+
+### Windows, en un runner en vez de en una máquina
+
+El runner de Flutter para Windows es un proyecto MSVC: no se cross-compila desde
+Linux, y el desarrollo va en Fedora. Eso dejaba a Windows como un agujero
+permanente en una de las cuatro plataformas donde el producto promete paridad,
+sin siquiera poder verlo fallar. [`.github/workflows/windows.yml`](../.github/workflows/windows.yml)
+lo compila en `windows-latest` y sube el zip como artefacto (30 días).
+
+Manual a propósito —cuesta minutos y nadie necesita un build de Windows en cada
+commit—, automático en los tags. Antes de subir nada verifica que
+`encrypchat_core.dll` viaja junto al `.exe`: sin eso la app arranca y muestra el
+cartel de core ausente, que se lee como una app rota y no como un fallo de
+empaquetado.
+
+### Rutas de compilación fuera de los binarios
+
+El CMake de Flutter graba el árbol de compilación en el `RUNPATH` de cada
+plugin, y el paquete `sqlite3` anota una ruta absoluta a la copia de SQLCipher
+que construyó. Las dos nombran el directorio personal de quien compila, en un
+producto cuya premisa es no filtrar cosas.
+
+El `RUNPATH` además no es un comentario, es una instrucción para el cargador: en
+la máquina que produjo el build esos directorios **sí** existen, así que una copia
+instalada prefiere las bibliotecas del árbol de compilación antes que las que le
+vienen dentro — precisamente en la única máquina donde nadie lo notaría.
+
+`scripts/fix-runpath.py` los reescribe a `$ORIGIN` (lo hace a mano porque
+`patchelf` no viene en Fedora; el reemplazo siempre es más corto, así que cabe
+en el sitio). Los mensajes de pánico de Rust se remapean con
+`--remap-path-prefix`. Y lo que quede después de eso detiene el empaquetado en
+vez de viajar: hay una única excepción documentada, el URI que el snapshot AOT
+de Dart guarda del registrant de plugins, para el que `gen_snapshot` no tiene
+equivalente de `--remap-path-prefix`.
 
 ## Qué incluye el paquete actual
 
@@ -34,12 +87,18 @@ Salida: [`dist/README.md`](../dist/README.md). Guía de prueba: [how-to-test.md]
 
 Medido en el mismo host, versión 1.0.0 (con WebRTC F7 dentro):
 
-| Artefacto | Antes | Ahora | Δ |
+| Artefacto | Antes de adelgazar | Tras adelgazar | Hoy (F10 cerrada) |
 | --- | --- | --- | --- |
-| `encrypchat-android-arm64-1.0.0.apk` | ~90 MiB (94,4 MB) | **15,2 MiB (15 977 647 B)** | **−83 %** |
-| `encrypchat-linux-x64-1.0.0.tar.gz` | ~21 MiB (~22,0 MB) | **19,6 MiB (20 560 525 B)** | −7 % |
+| `encrypchat-android-arm64-1.0.0.apk` | ~90 MiB (94,4 MB) | 15,2 MiB (15 977 647 B) | **16,6 MiB (17 404 076 B)** |
+| `encrypchat-linux-x64-1.0.0.tar.gz` | ~21 MiB (~22,0 MB) | 19,6 MiB (20 560 525 B) | **20,7 MiB (21 750 908 B)** |
+| `encrypchat-1.0.0-1.fc44.x86_64.rpm` | — | — | **17,3 MiB (18 179 544 B)** |
 
-Descomprimido en disco: APK 34,8 MB de libs extraídas; bundle Linux 47 MiB (antes 55 MiB).
+Descomprimido en disco: APK 34,8 MB de libs extraídas; bundle Linux 47 MiB (antes 55 MiB);
+RPM 51,7 MiB instalados.
+
+La columna de hoy incluye SQLCipher y lo que entró al cerrar la fase 10. El RPM pesa menos
+que el tarball porque `zstd` comprime mejor que `gzip -9`, no porque lleve menos cosas: es el
+mismo bundle.
 
 **Nota F10 (SQLCipher):** cifrar el fichero de la base cambió `libsqlite3.so`
 por `libsqlcipher.so`, que trae OpenSSL enlazado estáticamente. Es una sola
@@ -143,7 +202,12 @@ Ninguno se puede buildar en este host Linux. Lo que sí quedó verificado/prepar
 - [x] Landing download sin URLs 404
 - [x] `build.gradle.kts` listo para keystore de release opcional
 - [x] Windows: regla de instalación del `.dll` del core
-- [ ] Windows / iOS binarios reales (bloqueado por host)
+- [x] Fedora `.rpm`, con comprobación de que no depende de sus propias bibliotecas
+- [x] Ninguna ruta de la máquina de compilación viaja en los binarios (y el empaquetado se
+      detiene si aparece una nueva)
+- [x] Windows: build reproducible en CI — falta **ejecutarlo** (necesita que el workflow esté
+      publicado) y que alguien lo pruebe en hardware real
+- [ ] iOS binario real (bloqueado por host macOS)
 - [ ] `crates/core` enlazado en iOS (bloqueado por macOS)
 - [ ] Firma release Android ejecutada + stores
 - [ ] Publicación GitHub Releases

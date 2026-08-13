@@ -58,12 +58,12 @@ convertida en la raíz de un Critical.
 | F-6 | High | Un desconocido puede llenar el disco con adjuntos invisibles en la UI | 1.0 | **Cerrado** — un único punto decide qué entra: los no-contactos van a una bandeja de solicitudes de solo texto con cuota (20 remitentes × 5 mensajes × 4 KiB), sin sonar; media y llamadas de desconocidos se rechazan. Cuota de disco por par (512 MiB) y global (2 GiB) en `MediaStore` |
 | F-7 | High | El copy público sitúa el fallo de autoría "en la ruta de relay": es falso | Beta | **Cerrado** — `apps/web/src/i18n/{es,en}.ts` describen las dos rutas como autenticadas y dicen en voz alta que la página anterior lo daba por abierto; `legal-f7-calls.md` y `audit-f5-relay.md` recogen el encuadre correcto. No queda superficie con el texto viejo |
 | F-8 | Medium | Desafío de relay sobreescribible → bloqueo de buzón y pérdida real de mensajes | 1.0 | **Cerrado end-to-end** — el desafío deja de tener dueño por token: `challenge_id` opaco, sin `dest_token`, varios vivos a la vez con techo global, y no se consume si la prueba falla. Rompió la API de `/v1/challenge` y `/v1/pull`, y el cliente Dart ya habla el contrato nuevo. Un relay anterior a F-8 se detecta y se reporta como desajuste de protocolo en vez de fallar en bucle |
-| F-9 | Medium | Cola inbound de 256 × 16 MiB → OOM remoto | 1.0 | Abierto |
+| F-9 | Medium | Cola inbound de 256 × 16 MiB → OOM remoto | 1.0 | **Cerrado en core** — la cola se acota en bytes y no en número de tramas: 32 MiB por conexión y 64 MiB para todo el nodo (`crates/core/src/net.rs`), cobrados sobre la longitud declarada *antes* de leer el cuerpo y devueltos cuando `try_recv` entrega la trama. Quien se pasa recibe contrapresión y, si en 5 s no hay hueco, se le cierra esa conexión sin tocar a las demás. Abrir más sesiones reparte los mismos 64 MiB en vez de multiplicarlos. Residual: el **trabajo** sigue sin techo (descifrar tramas que luego se descartan) |
 | F-10 | Medium | El puente Dart no limpia copias de la clave privada; contradice el contrato FFI | 1.0 | **Cerrado en lo que el lenguaje permite** — todo buffer nativo con clave o texto plano se pone a cero antes de liberarse, en las dos direcciones. Queda el heap de Dart, que no se puede zeroizar: cerrarlo exige que la clave no cruce la frontera (propuesta para el core, no forzable desde el cliente) |
 | F-11 | Medium | Llamadas FFI bloqueantes en el isolate de UI; contradice el contrato FFI | Beta (UX) | **Cerrado para las bloqueantes** — `nodeSend`, `nodeConnect` y `nodeStop` corren en un isolate propio (`core_worker.dart`); la UI ya no se congela esperando el ACK de un par. Las llamadas acotadas (cripto, DB, token) siguen en el principal a propósito |
 | F-12 | Medium | Reescritura remota del historial reutilizando `msg_id` | 1.0 | **Cerrado** — lo entrante se inserta con `insertMessageIfNew` (ignora el conflicto) en **las dos** rutas, así que un id repetido no reescribe la fila ni le pone fecha nueva; en media hay además comprobación previa y borrado del fichero si el insert pierde la carrera. Residual: un id ya podado deja el blob reabrible, aunque el mensaje no se reescriba |
 | F-13 | Medium | Límite por IP inútil detrás de proxy + sin techo global de disco | 1.0 | **Cerrado** — `X-Forwarded-For` con lista de proxies de confianza, detección en caliente del despliegue proxeado, y techo global de bytes que rechaza sin desalojar. Requiere que el operador configure `ENCRYPCHAT_RELAY_TRUSTED_PROXIES` |
-| F-14 | Low-Med | El informe de abuso viaja por el portapapeles del sistema | 1.0 | Abierto |
+| F-14 | Low-Med | El informe de abuso viaja por el portapapeles del sistema | 1.0 | **Cerrado en cliente** — el camino por defecto es «Guardar informe…»: escribe un `.txt` con `file_selector` y no toca ningún canal compartido. Copiar sigue disponible como segunda acción, debajo de la frase que dice qué es el portapapeles. Residual: en Android el archivo va a la carpeta de la app, no a donde la persona elija — ahí el plugin no tiene diálogo de guardado |
 | F-15 | Medium | La cabecera `EC04` viaja en claro por el socket: el `sender_token` de cada trama es visible para un observador de la red | 1.0 | **Cerrado en core** — transporte cifrado con clave de sesión de EH02, una por sentido (`crates/core/src/transport.rs`, `0.8.0`). Queda visible el tamaño por encima de 512 bytes |
 
 Ningún hallazgo puede pasar a "aceptado" sin motivo escrito y firma del operador.
@@ -377,6 +377,71 @@ Canal de 256 posiciones × 16 MiB por trama = hasta 4 GiB residentes. `ffi-contr
 afirma que un par no autenticado no puede fijar memoria: cierto pre-handshake, y ahí se detuvo
 el análisis. **Fix:** presupuesto en bytes, no en número de mensajes.
 
+### Cerrado (2026-08-13, pase de core)
+
+El techo pasa a ser de bytes, con **dos contadores que tienen que tener sitio los dos**:
+`MAX_INBOUND_BYTES_PER_PEER` (32 MiB) para la conexión y `MAX_INBOUND_BYTES_TOTAL` (64 MiB)
+para el nodo entero (`InboundBudget` en `crates/core/src/net.rs`). El global es el que de
+verdad acota: completar un handshake solo cuesta generar un par de claves, así que un techo
+por conexión a secas se multiplica por el número de sesiones que el atacante quiera abrir. Con
+esto, mil sesiones se reparten los mismos 64 MiB.
+
+De dónde salen las cifras, que es la parte que hay que poder defender:
+
+- **32 MiB por conexión** son dos tramas máximas. 16 MiB es el techo de trama del wire, así que
+  hace falta que quepa una entera o el par se atasca en tráfico que el protocolo permite; la
+  segunda es para que un adjunto no tenga que esperar al anterior.
+- **64 MiB en total** están dimensionados para el objetivo más pequeño, no para el más grande:
+  un proceso Android de gama baja tiene un par de cientos de MiB para *todo* —heap de Dart,
+  imágenes decodificadas, el core—, y esto es una porción que puede perder ante datos sin
+  drenar y seguir vivo. Además solo es alcanzable si el llamante deja de drenar: el cliente
+  sondea cada 400 ms y vacía la cola entera en cada pasada, así que la ocupación en régimen
+  normal es cero.
+- El límite de 256 posiciones **sigue ahí** como segunda cota, ahora la que acota el número de
+  asignaciones pequeñas en vez de ser el único techo.
+- Los registros que caben en un padded record (533 B) **no se cobran**. Un ACK mide exactamente
+  eso, y cobrarlo dejaría que un atasco de datos en una dirección retrasara los ACK de nuestros
+  propios envíos en la otra. Lo que pueden costar lo acota el número de huecos: 256 × 533 B,
+  unos 133 KiB para todo el nodo.
+
+Dos detalles que son los que hacen que el techo se cumpla de verdad:
+
+- Se reserva **sobre la longitud declarada, antes de leer el cuerpo**. La trama que no cabe no
+  llega a asignarse: lo único que se ha leído es el prefijo de 4 bytes, y el resto se queda en
+  la ventana TCP del emisor.
+- El permiso viaja **dentro de la trama encolada** y se libera al sacarla en `try_recv`, así
+  que «encolado» y «contabilizado» no pueden divergir: tirar la cola entera (parar el nodo,
+  llamante que desaparece) libera exactamente lo mismo que drenarla.
+
+Al pasarse hay primero contrapresión —no un descarte— durante `INBOUND_STALL_TIMEOUT` (5 s, la
+mitad del presupuesto de ACK del emisor, para que una trama admitida tarde aún llegue dentro de
+lo que el emisor está dispuesto a esperar). Si en ese plazo no hay hueco se cierra **esa**
+conexión: contadores por conexión y cierre por conexión, así que un par que inunda no arrastra
+a los demás. Sin panic y sin `unwrap()` en ruta de red; el fallo sale como `PeerOffline` y el
+bucle lector se cierra por el mismo camino que ya usaba para cualquier otro error.
+
+Regresión cubierta por tres tests en `net.rs`:
+`the_inbound_ceiling_is_bytes_per_connection_and_bytes_in_total` (el techo y su liberación),
+`a_flooding_peer_gets_its_share_and_no_more` (el ataque sobre un socket real: el flooder deja
+de recibir ACK dentro de su parte, acaba desconectado, y un par honesto que llega después
+conecta y entrega igual) y `ordinary_traffic_never_meets_the_inbound_ceiling` (40 tramas de
+chat y varias de media sin drenar, todas pasan y el presupuesto se recicla al drenar).
+
+**No rompe nada.** Misma superficie FFI, mismo formato de wire y mismo piso de ABI: el cambio
+es cuánto se guarda, no qué se habla.
+
+**Residual.** Tres cosas que este presupuesto no cubre y que no hay que dar por cerradas:
+
+1. **El trabajo no tiene techo.** Las tramas por debajo del suelo de padding no se cobran, así
+   que un par puede tenernos descifrando y descartando indefinidamente. Cuesta CPU y batería,
+   no memoria. Es lo que queda de la limitación de `threat-model.md` §7.
+2. **El número de sesiones establecidas tampoco.** `MAX_PENDING_HANDSHAKES` acota los
+   handshakes a la vez, no las sesiones vivas: cada una son un socket, una tarea y los buffers
+   del kernel, que están fuera de este presupuesto.
+3. **Descifrar duplica una trama un instante.** Mientras `open` corre coexisten el registro y
+   su texto plano, así que el pico real es el presupuesto más una trama por conexión que esté
+   justo descifrando.
+
 ## F-10 — Medium — El puente Dart no zeroiza
 
 `apps/client/lib/core/encrypchat_core.dart:637-641, 613-617` vs `docs/ffi-contract.md:100-102`
@@ -500,6 +565,36 @@ Relaciona identidad de víctima y de agresor, escrito por alguien en situación 
 por un canal que leen gestores de portapapeles y teclados de terceros, y que en escritorio se
 sincroniza a la nube. El propio informe afirma que "no se envió a ningún lado", lo que deja de
 ser cierto al copiarlo.
+
+### Cerrado en el cliente (archivo en vez de portapapeles)
+
+`apps/client/lib/services/report_export.dart` · `screens/safety_actions.dart` · `ios/Runner/Info.plist`
+
+El botón que ofrece la pantalla es **«Guardar informe…»**: escribe un `.txt` y no toca ningún canal
+compartido. Dónde lo escribe depende de lo que dé el sistema, y la diferencia se dice en pantalla en
+vez de esconderse:
+
+| Plataforma | Qué pasa al guardar |
+| --- | --- |
+| Linux, Windows | Diálogo de guardado del sistema (`file_selector`): la persona elige la ruta exacta |
+| iOS | `getSaveLocation` no está implementado en el plugin, así que el archivo va a `Documents/Informes` de la app; `UIFileSharingEnabled` + `LSSupportsOpeningDocumentsInPlace` lo hacen visible desde Archivos. La base y la media viven en Application Support, que esto **no** expone |
+| Android | Tampoco hay diálogo; el archivo va a la carpeta de la app en el almacenamiento compartido, legible conectando el teléfono a una computadora y sin coste de permiso |
+
+**El portapapeles se queda, como segunda acción.** Quitarlo dejaba sin salida el caso que importa
+—pegar el informe en un mail a un abogado desde el teléfono, donde no hay diálogo de guardado— y
+empujaba a la peor versión de lo mismo: captura de pantalla o copiarlo a mano. Lo que cambia es que
+ya no ocurre solo. Es un botón aparte, debajo de la frase que dice qué es el portapapeles ("otras
+apps pueden leer lo que copiás y en algunos sistemas se sincroniza con tu cuenta"), leída **antes**
+de pulsarlo y no como aviso posterior.
+
+**Residual.** En Android el archivo queda donde la app puede escribir, no donde la persona elija:
+`file_selector` no implementa `getSaveLocation` ahí, y `getDirectoryPath`, que sí existe, devuelve un
+URI de SAF que `dart:io` no puede abrir. Cerrarlo pide un plugin nativo nuevo. El informe sigue sin
+llevar el contenido de la conversación, así que lo que se mueve es lo que la persona escribió más los
+dos tokens.
+
+`test/report_export_test.dart` fija lo que no puede volver: el camino por defecto escribe el archivo y
+el canal del portapapeles del sistema no recibe nada.
 
 ## F-15 — Medium — La cabecera de trama viaja en claro por el socket
 

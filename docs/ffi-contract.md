@@ -200,8 +200,16 @@ Frame size: `encrypchat_node_send` rejects payloads above **16 MiB** (`MAX_FRAME
 wire each record adds 21 bytes and anything below 512 bytes of plaintext is padded up to it, so short
 messages and ACKs all cost 532 bytes. Media above the limit must be chunked by the caller. Pre-authentication reads are capped
 much lower (4 KiB) and the EH02 handshake has its own 5 s budget, so an unauthenticated peer cannot pin
-memory. Once authenticated, a peer *can* pin memory: the inbound queue is bounded by message count, not
-bytes (F-9 in [audit-f10.md](audit-f10.md)).
+memory.
+
+Once authenticated, what a peer can make the node hold is capped in **bytes**, not in messages: 32 MiB per
+connection and 64 MiB across the whole node, charged on the declared record length *before* the body is
+read off the socket and released when `try_recv` hands the frame over. Opening more sessions splits those
+64 MiB instead of multiplying them, and a peer that no longer fits is backpressured for 5 s and then
+disconnected — only that connection, the others have their own counters. The consequence for the caller
+is the other way round too: **not draining `try_recv` throttles your own peers**, and a caller that stops
+polling for good will see its sessions dropped. What is *not* bounded is the work — a peer can keep the
+node decrypting frames that are then discarded (F-9 in [audit-f10.md](audit-f10.md)).
 
 ## Blocklist — `encrypchat_node_set_blocked_tokens`
 

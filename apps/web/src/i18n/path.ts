@@ -8,7 +8,8 @@ export type AppPath =
   | "/download"
   | "/faq"
   | "/privacy"
-  | "/terms";
+  | "/terms"
+  | "/security";
 
 export const APP_PATHS: AppPath[] = [
   "",
@@ -17,6 +18,7 @@ export const APP_PATHS: AppPath[] = [
   "/faq",
   "/privacy",
   "/terms",
+  "/security",
 ];
 
 export function localizedHref(locale: Locale, path: AppPath = ""): string {

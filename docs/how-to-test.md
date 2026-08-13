@@ -8,10 +8,28 @@ Tras `make package` (ver [phase-8.md](phase-8.md) y [`dist/README.md`](../dist/R
 
 | Artefacto | Ruta típica | Peso 1.0.0 |
 | --- | --- | --- |
-| Linux portable | `dist/encrypchat-linux-x64-<version>.tar.gz` | ~20 MB |
-| Android APK (arm64) | `dist/encrypchat-android-arm64-<version>.apk` | ~16 MB |
+| Fedora RPM | `dist/encrypchat-<version>-1.fc*.x86_64.rpm` | ~18 MB |
+| Linux portable | `dist/encrypchat-linux-x64-<version>.tar.gz` | ~21 MB |
+| Android APK (arm64) | `dist/encrypchat-android-arm64-<version>.apk` | ~17 MB |
+| Windows zip | Artefacto de CI (`gh run download`) | — |
 
-### Instalar Linux
+### Instalar en Fedora
+
+```bash
+sudo dnf install ./dist/encrypchat-*.x86_64.rpm
+encrypchat
+```
+
+Es lo preferible en una máquina de pruebas: `sudo dnf remove encrypchat` se lleva
+todos los ficheros, así que "reinstalar de cero" significa lo que dice. Va sin
+firmar y sin repositorio detrás, y dnf lo advierte.
+
+Lo que **no** se lleva es tu base de datos, que vive en
+`~/.local/share/com.encrypchat.encrypchat`. Es deliberado —desinstalar no debería
+tirar tus chats— pero significa que para empezar de verdad de cero hay que
+borrarla a mano o usar el borrado de identidad de la app.
+
+### Instalar Linux (cualquier distribución)
 
 ```bash
 tar -xzf dist/encrypchat-linux-x64-*.tar.gz
@@ -21,6 +39,17 @@ encrypchat
 ```
 
 Instala en `~/.local/share/encrypchat`, symlink `~/.local/bin/encrypchat`, desktop entry en `~/.local/share/applications/`.
+
+### Instalar Windows
+
+```bash
+gh workflow run windows.yml     # o pestaña Actions → windows → Run workflow
+gh run download --name encrypchat-windows-x64-<version>
+```
+
+Sin firmar: en el primer arranque SmartScreen lo bloquea y hay que pasar por
+"Más información" → "Ejecutar de todas formas". Nadie lo ha probado todavía en
+hardware real — si algo falla, ese es el primer sitio donde mirar.
 
 ### Instalar Android
 
@@ -89,9 +118,12 @@ apksigner verify --print-certs dist/encrypchat-android-arm64-*.apk
    sale el aviso de motivo). Después de 5 mensajes suyos, los siguientes se
    descartan. **Aceptar** lo vuelve contacto y a partir de ahí sí entran fotos y
    llamadas; **Descartar** borra sus mensajes y sus ficheros de `media/`.
-9. Reporte: ⋮ → **Reportar abuso** → copia un informe al portapapeles. No sale
-   nada del dispositivo. La lista de bloqueados y los enlaces legales están en
-   **Mi token → Acerca de**.
+9. Reporte: ⋮ → **Reportar abuso** → **Guardar informe…** escribe un `.txt`. En
+   Linux y Windows elegís la ruta; en Android e iOS no hay diálogo de guardado y
+   va a una carpeta de la app (en iOS visible desde Archivos). Copiar al
+   portapapeles sigue estando como segunda acción. No sale nada del dispositivo
+   por ninguno de los dos caminos. La lista de bloqueados y los enlaces legales
+   están en **Mi token → Acerca de**.
 
 ## Comprobar que la base local está cifrada (F10)
 
@@ -163,10 +195,11 @@ make package
 | Bloquear / desbloquear contacto | Sí (F9; local, en las 4 plataformas; corta la llamada en curso) |
 | Bandeja de solicitudes (no-contactos) | Sí (F10; solo texto, 20 remitentes × 5 mensajes, sin sonar — [audit-f10.md](audit-f10.md) F-6) |
 | Cuota de adjuntos entrantes | Sí (F10; 512 MiB por par, 2 GiB total) |
-| Reporte de abuso | Sí (F9; informe local al portapapeles — no hay servidor que lo reciba) |
+| Reporte de abuso | Sí (F9/F-14; informe local guardado en un archivo — no hay servidor que lo reciba) |
 | Enlaces a privacidad y términos | Sí (F9; Mi token → Acerca de) |
 | Base local cifrada de fichero completo | Sí (F10; SQLCipher + cuerpos AEAD — [audit-f3-storage.md](audit-f3-storage.md)) |
-| Linux / Android instaladores | Sí (`dist/`) |
+| Fedora / Linux / Android instaladores | Sí (`dist/`) |
+| Windows instalador | Sí, desde CI (`gh workflow run windows.yml`) — sin firmar y sin probar en hardware |
 | Android otras ABIs (x86_64, armeabi-v7a) | No — core Rust solo aarch64 ([phase-8.md](phase-8.md)) |
 | Firma release Android | No — debug keystore; procedimiento en [phase-8.md](phase-8.md) |
-| iOS / Windows package | Gap F8 — pasos exactos en `scripts/package-ios.sh` / `package-windows.sh` |
+| iOS package | Gap F8 — necesita host macOS; pasos exactos en `scripts/package-ios.sh` |
