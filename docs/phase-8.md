@@ -1,6 +1,6 @@
 # Fase 8 — Paridad multiplataforma y empaquetado
 
-**Estado:** **In progress / packaging-first** (Linux, Fedora y Android listos; Windows desde CI)  
+**Estado:** **In progress / packaging-first** (Linux, Fedora y Android listos; Windows se compila en Windows o en CI)  
 **Estrategia:** instaladores en `dist/` para probar F4–F7 en dispositivos reales. iOS sigue como gap documentado, con la ruta exacta de build para cuando haya host macOS.
 
 ## Objetivo de este corte
@@ -10,7 +10,7 @@
 | Linux x64 portable `.tar.gz` + `install.sh` | **Sí** → `make package-linux` |
 | Fedora `.rpm` | **Sí** → `make package-rpm` (sin firmar, sin repo detrás) |
 | Android arm64 release APK | **Sí** → `make package-android` (debug-signed sideload) |
-| Windows x64 `.zip` | **Sí, desde CI** → `gh workflow run windows.yml`; no se puede cross-compilar desde Linux |
+| Windows x64 `.zip` | **Sí, en Windows** → `scripts\package-windows.ps1`, o `gh workflow run windows.yml`; no se puede cross-compilar desde Linux |
 | iOS IPA / TestFlight | **Gap** — sin macOS/firma; pasos exactos en `scripts/package-ios.sh` |
 | Landing download | Copia honesta: builds locales / Releases futuros — sin URLs inventadas |
 
@@ -41,7 +41,12 @@ sin siquiera poder verlo fallar. [`.github/workflows/windows.yml`](../.github/wo
 lo compila en `windows-latest` y sube el zip como artefacto (30 días).
 
 Manual a propósito —cuesta minutos y nadie necesita un build de Windows en cada
-commit—, automático en los tags. Antes de subir nada verifica que
+commit—, automático en los tags. Y cuesta el doble: en un repo privado el runner
+de Windows factura los minutos de Actions a 2x, de modo que un build son 30-50
+minutos del cupo mensual. Por eso los mismos pasos existen también como
+[`scripts/package-windows.ps1`](../scripts/package-windows.ps1), para correr en
+la máquina que va a probar el build —que hace falta igual— sin gastar cupo ni
+esperar la descarga. Antes de subir nada verifica que
 `encrypchat_core.dll` viaja junto al `.exe`: sin eso la app arranca y muestra el
 cartel de core ausente, que se lee como una app rota y no como un fallo de
 empaquetado.
@@ -182,7 +187,7 @@ Ninguno se puede buildar en este host Linux. Lo que sí quedó verificado/prepar
 - `windows/flutter/generated_plugin_registrant.cc` registra `flutter_webrtc`, `flutter_secure_storage_windows` y `file_selector_windows`.
 - `windows/CMakeLists.txt` ahora instala `apps/client/native/encrypchat_core.dll` junto al `.exe`, que es el primer candidato de `lib/core/native_library.dart`. Antes no había regla: el bundle habría salido sin el core.
 - `image_picker` no tiene implementación Windows → adjuntar fotos usa el fallback `file_selector`, igual que Linux.
-- Falta: host Windows + VS 2022 para `flutter build windows --release` y empaquetar el zip/MSIX. Pasos exactos: `scripts/package-windows.sh`.
+- Falta: host Windows + VS 2022 para `flutter build windows --release` y empaquetar el zip/MSIX. El script está escrito y comprueba el toolchain antes de arrancar: `scripts\package-windows.ps1` (`scripts/package-windows.sh` explica los dos caminos desde Linux). Para llevar el código sin push: `git bundle create encrypchat.bundle main`.
 
 **iOS**
 
@@ -205,8 +210,9 @@ Ninguno se puede buildar en este host Linux. Lo que sí quedó verificado/prepar
 - [x] Fedora `.rpm`, con comprobación de que no depende de sus propias bibliotecas
 - [x] Ninguna ruta de la máquina de compilación viaja en los binarios (y el empaquetado se
       detiene si aparece una nueva)
-- [x] Windows: build reproducible en CI — falta **ejecutarlo** (necesita que el workflow esté
-      publicado) y que alguien lo pruebe en hardware real
+- [x] Windows: los mismos pasos en CI y en un script para la máquina Windows — falta
+      **ejecutarlo** (CI necesita el workflow publicado y cupo de Actions; el script,
+      la máquina) y que alguien lo pruebe en hardware real
 - [ ] iOS binario real (bloqueado por host macOS)
 - [ ] `crates/core` enlazado en iOS (bloqueado por macOS)
 - [ ] Firma release Android ejecutada + stores
