@@ -19,6 +19,9 @@ class LegalLinks {
 
   static String terms(Locale locale) => '$site/${localeFor(locale)}/terms';
 
+  static String download(Locale locale) =>
+      '$site/${localeFor(locale)}/download';
+
   /// Language of the device as reported by the OS.
   ///
   /// Deliberately not `Localizations.localeOf(context)`: the app ships a single

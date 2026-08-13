@@ -13,6 +13,10 @@ void main() {
       LegalLinks.terms(const Locale('es', 'AR')),
       'https://encrypchat.com/es/terms',
     );
+    expect(
+      LegalLinks.download(const Locale('en')),
+      'https://encrypchat.com/en/download',
+    );
   });
 
   test('unsupported languages fall back to Spanish, not to a 404', () {

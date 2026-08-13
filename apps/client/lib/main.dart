@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'core/media_picker.dart';
 import 'screens/onboarding_page.dart';
@@ -8,16 +9,37 @@ import 'screens/shell_page.dart';
 import 'services/session_controller.dart';
 import 'theme/encrypchat_colors.dart';
 import 'theme/encrypchat_theme.dart';
+import 'widgets/window_chrome.dart';
 
 /// Encrypchat shell — Phase 3: identity + encrypted local store + brand UI.
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   configureMediaPicker();
+  await _configureDesktopWindow();
   // Sweeps what a crash (or a build before this existed) left in the cache:
   // plaintext copies of photos already sent. Not awaited — the UI does not
   // depend on it and it only touches the app's own temp dir.
   unawaited(purgePickerTemps());
   runApp(const EncrypchatApp());
+}
+
+/// Hides the OS title bar on Linux/Windows/macOS so Encrypchat draws its own
+/// (see `DesktopWindowScaffold`). No-op on mobile and web.
+Future<void> _configureDesktopWindow() async {
+  if (!isDesktopWindow) return;
+  await windowManager.ensureInitialized();
+  const options = WindowOptions(
+    size: Size(1180, 760),
+    minimumSize: Size(880, 600),
+    center: true,
+    backgroundColor: EncrypchatColors.canvas,
+    title: 'Encrypchat',
+    titleBarStyle: TitleBarStyle.hidden,
+  );
+  await windowManager.waitUntilReadyToShow(options, () async {
+    await windowManager.show();
+    await windowManager.focus();
+  });
 }
 
 class EncrypchatApp extends StatefulWidget {
@@ -61,6 +83,8 @@ class _EncrypchatAppState extends State<EncrypchatApp> {
       title: 'Encrypchat',
       debugShowCheckedModeBanner: false,
       theme: buildEncrypchatLightTheme(),
+      builder: (context, child) =>
+          DesktopWindowScaffold(child: child ?? const SizedBox.shrink()),
       home: _home(),
     );
   }
