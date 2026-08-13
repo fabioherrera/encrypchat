@@ -61,9 +61,12 @@ chmod 0755 %{buildroot}%{appdir}/encrypchat
 install -d %{buildroot}%{_bindir}
 ln -s %{appdir}/encrypchat %{buildroot}%{_bindir}/%{name}
 
-# pixmaps rather than a hicolor size directory: the mark is 680x792, and dropping a
-# non-square file into .../512x512/apps would be a lie about its dimensions.
-install -Dpm 0644 data/flutter_assets/assets/brand/logo-mark.png \
+# Square 1024 mark on white — generated from logo-mark.png by
+# scripts/generate-app-icons.py. A non-square file in a hicolor size
+# directory would be a lie about its dimensions.
+install -Dpm 0644 data/flutter_assets/assets/brand/app-icon.png \
+  %{buildroot}%{_datadir}/icons/hicolor/1024x1024/apps/%{name}.png
+install -Dpm 0644 data/flutter_assets/assets/brand/app-icon.png \
   %{buildroot}%{_datadir}/pixmaps/%{name}.png
 
 install -d %{buildroot}%{_datadir}/applications
@@ -86,6 +89,7 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{name}.desktop
 %{appdir}
 %{_bindir}/%{name}
 %{_datadir}/applications/%{name}.desktop
+%{_datadir}/icons/hicolor/1024x1024/apps/%{name}.png
 %{_datadir}/pixmaps/%{name}.png
 
 %changelog
