@@ -1,22 +1,22 @@
 {
-  "version": "1.0.2",
-  "notes": "Nueva ventana de escritorio con barra de título integrada, más limpia. Además, seguridad y estabilidad. Tus chats, fotos y claves siguen en este dispositivo.",
+  "version": "1.0.3",
+  "notes": "El icono de la app arrastraba un trazo suelto del diseño original; ya está corregido en Android, iOS, Linux y Windows. Tus chats, fotos y claves siguen en este dispositivo.",
   "download": "https://encrypchat.com/es/download",
   "packages": {
     "android-apk": {
-      "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-13-ventana/encrypchat-android-arm64-1.0.2.apk",
-      "sha256": "15cd2fbd28f67cfbe859b37b1a299a36c3f753bf43910ee71f23893bedd3a880",
-      "file": "encrypchat-android-arm64-1.0.2.apk"
+      "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-13-icono/encrypchat-android-arm64-1.0.3.apk",
+      "sha256": "9a4351433570aa8297956afec058c25fe82f69383233c36df16300a163f2f13d",
+      "file": "encrypchat-android-arm64-1.0.3.apk"
     },
     "linux-rpm": {
-      "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-13-ventana/encrypchat-1.0.2-1.fc44.x86_64.rpm",
-      "sha256": "ca8b6922b9258ff9414f8756665fb744245ff67968717eb00122aa777ac45b96",
-      "file": "encrypchat-1.0.2-1.fc44.x86_64.rpm"
+      "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-13-icono/encrypchat-1.0.3-1.fc44.x86_64.rpm",
+      "sha256": "aef774b4c7bc3cd33fea7b1739efcfac40ebc0f42f020609d77453cb656bb4b7",
+      "file": "encrypchat-1.0.3-1.fc44.x86_64.rpm"
     },
     "linux-tarball": {
-      "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-13-ventana/encrypchat-linux-x64-1.0.2.tar.gz",
-      "sha256": "9a35bff140fd2b9be1e369ea602ec6422e345bc6898c51f1c6d47b567d24e0a9",
-      "file": "encrypchat-linux-x64-1.0.2.tar.gz"
+      "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-13-icono/encrypchat-linux-x64-1.0.3.tar.gz",
+      "sha256": "42b5048dc05f3a25ed442c1a57f53265fc373948a271343b08df42fd373b8418",
+      "file": "encrypchat-linux-x64-1.0.3.tar.gz"
     }
   }
 }
