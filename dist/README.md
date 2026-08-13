@@ -89,7 +89,7 @@ goes public. Tag names avoid the `v*` pattern on purpose — that one triggers
 `windows.yml`.
 
 ```bash
-gh release download pruebas-2026-08-13-scan --dir .
+gh release download pruebas-2026-08-13-icon --dir .
 sha256sum -c SHA256SUMS
 ```
 
