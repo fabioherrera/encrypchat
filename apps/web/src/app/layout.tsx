@@ -10,9 +10,11 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  // Next emits `favicon.ico` from the file convention on its own, but declaring
+  // `icons` here suppresses that convention for `apple-icon.png`, so the Apple
+  // touch icon has to be listed or iOS falls back to a screenshot.
   icons: {
     icon: [
-      { url: "/favicon.ico", sizes: "48x48" },
       { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
       { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
     ],
