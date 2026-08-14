@@ -1,22 +1,22 @@
 {
-  "version": "1.0.4",
-  "notes": "Ahora se agrega un contacto pegando el export de Mi token (el token solo no alcanza para cifrar). Se quitó el escudo de la barra de ventana. Tus chats, fotos y claves siguen en este dispositivo.",
+  "version": "1.0.5",
+  "notes": "Al agregar un contacto, Encrypchat intenta avisarle para que lo autorice en Solicitudes. El export incluye la dirección de esta Wi‑Fi. Tus chats, fotos y claves siguen en este dispositivo.",
   "download": "https://encrypchat.com/es/download",
   "packages": {
     "android-apk": {
-      "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-14-contactos/encrypchat-android-arm64-1.0.4.apk",
-      "sha256": "f5bdd048e9d69a31aa053f5f5ca6ff8fb0c56b3cbd9c90d786289bf35a721b2c",
-      "file": "encrypchat-android-arm64-1.0.4.apk"
+      "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-14-solicitudes/encrypchat-android-arm64-1.0.5.apk",
+      "sha256": "a406fd07ae0119167dc2fe1e35c1d38366f63c30430835847449abf220209f56",
+      "file": "encrypchat-android-arm64-1.0.5.apk"
     },
     "linux-rpm": {
-      "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-14-contactos/encrypchat-1.0.4-1.fc44.x86_64.rpm",
-      "sha256": "51e7d40b3a742250db4990e5a46b5ae6c899ad9f054d679c982aa40d29bbb33a",
-      "file": "encrypchat-1.0.4-1.fc44.x86_64.rpm"
+      "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-14-solicitudes/encrypchat-1.0.5-1.fc44.x86_64.rpm",
+      "sha256": "f98b125f6d9e47f38adca1869da0d55015fee449567b37f56d0b882c26b991c8",
+      "file": "encrypchat-1.0.5-1.fc44.x86_64.rpm"
     },
     "linux-tarball": {
-      "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-14-contactos/encrypchat-linux-x64-1.0.4.tar.gz",
-      "sha256": "0ed9b80a6485f07a72d8bec52df4ad8a211b1d90235061ff5c1fd305ae31d13d",
-      "file": "encrypchat-linux-x64-1.0.4.tar.gz"
+      "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-14-solicitudes/encrypchat-linux-x64-1.0.5.tar.gz",
+      "sha256": "f1bace40e9577070a71d1a6b8792c21d89bf6a388f457f1987c8860b72f3f8f2",
+      "file": "encrypchat-linux-x64-1.0.5.tar.gz"
     }
   }
 }
