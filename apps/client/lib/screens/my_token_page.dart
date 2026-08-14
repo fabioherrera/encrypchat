@@ -43,8 +43,10 @@ class MyTokenPage extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Mostrá el QR al otro dispositivo, o exportá el contacto y '
-            'pegáselo. Nunca compartas la clave secreta del dispositivo.',
+            'Para que te agreguen, tocá Exportar contacto y pasales esa '
+            'línea — o mostrá el QR. El token solo no alcanza: hace falta '
+            'la clave pública que va en el export. Nunca compartas la '
+            'clave secreta del dispositivo.',
             style: TextStyle(color: EncrypchatColors.muted, height: 1.4),
           ),
           const SizedBox(height: 28),
@@ -92,18 +94,6 @@ class MyTokenPage extends StatelessWidget {
             children: [
               FilledButton.icon(
                 onPressed: () async {
-                  await Clipboard.setData(ClipboardData(text: token));
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Token copiado')),
-                    );
-                  }
-                },
-                icon: const Icon(Icons.copy),
-                label: const Text('Copiar token'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () async {
                   await Clipboard.setData(ClipboardData(text: export));
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -115,6 +105,18 @@ class MyTokenPage extends StatelessWidget {
                 },
                 icon: const Icon(Icons.ios_share),
                 label: const Text('Exportar contacto'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  await Clipboard.setData(ClipboardData(text: token));
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Token copiado')),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.copy),
+                label: const Text('Copiar token'),
               ),
             ],
           ),

@@ -23,6 +23,19 @@ void main() {
     );
   });
 
+  test('pasting a bare token is refused as token-only', () {
+    expect(
+      () => Contact.parseExport('ec_${'a' * 64}'),
+      throwsA(
+        isA<ContactCardException>().having(
+          (e) => e.message,
+          'message',
+          contains('solo el token'),
+        ),
+      ),
+    );
+  });
+
   test('the QR drawn on Mi token decodes back to the same card', () async {
     final pub = Uint8List.fromList(List<int>.generate(32, (i) => i + 1));
     final card = Contact(
@@ -41,13 +54,13 @@ void main() {
     expect(Contact.looksLikeCard(text!), isFalse);
   });
 
-  testWidgets('empty contacts offers the camera first', (tester) async {
+  testWidgets('empty contacts offers paste first', (tester) async {
     await tester.pumpWidget(
       MaterialApp(home: ContactsPage(session: SessionController())),
     );
 
-    expect(find.text('Escanear QR'), findsWidgets);
-    expect(find.text('Pegar export'), findsWidgets);
+    expect(find.text('Agregar contacto'), findsWidgets);
+    expect(find.text('Pegar export'), findsNothing);
   });
 }
 

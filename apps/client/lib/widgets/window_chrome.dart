@@ -144,26 +144,14 @@ class _Brand extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Image.asset(
-          'assets/brand/logo-mark.png',
-          width: 20,
-          height: 20,
-          filterQuality: FilterQuality.medium,
-        ),
-        const SizedBox(width: 10),
-        const Text(
-          'Encrypchat',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.2,
-          ),
-        ),
-      ],
+    return const Text(
+      'Encrypchat',
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.2,
+      ),
     );
   }
 }

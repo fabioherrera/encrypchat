@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../models/contact.dart';
 import '../services/session_controller.dart';
 import '../theme/encrypchat_colors.dart';
+import 'add_contact_flow.dart';
 import 'safety_actions.dart';
 import 'scan_contact_page.dart';
 
@@ -17,8 +18,9 @@ class ContactsPage extends StatefulWidget {
 
   final SessionController session;
 
-  /// Production opens the camera (or an image picker on desktop). Tests pass
-  /// a card without touching either.
+  /// Production opens the camera on a phone. Tests pass a card without
+  /// touching it. Desktop adds contacts by pasting the export, not by
+  /// picking a screenshot.
   final Future<String?> Function(BuildContext context)? scanCard;
 
   /// Desktop split: opening a contact shows the chat in the right pane.
@@ -29,80 +31,10 @@ class ContactsPage extends StatefulWidget {
 }
 
 class _ContactsPageState extends State<ContactsPage> {
-  Future<void> _importRaw(String raw) async {
-    try {
-      await widget.session.importContact(raw);
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Contacto guardado')));
-      }
-    } on ContactCardException catch (e) {
-      // The card is wrong and will stay wrong: shown as its own dialog, with
-      // what to ask for, and no invitation to try the same text again.
-      if (mounted) await _cardRejected(e);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('No se pudo importar: $e')));
-      }
-    }
-  }
+  Future<void> _scan() =>
+      scanAndImportContact(context, widget.session, scanCard: widget.scanCard);
 
-  Future<void> _scan() async {
-    final raw = await (widget.scanCard ?? scanContactCard)(context);
-    if (raw == null || raw.trim().isEmpty) return;
-    await _importRaw(raw);
-  }
-
-  Future<void> _importDialog() async {
-    final controller = TextEditingController();
-    final raw = await showDialog<String>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Pegar export'),
-          content: TextField(
-            controller: controller,
-            maxLines: 4,
-            decoration: const InputDecoration(
-              hintText: 'Pegá encrypchat:contact:v1:…',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, controller.text),
-              child: const Text('Importar'),
-            ),
-          ],
-        );
-      },
-    ).whenComplete(controller.dispose);
-    if (raw == null || raw.trim().isEmpty) return;
-    await _importRaw(raw);
-  }
-
-  Future<void> _cardRejected(ContactCardException error) {
-    return showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Tarjeta no válida'),
-        content: Text(error.message),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Entendido'),
-          ),
-        ],
-      ),
-    );
-  }
+  Future<void> _add() => showAddContactDialog(context, widget.session);
 
   /// Deleting a contact removes the conversation too, because the chat list is
   /// built from contacts: leaving the messages would leave them unreachable and
@@ -145,14 +77,15 @@ class _ContactsPageState extends State<ContactsPage> {
       appBar: AppBar(
         title: const Text('Contactos'),
         actions: [
+          if (liveCameraScanAvailable)
+            IconButton(
+              tooltip: 'Escanear QR',
+              onPressed: _scan,
+              icon: const Icon(Icons.qr_code_scanner),
+            ),
           IconButton(
-            tooltip: 'Escanear QR',
-            onPressed: _scan,
-            icon: const Icon(Icons.qr_code_scanner),
-          ),
-          IconButton(
-            tooltip: 'Pegar export',
-            onPressed: _importDialog,
+            tooltip: 'Agregar contacto',
+            onPressed: _add,
             icon: const Icon(Icons.person_add_alt_1),
           ),
         ],
@@ -180,22 +113,25 @@ class _ContactsPageState extends State<ContactsPage> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Escaneá el QR de Mi token del otro dispositivo, '
-                      'o pegá el export.',
+                      'Pedile al otro que abra Mi token y toque '
+                      'Exportar contacto. Pegá esa línea acá.',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: EncrypchatColors.muted),
                     ),
                     const SizedBox(height: 20),
                     FilledButton.icon(
-                      onPressed: _scan,
-                      icon: const Icon(Icons.qr_code_scanner),
-                      label: const Text('Escanear QR'),
+                      onPressed: _add,
+                      icon: const Icon(Icons.person_add_alt_1),
+                      label: const Text('Agregar contacto'),
                     ),
-                    const SizedBox(height: 12),
-                    OutlinedButton(
-                      onPressed: _importDialog,
-                      child: const Text('Pegar export'),
-                    ),
+                    if (liveCameraScanAvailable) ...[
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: _scan,
+                        icon: const Icon(Icons.qr_code_scanner),
+                        label: const Text('Escanear QR'),
+                      ),
+                    ],
                   ],
                 ),
               ),

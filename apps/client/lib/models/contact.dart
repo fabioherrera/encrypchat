@@ -22,6 +22,14 @@ class ContactCardException implements Exception {
     'nuevo, o volvé a escanear el QR entero.',
   );
 
+  /// A bare `ec_…` token. Identity is the token, but encryption needs the
+  /// public key that only travels in the export line / QR.
+  static const tokenOnly = ContactCardException(
+    'Eso es solo el token. Sin la clave pública no se puede cifrar: pedile '
+    'que toque Exportar contacto en Mi token y te pase esa línea completa '
+    '(empieza con encrypchat:contact:v1:).',
+  );
+
   /// Token and public key do not agree, so one of the two was altered in
   /// transit or copied by halves.
   static const tokenMismatch = ContactCardException(
@@ -115,6 +123,9 @@ class Contact {
   /// key is the core's call — see `EncrypchatCore.assertUsablePublicKey`.
   static Contact parseExport(String raw) {
     final trimmed = raw.trim();
+    if (isValidToken(trimmed)) {
+      throw ContactCardException.tokenOnly;
+    }
     final parts = trimmed.split(':');
     if (parts.length < 5 ||
         parts[0] != 'encrypchat' ||

@@ -4,6 +4,7 @@ import '../models/contact.dart';
 import '../services/session_controller.dart';
 import '../theme/encrypchat_colors.dart';
 import '../widgets/raised_controls.dart';
+import 'add_contact_flow.dart';
 import 'chat_page.dart';
 import 'requests_page.dart';
 
@@ -89,6 +90,12 @@ class _ChatsPageState extends State<ChatsPage> {
         title: const Text('Chats'),
         actions: [
           RaisedCircleButton(
+            tooltip: 'Agregar contacto',
+            onPressed: () => showAddContactDialog(context, session),
+            icon: Icons.person_add_alt_1,
+          ),
+          const SizedBox(width: 8),
+          RaisedCircleButton(
             tooltip: 'Relay ciego',
             onPressed: session.hasMessaging
                 ? () => showRelayDialog(context, session)
@@ -124,10 +131,7 @@ class _ChatsPageState extends State<ChatsPage> {
                 controller: _search,
                 decoration: const InputDecoration(
                   hintText: 'Buscar chats…',
-                  prefixIcon: Icon(
-                    Icons.search,
-                    color: EncrypchatColors.muted,
-                  ),
+                  prefixIcon: Icon(Icons.search, color: EncrypchatColors.muted),
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.symmetric(
                     horizontal: 8,
@@ -185,19 +189,19 @@ class _ChatsPageState extends State<ChatsPage> {
           if (requests.isNotEmpty) _RequestsTile(session: session),
           Expanded(
             child: session.contacts.isEmpty
-                ? const Center(
+                ? Center(
                     child: Padding(
-                      padding: EdgeInsets.all(32),
+                      padding: const EdgeInsets.all(32),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.chat_bubble_outline,
                             size: 56,
                             color: EncrypchatColors.offline,
                           ),
-                          SizedBox(height: 16),
-                          Text(
+                          const SizedBox(height: 16),
+                          const Text(
                             'Sin chats aún',
                             style: TextStyle(
                               fontSize: 18,
@@ -205,17 +209,24 @@ class _ChatsPageState extends State<ChatsPage> {
                               color: EncrypchatColors.ink,
                             ),
                           ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Importá un contacto. P2P es el camino directo y el '
-                            'único que confirma la entrega; si está offline y '
-                            'configurás relay (☁), el mensaje sale cifrado '
-                            'hacia ahí.',
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Pedile al otro que abra Mi token y toque '
+                            'Exportar contacto. Pegá esa línea para '
+                            'agendarlo. P2P es el camino directo; el relay '
+                            '(☁) solo si está offline.',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: EncrypchatColors.muted,
                               height: 1.4,
                             ),
+                          ),
+                          const SizedBox(height: 20),
+                          FilledButton.icon(
+                            onPressed: () =>
+                                showAddContactDialog(context, session),
+                            icon: const Icon(Icons.person_add_alt_1),
+                            label: const Text('Agregar contacto'),
                           ),
                         ],
                       ),

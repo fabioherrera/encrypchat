@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:encrypchat/main.dart';
@@ -23,6 +24,18 @@ void main() {
 
     expect(find.text('Chats'), findsWidgets);
     expect(find.text('Sin chats aún'), findsOneWidget);
+    expect(find.text('Agregar contacto'), findsWidgets);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Agregar contacto'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.textContaining('Exportar contacto'), findsWidgets);
+
+    await tester.enterText(find.byType(TextField).last, 'ec_${'a' * 64}');
+    await tester.tap(find.widgetWithText(FilledButton, 'Agregar'));
+    await tester.pumpAndSettle();
+    expect(find.text('Tarjeta no válida'), findsOneWidget);
+    expect(find.textContaining('solo el token'), findsOneWidget);
   });
 }
 
