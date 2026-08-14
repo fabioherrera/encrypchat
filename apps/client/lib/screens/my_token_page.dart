@@ -8,13 +8,30 @@ import '../theme/encrypchat_colors.dart';
 import 'about_page.dart';
 import 'delete_identity_page.dart';
 
-class MyTokenPage extends StatelessWidget {
+class MyTokenPage extends StatefulWidget {
   const MyTokenPage({super.key, required this.session});
 
   final SessionController session;
 
   @override
+  State<MyTokenPage> createState() => _MyTokenPageState();
+}
+
+class _MyTokenPageState extends State<MyTokenPage> {
+  @override
+  void initState() {
+    super.initState();
+    final session = widget.session;
+    if (session.hasMessaging) {
+      session.messaging.refreshLanListenAddrs().then((_) {
+        if (mounted) setState(() {});
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final session = widget.session;
     final token = session.identity.token ?? '';
     final export = session.exportOwnContact();
 
@@ -45,8 +62,10 @@ class MyTokenPage extends StatelessWidget {
           const Text(
             'Para que te agreguen, tocá Exportar contacto y pasales esa '
             'línea — o mostrá el QR. El token solo no alcanza: hace falta '
-            'la clave pública que va en el export. Nunca compartas la '
-            'clave secreta del dispositivo.',
+            'la clave pública. Si el nodo está en marcha, el export incluye '
+            'tu dirección en esta Wi‑Fi para que el otro pueda conectar. '
+            'Agendarte no les avisa: el primer mensaje que te llegue sale '
+            'en Solicitudes. Nunca compartas la clave secreta.',
             style: TextStyle(color: EncrypchatColors.muted, height: 1.4),
           ),
           const SizedBox(height: 28),
@@ -94,7 +113,12 @@ class MyTokenPage extends StatelessWidget {
             children: [
               FilledButton.icon(
                 onPressed: () async {
-                  await Clipboard.setData(ClipboardData(text: export));
+                  if (session.hasMessaging) {
+                    await session.messaging.refreshLanListenAddrs();
+                  }
+                  if (!context.mounted) return;
+                  final line = session.exportOwnContact();
+                  await Clipboard.setData(ClipboardData(text: line));
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
@@ -174,7 +198,9 @@ class MyTokenPage extends StatelessWidget {
 
   void _openAbout(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => AboutPage(session: session)),
+      MaterialPageRoute<void>(
+        builder: (_) => AboutPage(session: widget.session),
+      ),
     );
   }
 }

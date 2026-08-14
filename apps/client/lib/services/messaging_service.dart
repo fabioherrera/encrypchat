@@ -10,6 +10,8 @@ import '../core/core_error.dart';
 import '../core/core_worker.dart';
 import '../core/encrypchat_core.dart';
 import '../core/call_signal.dart';
+import '../core/contact_intro.dart';
+import '../core/lan_listen.dart';
 import '../core/media_envelope.dart';
 import '../core/wire_frame.dart';
 import '../models/chat_message.dart';
@@ -75,6 +77,9 @@ enum InboundDropReason {
   /// An attachment from a contact would break a media ceiling.
   mediaQuota,
 }
+
+/// What happened when this device tried to tell a new contact it was added.
+enum ContactAnnounce { delivered, viaRelay, noRoute }
 
 extension InboundDropCopy on InboundDropReason {
   /// One line for a list of incidents.
@@ -312,6 +317,19 @@ class MessagingService extends ChangeNotifier {
   bool _pulling = false;
   String? listenAddr;
   String? lastError;
+
+  /// Non-loopback listen addrs for this node, same port as [listenAddr].
+  List<String> lanListenAddrs = const [];
+
+  /// Dial hints from imported cards, keyed by peer token. Not written to the
+  /// contacts table: they go stale when the other device changes network.
+  final Map<String, List<String>> _dialHints = {};
+
+  /// Tokens we have a live P2P session with, as far as this process can tell.
+  /// Set after a delivered send or an inbound P2P frame; cleared on PeerOffline.
+  final Set<String> _livePeers = {};
+
+  final Map<String, Future<bool>> _dialInFlight = {};
   final Map<String, _ConversationWindow> _cache = {};
 
   /// Cached peers, least recently used first.
@@ -373,6 +391,109 @@ class MessagingService extends ChangeNotifier {
   bool get nodeRunning => _core.isNodeRunning;
   bool get relayConfigured => _relay.isConfigured;
   String? get relayBaseUrl => _relay.baseUrl;
+
+  /// True when this process has an open P2P session with [token].
+  ///
+  /// That is not "the other person opened the app". It is only "we can talk
+  /// on a socket right now". Showing anything else would be a presence oracle.
+  bool isLivePeer(String token) =>
+      _livePeers.contains(LocalDatabase.normalizeToken(token));
+
+  /// One line for a chat header or a list row: route, not availability.
+  String routeLabel(String token, {required bool blocked}) {
+    if (blocked) return 'Bloqueado';
+    if (!nodeRunning) return 'Tu nodo está detenido';
+    if (isLivePeer(token)) return 'Sesión P2P';
+    if (relayConfigured) return 'Sin sesión P2P · relay listo';
+    return 'Sin ruta · conectá o usá un relay';
+  }
+
+  void rememberDialHints(String token, List<String> hints) {
+    final key = LocalDatabase.normalizeToken(token);
+    final clean = [
+      for (final h in hints)
+        if (isDialHint(h)) h,
+    ];
+    if (clean.isEmpty) {
+      _dialHints.remove(key);
+    } else {
+      _dialHints[key] = clean;
+    }
+  }
+
+  void forgetPeerRoute(String token) {
+    final key = LocalDatabase.normalizeToken(token);
+    _dialHints.remove(key);
+    _livePeers.remove(key);
+  }
+
+  void _markLive(String token) {
+    if (_livePeers.add(LocalDatabase.normalizeToken(token))) {
+      notifyListeners();
+    }
+  }
+
+  void _markOffline(String token) {
+    if (_livePeers.remove(LocalDatabase.normalizeToken(token))) {
+      notifyListeners();
+    }
+  }
+
+  /// Tries the listen addrs that arrived with the card. Returns true if any
+  /// dial completed; that is not yet proof the session is with [token].
+  ///
+  /// A send that lands while import is still dialing waits for that attempt
+  /// instead of giving up and marking the message failed.
+  Future<bool> tryDial(String token) async {
+    final key = LocalDatabase.normalizeToken(token);
+    final hints = _dialHints[key];
+    if (hints == null || hints.isEmpty || !_core.isNodeRunning) return false;
+    final existing = _dialInFlight[key];
+    if (existing != null) return existing;
+    final future = _dialHintsInOrder(hints);
+    _dialInFlight[key] = future;
+    try {
+      return await future;
+    } finally {
+      _dialInFlight.remove(key);
+    }
+  }
+
+  Future<bool> _dialHintsInOrder(List<String> hints) async {
+    for (final addr in hints.take(3)) {
+      try {
+        await connectMultiaddr(addr);
+        return true;
+      } catch (_) {
+        continue;
+      }
+    }
+    return false;
+  }
+
+  Future<void> refreshLanListenAddrs() async {
+    final port = listenPortFromMultiaddr(listenAddr);
+    if (port == null) {
+      if (lanListenAddrs.isNotEmpty) {
+        lanListenAddrs = const [];
+        notifyListeners();
+      }
+      return;
+    }
+    final next = await lanListenMultiaddrs(port);
+    if (!_sameAddrs(lanListenAddrs, next)) {
+      lanListenAddrs = next;
+      notifyListeners();
+    }
+  }
+
+  static bool _sameAddrs(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
 
   /// Relay configured over plain HTTP: blobs stay E2EE but token/pubkey/proof
   /// travel in the clear. Surfaced in the UI, not blocked (LAN demos need it).
@@ -561,6 +682,7 @@ class MessagingService extends ChangeNotifier {
     // that cannot be skipped: without it a restart silently drops the mirror.
     _syncBlockedToCore();
     listenAddr = _core.nodeListenAddr();
+    await refreshLanListenAddrs();
     _worker = await CoreWorker.spawn();
     _poll?.cancel();
     _poll = Timer.periodic(const Duration(milliseconds: 400), (_) {
@@ -588,6 +710,9 @@ class MessagingService extends ChangeNotifier {
     _relayPoll?.cancel();
     _relayPoll = null;
     listenAddr = null;
+    lanListenAddrs = const [];
+    _livePeers.clear();
+    _dialInFlight.clear();
     final worker = _worker;
     _worker = null;
     if (worker != null) {
@@ -624,6 +749,22 @@ class MessagingService extends ChangeNotifier {
       lastError = e.toString();
       notifyListeners();
       rethrow;
+    }
+  }
+
+  /// Dial the card's listen addrs once, then send. A first send after import
+  /// otherwise fails with PeerOffline even when both devices are on the LAN:
+  /// adding a contact does not open a socket.
+  Future<void> _sendWithDialRetry({
+    required String peerToken,
+    required Uint8List frame,
+  }) async {
+    try {
+      await _sendFrame(peerToken: peerToken, frame: frame);
+    } on CoreException catch (e) {
+      if (e.code != CoreException.peerOffline) rethrow;
+      if (!await tryDial(peerToken)) rethrow;
+      await _sendFrame(peerToken: peerToken, frame: frame);
     }
   }
 
@@ -837,13 +978,17 @@ class MessagingService extends ChangeNotifier {
     final encoded = frame.encode();
 
     try {
-      await _sendFrame(peerToken: peer.token, frame: encoded);
+      await _sendWithDialRetry(peerToken: peer.token, frame: encoded);
+      _markLive(peer.token);
       message = message.copyWith(status: MessageStatus.delivered);
       await _database.updateMessageStatus(id, MessageStatus.delivered);
       _pushCache(message);
       notifyListeners();
       return message;
     } on CoreException catch (e) {
+      if (e.code == CoreException.peerOffline) {
+        _markOffline(peer.token);
+      }
       if (e.code == CoreException.peerOffline && _relay.isConfigured) {
         try {
           await _enqueueSealed(
@@ -870,7 +1015,8 @@ class MessagingService extends ChangeNotifier {
         status: MessageStatus.error,
         error: switch (e.code) {
           CoreException.peerOffline =>
-            'Peer offline (configurá relay en Chats → ☁)',
+            'Sin ruta P2P. Misma Wi‑Fi: Chats → enlace, o configurá un relay '
+                '(☁). Agendar no abre un socket.',
           CoreException.peerBlocked => blockedMessage,
           _ => e.toString(),
         },
@@ -884,6 +1030,88 @@ class MessagingService extends ChangeNotifier {
         throw StateError(blockedMessage);
       }
       rethrow;
+    }
+  }
+
+  /// Tells [peer] that this device added them. The payload carries our public
+  /// key so their Solicitudes can offer Accept even if the hello only went P2P.
+  Future<ContactAnnounce> sendContactIntro(Contact peer) async {
+    _assertNotBlocked(peer.token);
+    _assertUsablePeerKey(peer);
+    if (!_core.isNodeRunning) return ContactAnnounce.noRoute;
+
+    final intro = ContactIntro(
+      token: _identity.token!,
+      publicKey: _identity.publicKey!,
+    );
+    final plain = intro.encode();
+    final id = _newId();
+    final sealed = _core.localSeal(
+      dbKey: _database.dbKey,
+      plaintext: Uint8List.fromList(utf8.encode(ContactIntro.preview)),
+    );
+    var message = ChatMessage(
+      id: id,
+      peerToken: peer.token,
+      direction: MessageDirection.outbound,
+      bodySealed: sealed,
+      status: MessageStatus.sending,
+      createdAt: DateTime.now().toUtc(),
+      plaintext: ContactIntro.preview,
+    );
+    await _database.upsertMessage(message);
+    _pushCache(message);
+    notifyListeners();
+
+    final ciphertext = _core.encrypt(
+      recipientPublicKey: peer.publicKey,
+      plaintext: plain,
+    );
+    final frame = WireFrame.create(
+      senderToken: _identity.token!,
+      ciphertext: ciphertext,
+      msgId: _idToBytes(id),
+    );
+
+    try {
+      await _sendWithDialRetry(peerToken: peer.token, frame: frame.encode());
+      _markLive(peer.token);
+      message = message.copyWith(status: MessageStatus.delivered);
+      await _database.updateMessageStatus(id, MessageStatus.delivered);
+      _pushCache(message);
+      notifyListeners();
+      return ContactAnnounce.delivered;
+    } on CoreException catch (e) {
+      if (e.code == CoreException.peerOffline) {
+        _markOffline(peer.token);
+      }
+      if (e.code == CoreException.peerOffline && _relay.isConfigured) {
+        try {
+          await _enqueueSealed(peer: peer, plaintext: plain);
+          message = message.copyWith(status: MessageStatus.viaRelay);
+          await _database.updateMessageStatus(id, MessageStatus.viaRelay);
+          _pushCache(message);
+          notifyListeners();
+          return ContactAnnounce.viaRelay;
+        } catch (_) {
+          message = message.copyWith(status: MessageStatus.error);
+          await _database.updateMessageStatus(id, MessageStatus.error);
+          _pushCache(message);
+          notifyListeners();
+          return ContactAnnounce.noRoute;
+        }
+      }
+      message = message.copyWith(status: MessageStatus.error);
+      await _database.updateMessageStatus(id, MessageStatus.error);
+      _pushCache(message);
+      notifyListeners();
+      return ContactAnnounce.noRoute;
+    } catch (_) {
+      message = message.copyWith(status: MessageStatus.error);
+      await _database.updateMessageStatus(id, MessageStatus.error);
+      _pushCache(message);
+      notifyListeners();
+      return ContactAnnounce.noRoute;
     }
   }
 
@@ -938,13 +1166,17 @@ class MessagingService extends ChangeNotifier {
     );
 
     try {
-      await _sendFrame(peerToken: peer.token, frame: frame.encode());
+      await _sendWithDialRetry(peerToken: peer.token, frame: frame.encode());
+      _markLive(peer.token);
       message = message.copyWith(status: MessageStatus.delivered);
       await _database.updateMessageStatus(id, MessageStatus.delivered);
       _pushCache(message);
       notifyListeners();
       return message;
     } on CoreException catch (e) {
+      if (e.code == CoreException.peerOffline) {
+        _markOffline(peer.token);
+      }
       if (e.code == CoreException.peerOffline && _relay.isConfigured) {
         // A sealed blob is exactly its payload plus a fixed overhead, so the
         // relay limit can be checked before spending the seal.
@@ -1065,13 +1297,14 @@ class MessagingService extends ChangeNotifier {
       msgId: _idToBytes(_newId()),
     );
     try {
-      await _sendFrame(peerToken: peer.token, frame: frame.encode());
+      await _sendWithDialRetry(peerToken: peer.token, frame: frame.encode());
+      _markLive(peer.token);
     } on CoreException catch (e) {
       if (e.code == CoreException.peerBlocked) throw StateError(blockedMessage);
       if (e.code != CoreException.peerOffline) rethrow;
+      _markOffline(peer.token);
       throw StateError(
-        'Llamadas requieren peer P2P online (la señalización por relay no está '
-        'habilitada)',
+        'Llamadas requieren una sesión P2P. Misma Wi‑Fi: Chats → enlace.',
       );
     }
   }
@@ -1338,6 +1571,7 @@ class MessagingService extends ChangeNotifier {
       msgId: _bytesToId(frame.msgId),
       viaRelay: false,
     );
+    _markLive(frame.senderToken);
   }
 
   /// Files an inbound payload from either route. Both carry the same bytes now
@@ -1356,8 +1590,21 @@ class MessagingService extends ChangeNotifier {
     required bool viaRelay,
     Uint8List? senderPublicKey,
   }) async {
-    final isMedia = MediaEnvelope.looksLike(plain);
-    final isCall = CallSignal.looksLike(plain);
+    var payload = plain;
+    var key = senderPublicKey;
+    if (ContactIntro.looksLike(plain)) {
+      final intro = ContactIntro.tryDecode(plain);
+      if (intro == null || !intro.matchesSender(senderToken)) {
+        _noteDrop(InboundDropReason.unreadable);
+        return _InboundDisposition.settled;
+      }
+      // P2P frames do not carry a key. The intro does, bound to the token
+      // the session already authenticated, so Accept can work without relay.
+      key = intro.publicKey;
+      payload = Uint8List.fromList(utf8.encode(ContactIntro.preview));
+    }
+    final isMedia = MediaEnvelope.looksLike(payload);
+    final isCall = CallSignal.looksLike(payload);
     if (isCall && viaRelay) {
       // See [sendCallSignal]: signaling stays P2P-only, so a stored ring is
       // dropped instead of woken up hours later.
@@ -1367,10 +1614,10 @@ class MessagingService extends ChangeNotifier {
     if (!isContact(senderToken)) {
       final refusal = await _admitFromUnknown(
         senderToken: senderToken,
-        senderPublicKey: senderPublicKey,
+        senderPublicKey: key,
         isMedia: isMedia,
         isCall: isCall,
-        textBytes: plain.length,
+        textBytes: payload.length,
         viaRelay: viaRelay,
       );
       if (refusal != null) {
@@ -1379,7 +1626,7 @@ class MessagingService extends ChangeNotifier {
       }
     }
     if (isMedia) {
-      final env = MediaEnvelope.decode(plain);
+      final env = MediaEnvelope.decode(payload);
       return _persistInboundMedia(
         peerToken: senderToken,
         mime: env.mime,
@@ -1390,10 +1637,10 @@ class MessagingService extends ChangeNotifier {
       );
     }
     if (isCall) {
-      onCallSignal?.call(senderToken, CallSignal.decode(plain));
+      onCallSignal?.call(senderToken, CallSignal.decode(payload));
       return _InboundDisposition.settled;
     }
-    final text = utf8.decode(plain);
+    final text = utf8.decode(payload);
     final sealed = _core.localSeal(
       dbKey: _database.dbKey,
       plaintext: Uint8List.fromList(utf8.encode(text)),

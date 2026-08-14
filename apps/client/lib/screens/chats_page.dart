@@ -77,6 +77,14 @@ class _ChatsPageState extends State<ChatsPage> {
     final contacts = _visible();
     final requests = session.requests;
     final listen = session.hasMessaging ? session.messaging.listenAddr : null;
+    final lan = session.hasMessaging
+        ? session.messaging.lanListenAddrs
+        : const <String>[];
+    final nodeLine = lan.isNotEmpty
+        ? 'Nodo P2P: ${lan.join(' · ')}'
+        : listen != null
+        ? 'Nodo P2P: $listen (loopback: en otro dispositivo usá tu IP de Wi‑Fi)'
+        : null;
     final relayInsecure =
         session.hasMessaging && session.messaging.relayIsInsecure;
     final filterEmpty =
@@ -164,7 +172,7 @@ class _ChatsPageState extends State<ChatsPage> {
               ],
             ),
           ),
-          if (listen != null)
+          if (nodeLine != null)
             Material(
               color: EncrypchatColors.paper,
               child: Padding(
@@ -173,7 +181,7 @@ class _ChatsPageState extends State<ChatsPage> {
                   vertical: 10,
                 ),
                 child: Text(
-                  'Nodo P2P: $listen',
+                  nodeLine,
                   style: const TextStyle(
                     fontFamily: 'monospace',
                     fontSize: 12,
@@ -212,9 +220,10 @@ class _ChatsPageState extends State<ChatsPage> {
                           const SizedBox(height: 8),
                           const Text(
                             'Pedile al otro que abra Mi token y toque '
-                            'Exportar contacto. Pegá esa línea para '
-                            'agendarlo. P2P es el camino directo; el relay '
-                            '(☁) solo si está offline.',
+                            'Exportar contacto. Agendar no le avisa: el '
+                            'primer mensaje que le llegue sale en '
+                            'Solicitudes. Misma Wi‑Fi o un relay (☁); si '
+                            'no hay ruta, el hola no sale.',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: EncrypchatColors.muted,
@@ -262,8 +271,9 @@ class _ChatsPageState extends State<ChatsPage> {
                       final c = contacts[index];
                       final blocked = session.isBlocked(c.token);
                       final selected = widget.selectedToken == c.token;
-                      final online =
-                          session.hasMessaging && session.messaging.nodeRunning;
+                      final live =
+                          session.hasMessaging &&
+                          session.messaging.isLivePeer(c.token);
                       return ListTile(
                         selected: selected,
                         selectedTileColor: EncrypchatColors.bubbleOut,
@@ -271,7 +281,7 @@ class _ChatsPageState extends State<ChatsPage> {
                         leading: StatusAvatar(
                           label: c.label,
                           blocked: blocked,
-                          online: online && !blocked,
+                          online: live && !blocked,
                         ),
                         title: Text(
                           c.label,
@@ -283,7 +293,12 @@ class _ChatsPageState extends State<ChatsPage> {
                         subtitle: Text(
                           blocked
                               ? 'Bloqueado · no recibís nada de este token'
-                              : 'Tocá para chatear · P2P',
+                              : session.hasMessaging
+                              ? session.messaging.routeLabel(
+                                  c.token,
+                                  blocked: false,
+                                )
+                              : 'Tocá para chatear',
                           style: const TextStyle(color: EncrypchatColors.muted),
                         ),
                         onTap: () => _open(c),
@@ -328,8 +343,8 @@ class _RequestsTile extends StatelessWidget {
         ),
         subtitle: Text(
           count == 1
-              ? '1 persona que no tenés agendada te escribió'
-              : '$count personas que no tenés agendadas te escribieron',
+              ? '1 persona espera que la autorices como contacto'
+              : '$count personas esperan que las autorices',
           style: const TextStyle(color: EncrypchatColors.muted),
         ),
         trailing: const Icon(

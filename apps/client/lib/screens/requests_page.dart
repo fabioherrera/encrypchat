@@ -154,7 +154,9 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Nadie fuera de tus contactos te escribió.',
+              'Cuando alguien te agregue y haya ruta (misma Wi‑Fi o relay), '
+              'aparece acá para que lo autorices. Agendar en el otro '
+              'dispositivo no alcanza si el aviso no llega.',
               textAlign: TextAlign.center,
               style: TextStyle(color: EncrypchatColors.muted),
             ),

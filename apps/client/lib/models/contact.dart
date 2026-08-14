@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 
+import '../core/lan_listen.dart';
+
 /// A contact card that cannot be imported, and never will be.
 ///
 /// Separate from a transient failure on purpose: nothing about retrying a
@@ -59,12 +61,20 @@ class Contact {
     required this.publicKey,
     this.displayName,
     this.createdAt,
+    this.dialHints = const [],
   });
 
   final String token;
   final Uint8List publicKey;
   final String? displayName;
   final DateTime? createdAt;
+
+  /// Listen addrs that travelled with the card (`/ip4/…/tcp/…`).
+  ///
+  /// Not stored in the contacts table: they go stale when the other device
+  /// changes network. Kept in memory for this session so import can dial and
+  /// a send can retry once without asking for the IP again.
+  final List<String> dialHints;
 
   String get publicKeyHex =>
       publicKey.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
@@ -105,16 +115,24 @@ class Contact {
   }
 
   /// `encrypchat:contact:v1:<token>:<pubkey_hex>:<display_name>`
+  ///
+  /// Extra lines are optional dial hints. An older client that pastes the
+  /// whole block still reads token and key from the first line; the extra
+  /// lines only pollute the display name there, they do not change identity.
   String exportLine() {
     final name = Uri.encodeComponent(displayName ?? '');
-    return 'encrypchat:contact:v1:$token:$publicKeyHex:$name';
+    final card = 'encrypchat:contact:v1:$token:$publicKeyHex:$name';
+    if (dialHints.isEmpty) return card;
+    final addrs = dialHints.where(isDialHint).join('\n');
+    if (addrs.isEmpty) return card;
+    return '$card\n$addrs';
   }
 
   /// True for a complete export line or for the QR that carries the same
   /// string. A bare `ec_…` token is not a card: it has no public key, so it
   /// cannot be imported.
   static bool looksLikeCard(String raw) =>
-      raw.trim().startsWith('encrypchat:contact:v1:');
+      _cardLine(raw).startsWith('encrypchat:contact:v1:');
 
   /// Parses an export line or a scanned QR (they carry the same string).
   ///
@@ -123,10 +141,12 @@ class Contact {
   /// key is the core's call — see `EncrypchatCore.assertUsablePublicKey`.
   static Contact parseExport(String raw) {
     final trimmed = raw.trim();
-    if (isValidToken(trimmed)) {
+    final lines = trimmed.split(RegExp(r'\r?\n'));
+    final cardLine = lines.first.trim();
+    if (isValidToken(cardLine)) {
       throw ContactCardException.tokenOnly;
     }
-    final parts = trimmed.split(':');
+    final parts = cardLine.split(':');
     if (parts.length < 5 ||
         parts[0] != 'encrypchat' ||
         parts[1] != 'contact' ||
@@ -141,13 +161,21 @@ class Contact {
       throw ContactCardException.tokenMismatch;
     }
     final name = namePart.isEmpty ? null : Uri.decodeComponent(namePart);
+    final hints = [
+      for (final line in lines.skip(1))
+        if (isDialHint(line.trim())) line.trim(),
+    ];
     return Contact(
       token: token.toLowerCase(),
       publicKey: pub,
       displayName: (name == null || name.isEmpty) ? null : name,
       createdAt: DateTime.now().toUtc(),
+      dialHints: hints,
     );
   }
+
+  static String _cardLine(String raw) =>
+      raw.trim().split(RegExp(r'\r?\n')).first.trim();
 }
 
 bool isValidToken(String token) {

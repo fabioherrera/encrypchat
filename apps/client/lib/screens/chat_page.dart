@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../core/call_signal.dart';
+import '../core/lan_listen.dart';
 import '../core/media_picker.dart';
 import '../models/chat_message.dart';
 import '../models/contact.dart';
@@ -191,9 +192,7 @@ class _ChatPageState extends State<ChatPage> {
       await _goToNewest();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('$e')));
+        await showSendFailedDialog(context, widget.session, error: e);
       }
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -224,9 +223,7 @@ class _ChatPageState extends State<ChatPage> {
       await _goToNewest();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('$e')));
+        await showSendFailedDialog(context, widget.session, error: e);
       }
     } finally {
       // The picker handed us a plaintext copy in the app cache and nothing else
@@ -284,8 +281,10 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   Widget build(BuildContext context) {
-    final online = widget.session.messaging.nodeRunning;
+    final messaging = widget.session.messaging;
+    final live = messaging.isLivePeer(widget.peer.token);
     final blocked = widget.session.isBlocked(widget.peer.token);
+    final route = messaging.routeLabel(widget.peer.token, blocked: blocked);
 
     return Scaffold(
       backgroundColor: EncrypchatColors.canvas,
@@ -298,7 +297,7 @@ class _ChatPageState extends State<ChatPage> {
               label: widget.peer.label,
               radius: 18,
               blocked: blocked,
-              online: online && !blocked,
+              online: live && !blocked,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -314,14 +313,10 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                   ),
                   Text(
-                    blocked
-                        ? 'Bloqueado'
-                        : online
-                        ? 'P2P · en línea'
-                        : 'P2P · nodo detenido',
+                    route,
                     style: TextStyle(
                       fontSize: 12,
-                      color: blocked || !online
+                      color: blocked || !live
                           ? EncrypchatColors.offline
                           : EncrypchatColors.p2p,
                     ),
@@ -334,7 +329,7 @@ class _ChatPageState extends State<ChatPage> {
         actions: [
           RaisedCircleButton(
             tooltip: 'Videollamada',
-            onPressed: online && !blocked
+            onPressed: messaging.nodeRunning && !blocked
                 ? () => _startCall(CallMediaMode.av)
                 : null,
             icon: Icons.videocam,
@@ -343,7 +338,7 @@ class _ChatPageState extends State<ChatPage> {
           const SizedBox(width: 8),
           RaisedCircleButton(
             tooltip: 'Llamada de audio',
-            onPressed: online && !blocked
+            onPressed: messaging.nodeRunning && !blocked
                 ? () => _startCall(CallMediaMode.audio)
                 : null,
             icon: Icons.call,
@@ -1150,6 +1145,50 @@ class InboundDropNotice extends StatelessWidget {
   }
 }
 
+Future<void> showSendFailedDialog(
+  BuildContext context,
+  SessionController session, {
+  required Object error,
+}) {
+  final relayReady = session.hasMessaging && session.messaging.relayConfigured;
+  return showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('No se pudo enviar'),
+      content: Text(
+        relayReady
+            ? 'No hay sesión P2P con este contacto y el relay tampoco '
+                  'pudo tomarlo. $error'
+            : 'Agendar no abre un canal. Sin sesión P2P y sin relay el '
+                  'mensaje no sale: el otro no ve Solicitudes ni el hola.\n\n'
+                  'Misma Wi‑Fi: Chats → icono de enlace, y pedile su IP y '
+                  'puerto (no 127.0.0.1). O configurá un relay en ☁.\n\n'
+                  '$error',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cerrar'),
+        ),
+        TextButton(
+          onPressed: () {
+            Navigator.pop(context);
+            showRelayDialog(context, session);
+          },
+          child: const Text('Relay'),
+        ),
+        FilledButton(
+          onPressed: () {
+            Navigator.pop(context);
+            showConnectPeerDialog(context, session);
+          },
+          child: const Text('Conectar'),
+        ),
+      ],
+    ),
+  );
+}
+
 /// Dialog helpers used from chats list.
 Future<void> showConnectPeerDialog(
   BuildContext context,
@@ -1157,7 +1196,20 @@ Future<void> showConnectPeerDialog(
 ) async {
   final host = TextEditingController();
   final port = TextEditingController();
+  if (session.hasMessaging) {
+    await session.messaging.refreshLanListenAddrs();
+  }
+  if (!context.mounted) {
+    host.dispose();
+    port.dispose();
+    return;
+  }
   final addr = session.messaging.listenAddr;
+  final lan = session.messaging.lanListenAddrs;
+  final listenPort = listenPortFromMultiaddr(addr);
+  if (listenPort != null) {
+    port.text = '$listenPort';
+  }
   await showDialog<void>(
     context: context,
     builder: (context) {
@@ -1167,21 +1219,41 @@ Future<void> showConnectPeerDialog(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (addr != null) ...[
+            if (lan.isNotEmpty) ...[
               const Text(
-                'Tu dirección (compartila):',
+                'Tu dirección en esta red (compartila). 127.0.0.1 no sirve '
+                'en otro dispositivo.',
+                style: TextStyle(fontSize: 12, color: EncrypchatColors.muted),
+              ),
+              const SizedBox(height: 4),
+              for (final a in lan)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: SelectableText(
+                    a,
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              TextButton(
+                onPressed: () async {
+                  await Clipboard.setData(ClipboardData(text: lan.first));
+                },
+                child: const Text('Copiar dirección LAN'),
+              ),
+              const SizedBox(height: 12),
+            ] else if (addr != null) ...[
+              const Text(
+                'El nodo solo anuncia loopback. En otro teléfono usá la IP '
+                'de esta Wi‑Fi y el puerto de abajo.',
                 style: TextStyle(fontSize: 12, color: EncrypchatColors.muted),
               ),
               const SizedBox(height: 4),
               SelectableText(
                 addr,
                 style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-              ),
-              TextButton(
-                onPressed: () async {
-                  await Clipboard.setData(ClipboardData(text: addr));
-                },
-                child: const Text('Copiar multiaddr'),
               ),
               const SizedBox(height: 12),
             ],

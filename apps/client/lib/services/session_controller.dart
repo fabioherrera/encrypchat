@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -216,7 +218,7 @@ class SessionController extends ChangeNotifier {
   /// non-canonical key is an alias with a token of its own, which is how a
   /// blocked peer came back under a name nobody had blocked (F-10). Nothing here
   /// ever re-encodes a key to make it fit.
-  Future<void> importContact(String raw) async {
+  Future<Contact> importContact(String raw) async {
     final contact = Contact.parseExport(raw);
     try {
       core.assertUsablePublicKey(
@@ -235,7 +237,20 @@ class SessionController extends ChangeNotifier {
       );
     }
     await _database.upsertContact(contact);
+    final messaging = _messaging;
+    if (messaging != null && contact.dialHints.isNotEmpty) {
+      messaging.rememberDialHints(contact.token, contact.dialHints);
+    }
     await refreshContacts();
+    return contact;
+  }
+
+  /// After a successful import: try to tell the other device so they see
+  /// Solicitudes. No route means they will not see anything until a later
+  /// connect or relay.
+  Future<ContactAnnounce> announceNewContact(Contact contact) async {
+    if (!hasMessaging) return ContactAnnounce.noRoute;
+    return messaging.sendContactIntro(contact);
   }
 
   Future<void> addContact({
@@ -256,6 +271,7 @@ class SessionController extends ChangeNotifier {
   /// removed instead of orphaned — and the dialog says so before doing it.
   Future<void> removeContact(String token) async {
     await _messaging?.deleteConversation(token);
+    _messaging?.forgetPeerRoute(token);
     await _database.deleteContact(token);
     await refreshContacts();
   }
@@ -296,6 +312,7 @@ class SessionController extends ChangeNotifier {
       token: identity.token!,
       publicKey: identity.publicKey!,
       displayName: displayName,
+      dialHints: hasMessaging ? messaging.lanListenAddrs : const [],
     ).exportLine();
   }
 

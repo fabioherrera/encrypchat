@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:encrypchat/core/call_signal.dart';
+import 'package:encrypchat/core/contact_intro.dart';
 import 'package:encrypchat/core/encrypchat_core.dart';
 import 'package:encrypchat/core/media_envelope.dart';
 import 'package:encrypchat/core/wire_frame.dart';
@@ -367,6 +368,26 @@ void main() {
       frameFrom(stranger, mediaEnvelope(bytes: 1024)),
     );
     expect(await mediaFileCount(), 1);
+  });
+
+  test('a P2P intro from a stranger is an acceptable request', () async {
+    final intro = ContactIntro(
+      token: stranger.token,
+      publicKey: stranger.publicKey,
+    );
+    await messaging.handleInboundFrame(frameFrom(stranger, intro.encode()));
+
+    final request = messaging.requests.single;
+    expect(request.canAccept, isTrue);
+    expect(request.publicKey, stranger.publicKey);
+    expect(
+      (await messaging.messagesFor(stranger.token)).single.plaintext,
+      ContactIntro.preview,
+    );
+
+    final contact = await messaging.acceptRequest(request, displayName: 'Ana');
+    expect(contact.publicKey, stranger.publicKey);
+    expect(messaging.requests, isEmpty);
   });
 
   test('a request that only arrived by P2P cannot be accepted yet', () async {

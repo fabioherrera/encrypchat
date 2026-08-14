@@ -4,4 +4,4 @@
 /// ignored). A test compares the two so a bump cannot ship with a stale
 /// string: [UpdateChecker] uses this, not a plugin, so it works in tests
 /// without extra native code.
-const encrypchatVersion = '1.0.4';
+const encrypchatVersion = '1.0.5';

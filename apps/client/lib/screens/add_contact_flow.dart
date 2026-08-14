@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/contact.dart';
+import '../services/messaging_service.dart';
 import '../services/session_controller.dart';
 import 'scan_contact_page.dart';
 
@@ -47,7 +48,9 @@ class _AddContactDialogState extends State<_AddContactDialog> {
           children: [
             const Text(
               'Pedile al otro que abra Mi token y toque Exportar contacto. '
-              'Pegá esa línea acá.',
+              'Pegá esa línea acá. Encrypchat intenta avisarle: si hay '
+              'ruta (misma Wi‑Fi o relay), le aparece en Solicitudes '
+              'para autorizarte.',
             ),
             const SizedBox(height: 16),
             TextField(
@@ -93,11 +96,10 @@ Future<void> importContactRaw(
   String raw,
 ) async {
   try {
-    await session.importContact(raw);
+    final contact = await session.importContact(raw);
+    final announce = await session.announceNewContact(contact);
     if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Contacto guardado')));
+      await showContactSaved(context, announce: announce);
     }
   } on ContactCardException catch (e) {
     if (context.mounted) await showContactCardRejected(context, e);
@@ -108,6 +110,38 @@ Future<void> importContactRaw(
       ).showSnackBar(SnackBar(content: Text('No se pudo importar: $e')));
     }
   }
+}
+
+Future<void> showContactSaved(
+  BuildContext context, {
+  required ContactAnnounce announce,
+}) {
+  final text = switch (announce) {
+    ContactAnnounce.delivered =>
+      'Le avisamos. En su Encrypchat debería aparecer Solicitudes '
+          'para autorizarte (sin sonido).',
+    ContactAnnounce.viaRelay =>
+      'Le avisamos por relay. Cuando abra la app, verá Solicitudes '
+          'para autorizarte.',
+    ContactAnnounce.noRoute =>
+      'Quedó agendado acá, pero no hay ruta: el otro no ve nada '
+          'todavía. El export tiene que traer su IP de esta Wi‑Fi '
+          '(versión 1.0.5 o posterior), o configurá un relay (☁). En '
+          'Fedora el firewall puede tapar el puerto del nodo.',
+  };
+  return showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Contacto guardado'),
+      content: Text(text),
+      actions: [
+        FilledButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Entendido'),
+        ),
+      ],
+    ),
+  );
 }
 
 Future<void> showContactCardRejected(
