@@ -7,6 +7,11 @@ export const TAGLINE = "DECENTRALIZED P2P CHAT | ZERO-CLOUD";
 // on a different domain, so all three have to agree.
 export const SECURITY_CONTACT = "info@elnerd.com";
 
+// Data protection and rights requests, deliberately not the security mailbox: one is read by
+// whoever fixes the bug, the other answers a legal deadline. `check-security-txt.sh` holds the
+// policy copy against this value, because the way a published legal channel fails is silently.
+export const PRIVACY_CONTACT = "privacy@encrypchat.com";
+
 export const PLATFORM_IDS = [
   "android",
   "ios",

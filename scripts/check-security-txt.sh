@@ -63,8 +63,23 @@ do
     || fail "${surface} does not name ${contact}, but security.txt does — a researcher who tries to confirm the address against the site will find two answers"
 done
 
+# The privacy mailbox has no expiry to watch, but it fails the same way: a legal channel that
+# stops resolving looks identical to one that works, and the person on the other side is
+# someone exercising a right with a deadline attached. Hold the copy against `site.ts` so a
+# rename in one place cannot leave the policy pointing somewhere nobody reads.
+privacy="$(sed -n 's/^export const PRIVACY_CONTACT = "\(.*\)";/\1/p' \
+  "${ROOT}/apps/web/src/lib/site.ts" | head -1)"
+[[ -n "${privacy}" ]] || fail "apps/web/src/lib/site.ts has no PRIVACY_CONTACT"
+
+for surface in apps/web/src/i18n/es.ts apps/web/src/i18n/en.ts
+do
+  grep -qF "${privacy}" "${ROOT}/${surface}" \
+    || fail "${surface} does not name ${privacy}, but site.ts publishes it as the privacy mailbox — the policy would be sending rights requests to an address that appears nowhere else"
+done
+
 if (( days_left < WARN_DAYS )); then
   echo "security.txt: ${days_left} days left (${expires}) — worth renewing on the next pass"
 else
   echo "security.txt OK: ${contact}, ${days_left} days left, all copies agree"
 fi
+echo "privacy mailbox OK: ${privacy}, named in both policy locales"

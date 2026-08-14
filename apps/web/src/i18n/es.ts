@@ -347,7 +347,7 @@ const es: Dictionary = {
         title: "Tus derechos",
         blocks: [
           "Como no operamos un servidor de contenido, no tenemos una copia de tus mensajes que podamos entregarte, rectificar o borrar: esos derechos se ejercen directamente en tu dispositivo, donde tenés control total sobre los datos.",
-          "Las solicitudes de acceso, rectificación, supresión, oposición o portabilidad (RGPD y equivalentes) se atenderán en el canal de contacto cuando esté activo. En la práctica, la respuesta será casi siempre que el dato no está en nuestro poder.",
+          "Las solicitudes de acceso, rectificación, supresión, oposición o portabilidad (RGPD y equivalentes) se atienden en privacy@encrypchat.com. En la práctica, la respuesta será casi siempre que el dato no está en nuestro poder.",
           "Ejercer el borrado significa usar «borrar identidad» dentro de la app: quita la clave del llavero del sistema y después la base de datos y los adjuntos de este dispositivo. Desinstalar también se lleva chats y media, pero en iOS, Linux y Windows deja la clave privada en el llavero hasta que borres esa entrada a mano — está detallado en «Retención y borrado».",
           "Un matiz, para no prometer de menos ni de más. Hay una cosa que sí está en nuestro poder: si nos escribiste, ese correo. Sobre él podés pedir acceso o supresión y la respuesta será concreta, no «no lo tenemos». La base jurídica de ese tratamiento mínimo es nuestro interés legítimo en contestarte: no hay publicidad, ni perfilado, ni cesión a terceros con fines propios. Y si creés que lo hacemos mal, podés reclamar ante la autoridad de protección de datos que te corresponda: en el Espacio Económico Europeo, la de tu residencia o tu lugar de trabajo; en el Reino Unido, la ICO.",
         ],
@@ -389,7 +389,7 @@ const es: Dictionary = {
           "Si encontrás una vulnerabilidad en Encrypchat, escribinos a info@elnerd.com.",
           "Publicamos esa dirección en encrypchat.com, y solo aquí: en esta página, en la página de seguridad y en https://encrypchat.com/.well-known/security.txt. Si la encontraste en otra parte, comprobala en una de las tres antes de escribir.",
           "Pedimos divulgación coordinada: contanos qué encontraste y dejanos un plazo razonable para corregirlo antes de publicarlo. No comprometemos tiempos de respuesta y no hay programa de recompensas. Sí publicamos los hallazgos y en qué estado están, incluidos los que siguen abiertos.",
-          "Es el canal para fallos de seguridad del software. No es soporte, no es el buzón de privacidad y no sirve para denunciar a otro usuario: el informe de abuso de la app es local y no lo recibe nadie.",
+          "Es el canal para fallos de seguridad del software. No es soporte y no sirve para denunciar a otro usuario: el informe de abuso de la app es local y no lo recibe nadie. Para privacidad y ejercicio de derechos el buzón es otro, privacy@encrypchat.com.",
           "Antes de escribir, vale la pena leer el modelo de amenazas: dice de qué protege el producto, de qué no y qué limitaciones ya conocemos y hemos publicado.",
         ],
         links: [
@@ -407,9 +407,9 @@ const es: Dictionary = {
         id: "contacto",
         title: "Contacto y jurisdicción",
         blocks: [
-          "Pendiente de completar por el operador: entidad legal responsable, domicilio, correo de contacto de privacidad y ley aplicable.",
-          "No hay hoy un buzón de privacidad operativo. La dirección que aparecía en el borrador anterior de esta página se ha retirado porque nunca llegó a activarse, y no publicamos direcciones que no funcionan.",
-          "Para reportar un fallo de seguridad sí hay una dirección publicada: está en «Reportar un fallo de seguridad», más arriba.",
+          "Para privacidad, protección de datos y ejercicio de derechos: privacy@encrypchat.com. Ese buzón está operativo y lo atiende el operador. La dirección que aparecía en un borrador anterior de esta página se retiró en su momento porque nunca llegó a activarse: no publicamos direcciones que no funcionan.",
+          "Entidad legal responsable, domicilio y ley aplicable siguen pendientes de designación. Mientras tanto responde una persona, no una sociedad, y esta página se actualizará cuando eso cambie.",
+          "Para reportar un fallo de seguridad hay una dirección distinta: está en «Reportar un fallo de seguridad», más arriba.",
         ],
       },
     ],
@@ -532,7 +532,7 @@ const es: Dictionary = {
         id: "ley",
         title: "Ley aplicable y contacto",
         blocks: [
-          "Pendiente de completar por el operador: entidad legal, ley aplicable, foro competente y canal de contacto. Hasta entonces no hay una dirección de contacto general publicada. Para reportar un fallo de seguridad sí hay una, en la política de privacidad.",
+          "Pendiente de completar por el operador: entidad legal, ley aplicable y foro competente. No hay una dirección de contacto general publicada, pero sí dos específicas, ambas en la política de privacidad: una para privacidad y ejercicio de derechos, otra para reportar un fallo de seguridad.",
         ],
       },
     ],
@@ -775,7 +775,7 @@ const es: Dictionary = {
           "info@elnerd.com — buzón atendido por el operador. Es una dirección de otro dominio, así que está confirmada desde el propio producto en esta página, en la política de privacidad y en https://encrypchat.com/.well-known/security.txt; si la encontraste en cualquier otro sitio, comprobala contra una de esas fuentes. Todavía no hay clave pública para reportes cifrados; si la necesitás, pedila en un primer correo sin detalles.",
           "Que esas fuentes sigan diciendo lo mismo, y que el security.txt no esté caducado, no depende de que alguien se acuerde: una comprobación automática corre en cada build y falla un mes antes de la fecha de caducidad, o en cuanto una de las copias se desvía. Un buzón de seguridad que dejó de existir es peor que no publicar ninguno, porque el que encuentra el fallo cree que avisó.",
           "Pedimos divulgación coordinada: contanos qué encontraste y dejanos un plazo razonable para corregirlo antes de publicarlo. No comprometemos tiempos de respuesta y no hay programa de recompensas. Sí publicamos los hallazgos y su estado junto al código, incluidos los que no hemos cerrado.",
-          "Es el canal para fallos de seguridad del software. No es soporte, no es el buzón de privacidad y no sirve para denunciar a otro usuario: el informe de abuso de la app es local y no lo recibe nadie.",
+          "Es el canal para fallos de seguridad del software. No es soporte y no sirve para denunciar a otro usuario: el informe de abuso de la app es local y no lo recibe nadie. Para privacidad y ejercicio de derechos el buzón es otro, privacy@encrypchat.com.",
         ],
         links: [{ path: "/privacy", hash: "seguridad", label: "Privacidad: reportar un fallo" }],
       },
