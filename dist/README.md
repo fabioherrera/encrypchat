@@ -19,7 +19,7 @@ Windows is built on Windows (`scripts\package-windows.ps1`) or in CI (`gh workfl
 
 ## Expected files (after a successful package)
 
-| File | Platform | Size (1.0.5) | Notes |
+| File | Platform | Size (1.0.6) | Notes |
 | --- | --- | --- | --- |
 | `encrypchat-linux-x64-<version>.tar.gz` | Linux x64 | ~22 MB | Portable Flutter bundle + `install.sh`; libs stripped |
 | `encrypchat-<version>-1.fc*.x86_64.rpm` | Fedora x64 | ~19 MB | Same bundle under `/usr/lib64/encrypchat`; unsigned |
