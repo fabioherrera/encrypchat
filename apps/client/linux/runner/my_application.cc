@@ -25,11 +25,10 @@ static void my_application_activate(GApplication* application) {
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
 
-  // Encrypchat draws its own title bar in Flutter (see widgets/window_chrome
-  // and window_manager with TitleBarStyle.hidden). Deliberately no GtkHeaderBar:
-  // a custom GTK titlebar is client-side decoration that gtk_window_set_decorated
-  // cannot remove, so leaving one here would fight window_manager and bring back
-  // the stacked double bar. A plain title is enough for the taskbar / WM label.
+  // Linux keeps the compositor title bar (GNOME/KDE). Flutter must not draw a
+  // second one — that was the stacked double chrome. No GtkHeaderBar either:
+  // that is another CSD bar on top of mutter's. A plain title is enough for
+  // the taskbar / WM label. See widgets/window_chrome.dart (drawsCustomTitleBar).
   gtk_window_set_title(window, "Encrypchat");
 
   gtk_window_set_default_size(window, 1180, 760);

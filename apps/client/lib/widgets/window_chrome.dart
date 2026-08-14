@@ -7,8 +7,8 @@ import 'package:window_manager/window_manager.dart';
 
 import '../theme/encrypchat_colors.dart';
 
-/// True on the three desktop targets that draw their own window frame. Android
-/// and iOS keep the OS chrome, so the custom title bar is desktop-only.
+/// True on the three desktop targets that talk to `window_manager`. Android
+/// and iOS keep the OS chrome.
 ///
 /// Excludes `flutter test`: those run on a Linux/macOS host but have no
 /// window_manager native side, so building the bar there would throw
@@ -18,9 +18,15 @@ bool get isDesktopWindow =>
     !Platform.environment.containsKey('FLUTTER_TEST') &&
     (Platform.isLinux || Platform.isWindows || Platform.isMacOS);
 
-/// Wraps every screen with the Encrypchat title bar on desktop. The native
-/// decorations are hidden (see `main.dart`), so this bar is what moves, resizes
-/// and closes the window. On mobile it is a no-op and returns the child as-is.
+/// Windows and macOS hide the OS title bar and Encrypchat draws one.
+///
+/// Linux does not: GNOME/KDE keep drawing their own bar even after
+/// `TitleBarStyle.hidden`, so a Flutter bar on top is the stacked double
+/// chrome. Fedora users get the compositor bar only.
+bool get drawsCustomTitleBar => isDesktopWindow && !Platform.isLinux;
+
+/// Wraps every screen with the Encrypchat title bar where we own the frame.
+/// On Linux, mobile and in tests it is a no-op and returns the child as-is.
 class DesktopWindowScaffold extends StatelessWidget {
   const DesktopWindowScaffold({super.key, required this.child});
 
@@ -28,7 +34,7 @@ class DesktopWindowScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!isDesktopWindow) return child;
+    if (!drawsCustomTitleBar) return child;
     return Column(
       children: [
         const _EncrypchatTitleBar(),

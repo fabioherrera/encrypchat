@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -23,18 +25,21 @@ Future<void> main() async {
   runApp(const EncrypchatApp());
 }
 
-/// Hides the OS title bar on Linux/Windows/macOS so Encrypchat draws its own
-/// (see `DesktopWindowScaffold`). No-op on mobile and web.
+/// Sizes the desktop window. On Windows/macOS the OS title bar is hidden so
+/// Encrypchat draws its own. On Linux the compositor bar stays: hiding it
+/// still leaves GNOME's decorations, and a second bar stacked on top.
 Future<void> _configureDesktopWindow() async {
   if (!isDesktopWindow) return;
   await windowManager.ensureInitialized();
-  const options = WindowOptions(
-    size: Size(1180, 760),
-    minimumSize: Size(880, 600),
+  final options = WindowOptions(
+    size: const Size(1180, 760),
+    minimumSize: const Size(880, 600),
     center: true,
     backgroundColor: EncrypchatColors.canvas,
     title: 'Encrypchat',
-    titleBarStyle: TitleBarStyle.hidden,
+    titleBarStyle: (!kIsWeb && Platform.isLinux)
+        ? TitleBarStyle.normal
+        : TitleBarStyle.hidden,
   );
   await windowManager.waitUntilReadyToShow(options, () async {
     await windowManager.show();
