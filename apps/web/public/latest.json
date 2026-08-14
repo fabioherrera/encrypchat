@@ -1,22 +1,22 @@
 {
-  "version": "1.0.3",
-  "notes": "El icono de la app arrastraba un trazo suelto del diseño original; ya está corregido en Android, iOS, Linux y Windows. Tus chats, fotos y claves siguen en este dispositivo.",
+  "version": "1.0.4",
+  "notes": "Ahora se agrega un contacto pegando el export de Mi token (el token solo no alcanza para cifrar). Se quitó el escudo de la barra de ventana. Tus chats, fotos y claves siguen en este dispositivo.",
   "download": "https://encrypchat.com/es/download",
   "packages": {
     "android-apk": {
-      "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-13-icono/encrypchat-android-arm64-1.0.3.apk",
-      "sha256": "9a4351433570aa8297956afec058c25fe82f69383233c36df16300a163f2f13d",
-      "file": "encrypchat-android-arm64-1.0.3.apk"
+      "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-14-contactos/encrypchat-android-arm64-1.0.4.apk",
+      "sha256": "f5bdd048e9d69a31aa053f5f5ca6ff8fb0c56b3cbd9c90d786289bf35a721b2c",
+      "file": "encrypchat-android-arm64-1.0.4.apk"
     },
     "linux-rpm": {
-      "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-13-icono/encrypchat-1.0.3-1.fc44.x86_64.rpm",
-      "sha256": "aef774b4c7bc3cd33fea7b1739efcfac40ebc0f42f020609d77453cb656bb4b7",
-      "file": "encrypchat-1.0.3-1.fc44.x86_64.rpm"
+      "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-14-contactos/encrypchat-1.0.4-1.fc44.x86_64.rpm",
+      "sha256": "51e7d40b3a742250db4990e5a46b5ae6c899ad9f054d679c982aa40d29bbb33a",
+      "file": "encrypchat-1.0.4-1.fc44.x86_64.rpm"
     },
     "linux-tarball": {
-      "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-13-icono/encrypchat-linux-x64-1.0.3.tar.gz",
-      "sha256": "42b5048dc05f3a25ed442c1a57f53265fc373948a271343b08df42fd373b8418",
-      "file": "encrypchat-linux-x64-1.0.3.tar.gz"
+      "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-14-contactos/encrypchat-linux-x64-1.0.4.tar.gz",
+      "sha256": "0ed9b80a6485f07a72d8bec52df4ad8a211b1d90235061ff5c1fd305ae31d13d",
+      "file": "encrypchat-linux-x64-1.0.4.tar.gz"
     }
   }
 }
