@@ -98,6 +98,10 @@ Medido en el mismo host, versión 1.0.0 (con WebRTC F7 dentro):
 | `encrypchat-linux-x64-1.0.0.tar.gz` | ~21 MiB (~22,0 MB) | 19,6 MiB (20 560 525 B) | **20,7 MiB (21 750 908 B)** |
 | `encrypchat-1.0.0-1.fc44.x86_64.rpm` | — | — | **17,3 MiB (18 179 544 B)** |
 
+Windows 1.0.6 (CI `windows-latest` + NSIS en este host): zip **23,1 MiB (24 180 227 B)**,
+`setup.exe` **18,2 MiB (19 083 111 B)**. El instalador pesa menos porque LZMA comprime
+el mismo bundle mejor que el zip de 7z.
+
 Descomprimido en disco: APK 34,8 MB de libs extraídas; bundle Linux 47 MiB (antes 55 MiB);
 RPM 51,7 MiB instalados.
 

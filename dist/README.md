@@ -24,8 +24,8 @@ Windows `.exe` is compiled on Windows (`scripts\package-windows.ps1`) or in CI (
 | `encrypchat-linux-x64-<version>.tar.gz` | Linux x64 | ~22 MB | Portable Flutter bundle + `install.sh`; libs stripped |
 | `encrypchat-<version>-1.fc*.x86_64.rpm` | Fedora x64 | ~19 MB | Same bundle under `/usr/lib64/encrypchat`; unsigned |
 | `encrypchat-android-arm64-<version>.apk` | Android arm64 | ~22 MB | Release APK, arm64-v8a only; **debug-signed** unless `android/key.properties` exists — not for Play Store |
-| `encrypchat-windows-x64-<version>.zip` | Windows x64 | ~25 MB | Portable Flutter bundle; built on a Windows host or by CI (`windows-latest`, 30 days) |
-| `encrypchat-windows-x64-<version>-setup.exe` | Windows x64 | ~25 MB | NSIS per-user installer of that bundle (`make package-windows` on Linux, or the same `.ps1` when NSIS is installed) |
+| `encrypchat-windows-x64-<version>.zip` | Windows x64 | 23.1 MiB (24 180 227 B) | Portable Flutter bundle; built on a Windows host or by CI (`windows-latest`, 30 days) |
+| `encrypchat-windows-x64-<version>-setup.exe` | Windows x64 | 18.2 MiB (19 083 111 B) | NSIS per-user installer of that bundle (`make package-windows` on Linux; CI writes the same file with NSIS 3.12, ~19.0 MB) |
 
 `<version>` comes from `apps/client/pubspec.yaml` (e.g. `1.0.0`).
 
