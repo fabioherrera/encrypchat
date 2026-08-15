@@ -126,9 +126,14 @@ try {
     Pop-Location
 }
 
+Write-Host '==> MSVC CRT (app-local)' -ForegroundColor Cyan
+Invoke-Native 'powershell' '-NoProfile' '-ExecutionPolicy' 'Bypass' '-File' (Join-Path $Root 'scripts\bundle-windows-crt.ps1') $Bundle
+
 # The likeliest way this ships broken is an .exe that starts and then shows the
 # core-missing banner, which looks like a broken app rather than a packaging slip.
-foreach ($needed in 'encrypchat.exe', 'encrypchat_core.dll', 'data') {
+# The next likeliest is a missing VCRUNTIME140.dll on a machine without VS.
+foreach ($needed in 'encrypchat.exe', 'encrypchat_core.dll', 'data',
+    'vcruntime140.dll', 'vcruntime140_1.dll', 'msvcp140.dll') {
     $path = Join-Path $Bundle $needed
     if (-not (Test-Path $path)) { throw "the build is incomplete: missing $needed in $Bundle" }
 }

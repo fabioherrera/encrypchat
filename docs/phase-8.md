@@ -191,7 +191,7 @@ Ninguno se puede buildar en este host Linux. Lo que sí quedó verificado/prepar
 - `windows/flutter/generated_plugin_registrant.cc` registra `flutter_webrtc`, `flutter_secure_storage_windows` y `file_selector_windows`.
 - `windows/CMakeLists.txt` ahora instala `apps/client/native/encrypchat_core.dll` junto al `.exe`, que es el primer candidato de `lib/core/native_library.dart`. Antes no había regla: el bundle habría salido sin el core.
 - `image_picker` no tiene implementación Windows → adjuntar fotos usa el fallback `file_selector`, igual que Linux.
-- El runner MSVC sigue sin cross-compilarse. Lo que este host sí hace es el instalador: `packaging/windows/encrypchat.nsi` (NSIS, por usuario, sin admin) a partir del zip de CI o de un escritorio Windows. `make package-windows` / `scripts/package-windows.sh`. Un PR que toque ese empaquetado arranca `windows.yml`.
+- El runner MSVC sigue sin cross-compilarse. Lo que este host sí hace es el instalador: `packaging/windows/encrypchat.nsi` (NSIS, por usuario, sin admin) a partir del zip de CI o de un escritorio Windows. `make package-windows` / `scripts/package-windows.sh`. Un PR que toque ese empaquetado arranca `windows.yml`. El bundle lleva el CRT de MSVC (`vcruntime140.dll`, `msvcp140.dll`) al lado del `.exe`: sin eso la app muere en un Windows que no tiene Visual Studio, y se lee como instalador roto.
 - Falta: alguien que lo ejecute en hardware Windows real, y firma Authenticode (hoy SmartScreen avisa). Para llevar el código sin push: `git bundle create encrypchat.bundle main`.
 
 **iOS**

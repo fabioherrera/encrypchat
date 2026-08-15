@@ -22,6 +22,7 @@ on:
       - "scripts/package-windows.ps1"
       - "scripts/package-windows.sh"
       - "scripts/package-windows-installer.sh"
+      - "scripts/bundle-windows-crt.ps1"
 
 concurrency:
   group: windows-${{ github.workflow }}-${{ github.ref }}
@@ -65,6 +66,13 @@ jobs:
           flutter pub get
           flutter build windows --release --tree-shake-icons
 
+      # Flutter links the MSVC CRT and does not copy it. Without these three
+      # DLLs the .exe dies on a machine that has never installed Visual Studio,
+      # which is every tester who is not the builder.
+      - name: Bundle the MSVC CRT
+        shell: pwsh
+        run: scripts/bundle-windows-crt.ps1
+
       # The failure this build is most likely to have is an .exe that starts and then shows
       # the core-missing banner, which looks like a broken app rather than a packaging slip.
       # Cheaper to catch here than on someone's desktop.
@@ -76,6 +84,9 @@ jobs:
           test -f encrypchat.exe
           test -f encrypchat_core.dll
           test -d data
+          test -f vcruntime140.dll
+          test -f vcruntime140_1.dll
+          test -f msvcp140.dll
 
       - name: Package
         id: package

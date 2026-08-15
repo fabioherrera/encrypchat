@@ -113,7 +113,7 @@ fi
 # dropping the PDBs is the equivalent we can do without a Windows dumpbin.
 find "${BUNDLE}" -type f -name '*.pdb' -delete
 
-for needed in encrypchat.exe encrypchat_core.dll; do
+for needed in encrypchat.exe encrypchat_core.dll vcruntime140.dll vcruntime140_1.dll msvcp140.dll; do
   if [[ ! -f "${BUNDLE}/${needed}" ]]; then
     echo "error: the bundle is incomplete: missing ${needed} in ${BUNDLE}" >&2
     exit 1
