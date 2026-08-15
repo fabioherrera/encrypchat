@@ -13,14 +13,14 @@ enum UpdateChannel {
   androidApk,
   linuxRpm,
   linuxTarball,
-  windowsZip;
+  windowsSetup;
 
   /// Fedora RPM install puts the binary under `/usr/lib64/encrypchat`.
   /// Anything else on Linux is treated as the portable tarball.
   static UpdateChannel? detect() {
     if (kIsWeb) return null;
     if (Platform.isAndroid) return UpdateChannel.androidApk;
-    if (Platform.isWindows) return UpdateChannel.windowsZip;
+    if (Platform.isWindows) return UpdateChannel.windowsSetup;
     if (Platform.isLinux) {
       if (File('/usr/lib64/encrypchat/encrypchat').existsSync()) {
         return UpdateChannel.linuxRpm;
@@ -177,7 +177,7 @@ class UpdateChecker extends ChangeNotifier {
       UpdateChannel.androidApk => 'android-apk',
       UpdateChannel.linuxRpm => 'linux-rpm',
       UpdateChannel.linuxTarball => 'linux-tarball',
-      UpdateChannel.windowsZip => 'windows-zip',
+      UpdateChannel.windowsSetup => 'windows-setup',
     };
     final entry = packages[key];
     if (entry is! Map) return null;

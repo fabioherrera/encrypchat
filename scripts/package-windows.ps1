@@ -126,9 +126,14 @@ try {
     Pop-Location
 }
 
+Write-Host '==> MSVC CRT (app-local)' -ForegroundColor Cyan
+Invoke-Native 'powershell' '-NoProfile' '-ExecutionPolicy' 'Bypass' '-File' (Join-Path $Root 'scripts\bundle-windows-crt.ps1') $Bundle
+
 # The likeliest way this ships broken is an .exe that starts and then shows the
 # core-missing banner, which looks like a broken app rather than a packaging slip.
-foreach ($needed in 'encrypchat.exe', 'encrypchat_core.dll', 'data') {
+# The next likeliest is a missing VCRUNTIME140.dll on a machine without VS.
+foreach ($needed in 'encrypchat.exe', 'encrypchat_core.dll', 'data',
+    'vcruntime140.dll', 'vcruntime140_1.dll', 'msvcp140.dll') {
     $path = Join-Path $Bundle $needed
     if (-not (Test-Path $path)) { throw "the build is incomplete: missing $needed in $Bundle" }
 }
@@ -136,12 +141,40 @@ foreach ($needed in 'encrypchat.exe', 'encrypchat_core.dll', 'data') {
 Write-Host '==> Package' -ForegroundColor Cyan
 New-Item -ItemType Directory -Force -Path (Split-Path $Zip) | Out-Null
 if (Test-Path $Zip) { Remove-Item -Force $Zip }
-Compress-Archive -Path (Join-Path $Bundle '*') -DestinationPath $Zip
+# PDBs carry the builder path and are not needed to run. Copy first so the
+# Flutter build tree stays debuggable.
+$ZipStage = Join-Path $Root 'dist\.stage-windows-zip'
+if (Test-Path $ZipStage) { Remove-Item -Recurse -Force $ZipStage }
+Copy-Item -Path $Bundle -Destination $ZipStage -Recurse
+Get-ChildItem -Path $ZipStage -Recurse -Filter *.pdb -File | Remove-Item -Force
+Compress-Archive -Path (Join-Path $ZipStage '*') -DestinationPath $Zip
+Remove-Item -Recurse -Force $ZipStage
 $MiB = [math]::Round((Get-Item $Zip).Length / 1MB, 1)
+
+Write-Host "  zip: $Zip ($MiB MiB)"
+
+# Same NSIS script the Linux host compiles after downloading this zip. On a
+# machine that already has makensis (CI installs it; a desk may not) we wrap
+# the bundle here so the tester gets a Start Menu entry and an uninstaller
+# without a second hop.
+$Installer = Join-Path $Root 'scripts\package-windows-installer.sh'
+$Setup = Join-Path $Root "dist\encrypchat-windows-x64-$Version-setup.exe"
+$Bash = Get-Command 'bash' -ErrorAction SilentlyContinue
+if ($Bash) {
+    Write-Host '==> NSIS installer' -ForegroundColor Cyan
+    Invoke-Native $Bash.Source $Installer $Bundle
+} else {
+    Write-Warning "bash not on PATH; zip is ready, installer skipped. On Linux: scripts/package-windows-installer.sh $Zip"
+}
 
 Write-Host ''
 Write-Host "OK: $Zip ($MiB MiB)" -ForegroundColor Green
-Write-Host 'Unzip anywhere and run encrypchat.exe - no installer, nothing written outside'
-Write-Host 'the folder except the identity, which goes to the Windows credential store.'
+if (Test-Path $Setup) {
+    $SetupMiB = [math]::Round((Get-Item $Setup).Length / 1MB, 1)
+    Write-Host "OK: $Setup ($SetupMiB MiB)" -ForegroundColor Green
+}
+Write-Host 'The zip runs in place. The setup.exe is per-user (no admin): Start Menu'
+Write-Host 'and %LOCALAPPDATA%\Programs\Encrypchat. Uninstall leaves chats and the'
+Write-Host 'identity in Credential Manager — use "borrar identidad" inside the app.'
 Write-Host 'Unsigned: SmartScreen warns on first run ("More info" -> "Run anyway").'
 Write-Host 'It works if the app reaches the identity screen instead of the core-missing banner.'
