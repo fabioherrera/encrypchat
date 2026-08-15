@@ -96,7 +96,7 @@ Section "Encrypchat" SecApp
   SetShellVarContext current
   StrCpy $INSTDIR "$LOCALAPPDATA\Programs\${INSTALL_DIR_LEAF}"
   SetOutPath "$INSTDIR"
-  File /r "${BUNDLE_DIR}\*.*"
+  File /r "${BUNDLE_DIR}\*"
 
   IfFileExists "$INSTDIR\encrypchat.exe" +2 0
     Abort "el bundle esta incompleto: falta encrypchat.exe"

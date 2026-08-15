@@ -124,15 +124,17 @@ if [[ ! -d "${BUNDLE}/data" ]]; then
   exit 1
 fi
 
-# NSIS File /r wants native separators. On Windows Git Bash that is backslash;
-# on Linux the POSIX makensis accepts either, and we pass the real path.
+# NSIS File /r wants an absolute Windows path on the runner. A relative
+# bundle (the first CI failure) is resolved from a different cwd and
+# becomes "no files found".
+BUNDLE="$(cd "${BUNDLE}" && pwd)"
 BUNDLE_NATIVE="${BUNDLE}"
 if command -v cygpath >/dev/null 2>&1; then
-  BUNDLE_NATIVE="$(cygpath -w "${BUNDLE}")"
-  OUT_NATIVE="$(cygpath -w "${OUT}")"
-  ICON_NATIVE="$(cygpath -w "${ICON}")"
-  LICENSE_NATIVE="$(cygpath -w "${LICENSE}")"
-  NSI_NATIVE="$(cygpath -w "${NSI}")"
+  BUNDLE_NATIVE="$(cygpath -wa "${BUNDLE}")"
+  OUT_NATIVE="$(cygpath -wa "${OUT}")"
+  ICON_NATIVE="$(cygpath -wa "${ICON}")"
+  LICENSE_NATIVE="$(cygpath -wa "${LICENSE}")"
+  NSI_NATIVE="$(cygpath -wa "${NSI}")"
 else
   OUT_NATIVE="${OUT}"
   ICON_NATIVE="${ICON}"
