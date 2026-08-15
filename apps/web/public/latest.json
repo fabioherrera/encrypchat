@@ -1,27 +1,22 @@
 {
-  "version": "1.0.6",
-  "notes": "En Linux queda una sola barra de ventana: la del escritorio. Se quitó la barra extra de Encrypchat que se apilaba encima. Tus chats, fotos y claves siguen en este dispositivo.",
+  "version": "1.0.7",
+  "notes": "El relay de Encrypchat viene encendido: los mensajes sellados llegan por internet, no solo en la misma Wi‑Fi. P2P se intenta primero. En ☁ o Ajustes lo apagas o pones el tuyo. No leemos el chat; el buzón ve token, tamaño, hora e IP. Tus chats, fotos y claves siguen en este dispositivo.",
   "download": "https://encrypchat.com/es/download",
   "packages": {
     "android-apk": {
-      "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-14-barra/encrypchat-android-arm64-1.0.6.apk",
-      "sha256": "93a47f891f9c4d5f0c2782708d060d858658c24a33ebe1d6de72f86ea4ce6fb5",
-      "file": "encrypchat-android-arm64-1.0.6.apk"
+      "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-15-relay/encrypchat-android-arm64-1.0.7.apk",
+      "sha256": "f470004f72ac148f70f5a643d668a195101a2e14da8f99cfac827653467a09a4",
+      "file": "encrypchat-android-arm64-1.0.7.apk"
     },
     "linux-rpm": {
-      "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-14-barra/encrypchat-1.0.6-1.fc44.x86_64.rpm",
-      "sha256": "81a0c9d3d997a21f4b911bff8c5ae0da9d02451598b4b334ff5562ebea817f76",
-      "file": "encrypchat-1.0.6-1.fc44.x86_64.rpm"
+      "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-15-relay/encrypchat-1.0.7-1.fc44.x86_64.rpm",
+      "sha256": "fc80b4bb98e1b8693344c64800e761388e74a469870c850d9c9f4f2999eb4367",
+      "file": "encrypchat-1.0.7-1.fc44.x86_64.rpm"
     },
     "linux-tarball": {
-      "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-14-barra/encrypchat-linux-x64-1.0.6.tar.gz",
-      "sha256": "d46c117739d3f2c25c0fa4127ad828e362418866dbe4ab6bf925b36f62ae75af",
-      "file": "encrypchat-linux-x64-1.0.6.tar.gz"
-    },
-    "windows-setup": {
-      "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-14-barra/encrypchat-windows-x64-1.0.6-setup.exe",
-      "sha256": "2c2817c6b86afe98f0f1bce50a13ebd3208c3002309e75a0aba97f75953da7b5",
-      "file": "encrypchat-windows-x64-1.0.6-setup.exe"
+      "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-15-relay/encrypchat-linux-x64-1.0.7.tar.gz",
+      "sha256": "4a53ee74d8731d26e16eaf2cabda39af67ef63b861d1562789e710416f672dc3",
+      "file": "encrypchat-linux-x64-1.0.7.tar.gz"
     }
   }
 }
