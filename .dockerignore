@@ -1,3 +1,7 @@
+# Shared by the website image (root Dockerfile) and the relay
+# (services/relay/Dockerfile, context = repo root). Do not ignore
+# crates/ or services/: the relay COPY needs them. The 58 kB Dokploy
+# context that then failed on those paths was this file.
 .git
 .tools
 .cursor
@@ -7,8 +11,6 @@
 **/out
 **/build
 apps/client
-crates
-services
 docs
 *.md
 !apps/web/nginx.conf

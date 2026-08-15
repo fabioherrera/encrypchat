@@ -21,8 +21,9 @@ computador, el clone de Dokploy no los ve.
 6. Env: `ENCRYPCHAT_RELAY_TRUSTED_PROXIES=127.0.0.1,::1,172.16.0.0/12`
 7. Deploy.
 
-Si el build no encuentra `Cargo.toml`, el contexto debe ser la **raíz del repo**
-(en el compose, `context: ../..` ya apunta ahí desde `deploy/relay/`).
+El build usa la **raíz del repo** (`context: ../..`). El `.dockerignore` de
+la raíz no debe listar `crates` ni `services`: si los ignora, Docker copia
+`Cargo.toml` y luego falla con `"/services/relay": not found`.
 
 ### Otra vía (igual que encrypchat.com)
 
