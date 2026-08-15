@@ -66,6 +66,8 @@ export type Dictionary = {
     apk: string;
     rpm: string;
     tarball: string;
+    setup: string;
+    zip: string;
   };
   home: {
     heroAria: string;

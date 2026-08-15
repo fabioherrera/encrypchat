@@ -17,6 +17,11 @@
       "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-14-barra/encrypchat-linux-x64-1.0.6.tar.gz",
       "sha256": "d46c117739d3f2c25c0fa4127ad828e362418866dbe4ab6bf925b36f62ae75af",
       "file": "encrypchat-linux-x64-1.0.6.tar.gz"
+    },
+    "windows-setup": {
+      "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-14-barra/encrypchat-windows-x64-1.0.6-setup.exe",
+      "sha256": "2c2817c6b86afe98f0f1bce50a13ebd3208c3002309e75a0aba97f75953da7b5",
+      "file": "encrypchat-windows-x64-1.0.6-setup.exe"
     }
   }
 }

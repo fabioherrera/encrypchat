@@ -418,8 +418,9 @@ El detalle técnico está en [audit-f10.md](audit-f10.md).
 7. **El listado del directorio de media es visible** aunque el contenido esté sellado y la
    base de datos cifrada: cuántos adjuntos tenés, de qué tamaño y de qué fecha.
 8. **La clave privada sobrevive a desinstalar** en iOS, Linux y Windows: vive en el almacén del
-   sistema y esas plataformas no lo limpian. Para irte del todo usá el borrado de identidad de
-   la app, que sí quita la clave del llavero; desinstalar por su cuenta no basta.
+   sistema y esas plataformas no lo limpian. En Windows y Linux también quedan chats y media.
+   Para irte del todo usa el borrado de identidad de la app, que sí quita la clave del llavero;
+   desinstalar por su cuenta no basta.
 9. **Quien llama se identifica primero.** Al abrir una conexión P2P, quien contesta no revela
    nada hasta haber verificado a la otra parte, pero la otra parte sí tiene que revelarse antes.
    Es una propiedad del patrón de handshake, no un descuido: no se le puede probar nada a una

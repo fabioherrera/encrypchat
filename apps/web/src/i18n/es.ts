@@ -5,7 +5,7 @@ const es: Dictionary = {
     titleDefault: "Encrypchat — chat P2P cifrado, zero-cloud",
     titleTemplate: "%s · Encrypchat",
     description:
-      "Encrypchat es un mensajero cifrado de igual a igual. Chats y medios permanecen en tu dispositivo. Los relays ciegos opcionales solo guardan cifrado hasta la entrega.",
+      "P2P cuando se puede. Cifrado siempre. Sin nube de chats. Relay ciego por defecto: sobre sellado, no un buzón que podamos leer.",
     keywords: [
       "Encrypchat",
       "chat cifrado",
@@ -25,7 +25,7 @@ const es: Dictionary = {
     langSwitcherAria: "Idioma",
   },
   footer: {
-    note: "Mensajería P2P cifrada de extremo a extremo. Los relays ciegos opcionales solo almacenan cifrado hasta la entrega — no tus chats legibles.",
+    note: "P2P cuando se puede. Cifrado siempre. Sin nube de chats. El relay por defecto guarda un sobre, no el texto.",
     privacy: "Privacidad",
     terms: "Términos",
     security: "Seguridad",
@@ -42,32 +42,34 @@ const es: Dictionary = {
     apk: "APK arm64",
     rpm: "RPM Fedora",
     tarball: "tar.gz portable",
+    setup: "Instalador",
+    zip: "zip portable",
   },
   home: {
     heroAria: "Hero",
-    lead: "Chat cifrado de igual a igual en tu dispositivo — no un buzón en la nube que podamos leer.",
+    lead: "P2P cuando se puede. Cifrado siempre. Sin nube de chats.",
     ctaDownload: "Descargar",
     ctaFeatures: "Cómo funciona",
     privacyTitle: "Privacidad en el dispositivo",
     privacyP1:
-      "Cada instalación es cliente y nodo local. La identidad es un token criptográfico que compartís (QR o pegar) — no un directorio telefónico que controlemos. Si alguien está offline, un relay ciego opcional puede guardar cifrado sellado hasta que se reconecte; los relays no pueden leer el contenido.",
+      "Cada instalación es cliente y nodo local. La identidad es un token criptográfico que compartes (QR o pegar) — no un directorio telefónico que controlemos. Se intenta P2P primero. El relay ciego de Encrypchat viene encendido para que un sobre sellado llegue por internet si no hay ruta directa; puedes apagarlo o poner el tuyo. No leemos el contenido. El relay ve token de destino, tamaño, hora e IP.",
     privacyP2Before: "En la app verás",
     privacyP2P2p: "P2P",
     privacyP2Mid: "cuando los pares se conectan en directo,",
-    privacyP2Relay: "relé",
+    privacyP2Relay: "relay",
     privacyP2After:
-      "cuando el cifrado sellado espera offline, y offline cuando el dispositivo no alcanza la red.",
+      "cuando no hay camino directo, y offline cuando el dispositivo no alcanza la red.",
     platformsTitle: "Plataformas",
     platformsNote:
-      "Estamos en testing. Android y Linux tienen build de prueba. iOS y Windows todavía no tienen paquete aquí.",
+      "Estamos en testing. Android, Linux y Windows tienen build de prueba. iOS todavía no tiene paquete aquí.",
     testingBadge: "En pruebas",
     softwareDescription:
-      "Mensajero cifrado de igual a igual. Los mensajes permanecen en tus dispositivos; los relays ciegos opcionales solo guardan cifrado.",
+      "Mensajero cifrado de igual a igual. Los mensajes permanecen en tus dispositivos. P2P cuando se puede; el relay por defecto solo guarda un sobre — no es un chat en la nube.",
   },
   features: {
     metaTitle: "Funciones",
     metaDescription:
-      "Mensajería P2P cifrada, almacenamiento en el dispositivo, tokens criptográficos y relays ciegos opcionales en Encrypchat.",
+      "P2P cuando se puede. Cifrado siempre. Sin nube de chats. Identidad por token y relay ciego por defecto para un sobre sellado — no un buzón que podamos leer.",
     h1: "Funciones",
     intro: "Encrypchat está pensado para que los chats legibles nunca vivan en nuestra nube.",
     e2eeTitle: "Cifrado de extremo a extremo",
@@ -75,15 +77,16 @@ const es: Dictionary = {
       "Los mensajes se cifran en tu dispositivo con la clave del destinatario antes de salir. Solo el dispositivo previsto puede descifrarlos.",
     p2pTitle: "Primero peer-to-peer",
     p2pBody:
-      "Cuando ambos están online, el tráfico prioriza un camino directo entre dispositivos. Eso reduce intermediarios en chat en vivo, medios y llamadas.",
+      "Se intenta primero un camino directo entre dispositivos. Si no hay ruta, el mensaje ya cifrado puede ir al relay. Las llamadas siguen siendo solo P2P (hoy no hay TURN: en algunas redes no conectan).",
     zeroCloudTitle: "Zero-cloud de contenido",
     zeroCloudBody:
       "El historial y los medios se guardan en tu teléfono o computadora, en una base de datos cifrada con SQLCipher y con los cuerpos sellados encima. No operamos un buzón de mensajes que pueda leer tus conversaciones.",
-    relayTitle: "Relay ciego (opcional, offline)",
-    relayBodyBefore: "Si el destinatario está offline, un relay puede guardar temporalmente",
+    relayTitle: "Relay ciego (por defecto, se puede apagar)",
+    relayBodyBefore:
+      "Si no hay ruta P2P — offline, o no están en la misma red — el relay por defecto de Encrypchat puede guardar temporalmente",
     relayCiphertext: "cifrado",
     relayBodyAfter:
-      "dirigido a su token y borrarlo tras la entrega. Los relays no son una copia en la nube de tu historial y no pueden descifrar el contenido.",
+      "dirigido a su token y borrarlo tras la entrega. Quien opera el buzón (Encrypchat por defecto) ve token, tamaño, hora e IP — nunca el texto. No es una copia en la nube de tu historial. Puedes poner el tuyo o apagarlo.",
     tokenTitle: "Identidad por token",
     tokenBody:
       "Los contactos son tokens criptográficos (de claves públicas), intercambiados por QR o pegado. No hay un directorio telefónico central como fuente de verdad.",
@@ -92,25 +95,25 @@ const es: Dictionary = {
   download: {
     metaTitle: "Descargar — en pruebas",
     metaDescription:
-      "Encrypchat está en pruebas. APK Android y RPM o tar.gz para Linux, sin firmar. iOS y Windows todavía no.",
+      "Encrypchat está en pruebas. APK Android, RPM o tar.gz Linux e instalador Windows, sin firmar. iOS todavía no.",
     h1: "Descargar",
     testingBadge: "En pruebas",
     testingLead:
       "Estamos en testing. Estos instaladores sirven para probar en dispositivos reales, no son una versión de tienda ni un lanzamiento público.",
     intro:
-      "Android y Linux tienen paquete. iOS necesita un Mac; Windows se compila en una máquina Windows.",
+      "Android, Linux y Windows tienen paquete de prueba. iOS todavía no tiene paquete aquí.",
     privateNote:
       "El código y estos instaladores están en GitHub. Siguen siendo de prueba: no hay ficha de tienda ni lanzamiento público.",
     unsignedNote:
-      "Nada está firmado. Fedora lo dice al instalar. El APK va con la clave de depuración: sirve para sideload, no para Play Store, y cambiar esa clave más adelante obliga a desinstalar — lo que en Android sí borra la base local.",
+      "Nada está firmado. Fedora lo dice al instalar. El APK va con la clave de depuración: sirve para sideload, no para Play Store, y cambiar esa clave más adelante obliga a desinstalar — lo que en Android sí borra la base local. En Windows, SmartScreen avisa; el paso es Más información y luego Ejecutar de todas formas. Eso es lo esperado en un fichero sin firma, no un veredicto de virus. El zip portable tampoco está firmado.",
     androidSideload:
-      "En Android el sistema bloquea el APK porque no está en Play Store. Eso es lo esperado. Bajalo, abrilo desde Archivos o Descargas, y cuando avise «por tu seguridad» o Play Protect: Ajustes → Aplicaciones → Acceso especial → Instalar apps desconocidas → Chrome o Archivos → Permitir. Después «Instalar de todos modos». Solo teléfonos arm64 (casi todos los de los últimos años).",
+      "En Android el sistema bloquea el APK porque no está en Play Store. Eso es lo esperado. Bájalo, ábrelo desde Archivos o Descargas, y cuando avise «por tu seguridad» o Play Protect: Ajustes → Aplicaciones → Acceso especial → Instalar apps desconocidas → Chrome o Archivos → Permitir. Después «Instalar de todos modos». Solo teléfonos arm64 (casi todos los de los últimos años).",
     upgradeNote:
-      "Si ya tenés Encrypchat instalado, la app te avisa cuando hay una versión nueva. El aviso es explícito: actualiza solo el programa (seguridad, estabilidad y funciones), no hay nada oculto, y tus chats, fotos y claves se quedan en el dispositivo. Si aceptás, descarga el paquete, comprueba su SHA-256 e invoca el instalador del sistema (contraseña en Fedora, instalador en Android). No se reemplaza el binario en silencio.",
+      "Si ya tienes Encrypchat instalado, la app te avisa cuando hay una versión nueva. El aviso es explícito: actualiza solo el programa (seguridad, estabilidad y funciones), no hay nada oculto, y tus chats, fotos y claves se quedan en el dispositivo. Si hay paquete para tu sistema, descarga, comprueba el SHA-256 e invoca el instalador (contraseña en Fedora, instalador en Android). En Windows, esta tanda publica el setup.exe en latest.json; la app que ya está en circulación todavía busca el zip portable, así que el aviso puede abrirte esta página en vez del instalador. No se reemplaza el binario en silencio.",
     checksums: "Comprobar SHA-256",
     releasePage: "Notas de esta tanda",
     sourceNote:
-      "Windows: en la máquina, scripts\\package-windows.ps1. iOS: hace falta un host macOS (scripts/package-ios.sh). El código está en el mismo repositorio.",
+      "El instalador de Windows es por usuario (sin admin) y no está firmado. Desinstalar deja chats y media en los datos de la app, y la identidad en el Administrador de credenciales; «borrar identidad» dentro de la app es lo que los quita. El zip portable no instala: descomprimes y corres encrypchat.exe. Borrar esa carpeta no quita chats, media ni la identidad. iOS todavía no tiene paquete aquí. El código está en el mismo repositorio.",
   },
   faq: {
     metaTitle: "FAQ",
@@ -128,11 +131,15 @@ const es: Dictionary = {
       },
       {
         q: "¿Qué es un relay ciego?",
-        a: "Un ayudante opcional para entrega offline. Puede guardar cifrado sellado para tu token hasta que vuelvas online y luego borrarlo. No puede descifrar el contenido.",
+        a: "Un buzón que guarda cifrado sellado para tu token hasta que vuelvas online y luego lo borra. No puede descifrar el contenido. La app usa el de Encrypchat por defecto; puedes apagarlo o poner el tuyo.",
+      },
+      {
+        q: "¿Encrypchat solo funciona en la misma Wi-Fi?",
+        a: "No. Se prefiere P2P directo cuando ambos pueden conectarse. El relay ciego de Encrypchat viene encendido por defecto (relay.encrypchat.com) para que mensajes y solicitudes sellados lleguen por internet. Puedes apagarlo o usar el tuyo. Las llamadas siguen yendo de dispositivo a dispositivo con STUN público; no hay TURN, así que en algunas redes la llamada no conecta.",
       },
       {
         q: "¿Qué plataformas soportan?",
-        a: "Android, iOS, Linux (Fedora) y Windows son objetivos de primera clase. Hoy hay APK para Android y RPM o tar.gz para Linux, como builds de prueba en GitHub Releases. iOS y Windows todavía no tienen paquete en esa lista. Las tiendas, cuando empiece la publicación.",
+        a: "Android, iOS, Linux (Fedora) y Windows son objetivos de primera clase. Hoy hay APK para Android, RPM o tar.gz para Linux e instalador para Windows, y un zip portable (no instala), como builds de prueba en GitHub Releases. El instalador de Windows no está firmado: SmartScreen avisa; el paso es Más información y Ejecutar de todas formas. iOS todavía no tiene paquete en esa lista. Las tiendas, cuando empiece la publicación.",
       },
       {
         q: "¿Cómo agrego un contacto?",
@@ -140,11 +147,11 @@ const es: Dictionary = {
       },
       {
         q: "¿Puede escribirme alguien que no es mi contacto?",
-        a: "Sí, si tiene tu token, pero no entra en tus chats: cae en una bandeja de solicitudes acotada. Solo texto, hasta 5 mensajes de 4 KiB por remitente y 20 remitentes a la vez, sin adjuntos, sin llamadas y sin notificación. Aceptar la solicitud es lo que crea el contacto; también podés descartarla o bloquear el token.",
+        a: "Sí, si tiene tu token, pero no entra en tus chats: cae en una bandeja de solicitudes acotada. Solo texto, hasta 5 mensajes de 4 KiB por remitente y 20 remitentes a la vez, sin adjuntos, sin llamadas y sin notificación. Aceptar la solicitud es lo que crea el contacto; también puedes descartarla o bloquear el token.",
       },
       {
         q: "¿Qué ve exactamente un relay ciego?",
-        a: "El token de destino, el tamaño del sobre cifrado, las marcas de tiempo, el TTL y la IP desde la que te conectás. Nunca el contenido ni tus claves. El sobre se borra tras la entrega o al expirar el TTL, y el relay solo entra en juego si lo configurás.",
+        a: "El token de destino, el tamaño del sobre cifrado, las marcas de tiempo, el TTL y la IP desde la que te conectas. Nunca el contenido ni tus claves. El sobre se borra tras la entrega o al expirar el TTL. La app usa por defecto el relay de Encrypchat (relay.encrypchat.com); puedes apagarlo o poner el tuyo.",
       },
       {
         q: "¿Las llamadas pasan por sus servidores?",
@@ -156,11 +163,11 @@ const es: Dictionary = {
       },
       {
         q: "¿La app necesita acceso a mis fotos?",
-        a: "En Android no: no se pide permiso de galería. Al adjuntar, el selector de fotos del sistema nos entrega solo la imagen que elegís, y en un dispositivo antiguo sin ese selector se abre el explorador de ficheros, que tampoco pide permiso. En iOS, el sistema puede pedirte acceso a la fototeca al elegir la foto. En Linux y Windows se usa el diálogo de ficheros del sistema. La foto se cifra en tu dispositivo antes de salir.",
+        a: "En Android no: no se pide permiso de galería. Al adjuntar, el selector de fotos del sistema nos entrega solo la imagen que eliges, y en un dispositivo antiguo sin ese selector se abre el explorador de archivos, que tampoco pide permiso. En iOS, el sistema puede pedirte acceso a la fototeca al elegir la foto. En Linux y Windows se usa el diálogo de archivos del sistema. La foto se cifra en tu dispositivo antes de salir.",
       },
       {
         q: "¿Cómo borro mi identidad y mis datos?",
-        a: "Desde la app, con «borrar identidad»: quita primero la clave del llavero del sistema y después la base de datos y los adjuntos, así que no hay que limpiar nada a mano. Si se interrumpe, se reanuda en el siguiente arranque antes de abrir nada. Lo que ese borrado no puede hacer es sobreescribir los bytes: quedan como cifrado sin clave, no como hueco en blanco, y un backup del sistema anterior al borrado puede seguir teniendo la clave. Desinstalar sin más también se lleva la base de datos y los ficheros de media, pero en iOS, Linux y Windows deja la clave privada en el llavero del sistema hasta que borres esa entrada a mano.",
+        a: "Desde la app, con «borrar identidad»: quita primero la clave del llavero del sistema y después la base de datos y los adjuntos, así que no hay que limpiar nada a mano. Si se interrumpe, se reanuda en el siguiente arranque antes de abrir nada. Lo que ese borrado no puede hacer es sobreescribir los bytes: quedan como cifrado sin clave, no como hueco en blanco, y un backup del sistema anterior al borrado puede seguir teniendo la clave. Desinstalar no es «borrar identidad». En Android sí se lleva base y media. En Windows el setup.exe quita el programa y deja chats y media en los datos de la app, y la identidad en el Administrador de credenciales. En Linux (RPM) la base queda en el directorio de usuario y la clave en libsecret. En iOS desinstalar se lleva la base y deja la clave en el Keychain.",
       },
       {
         q: "¿Usan analítica o publicidad?",
@@ -168,7 +175,7 @@ const es: Dictionary = {
       },
       {
         q: "¿La app se actualiza sola si ya la instalé?",
-        a: "Te avisa, no lo hace en silencio. El diálogo dice que la actualización es solo de la aplicación —seguridad, estabilidad y funciones—, que no hay nada oculto y que tus chats, fotos y claves se quedan en este dispositivo. Si aceptás, descarga el paquete, comprueba su SHA-256 e invoca el instalador del sistema. La consulta de versión lee encrypchat.com/latest.json y no lleva tu token ni tus chats.",
+        a: "Te avisa, no lo hace en silencio. El diálogo dice que la actualización es solo de la aplicación —seguridad, estabilidad y funciones—, que no hay nada oculto y que tus chats, fotos y claves se quedan en este dispositivo. Si hay paquete para tu sistema, descarga, comprueba el SHA-256 e invoca el instalador. En Windows, esta tanda publica el setup.exe sin firmar (SmartScreen avisa). La app actual todavía busca el zip portable: el aviso puede llevarte a Descargar. La consulta lee encrypchat.com/latest.json y no lleva tu token ni tus chats.",
       },
     ],
   },
@@ -178,12 +185,12 @@ const es: Dictionary = {
   privacy: {
     metaTitle: "Política de privacidad",
     metaDescription:
-      "Qué datos existen en Encrypchat y dónde viven: chats en tu dispositivo, en base de datos cifrada. Relay ciego opcional, llamadas P2P, sin cuentas ni analítica.",
+      "Privacidad Encrypchat: chats en tu dispositivo, en base cifrada. Relay ciego por defecto (solo cifrado). Llamadas P2P, sin cuentas ni analítica.",
     h1: "Política de privacidad",
-    updated: "Última actualización: 13 de agosto de 2026 · versión 1.0 (previa a revisión legal)",
-    updatedIso: "2026-08-13",
+    updated: "Última actualización: 15 de agosto de 2026 · versión 1.0 (previa a revisión legal)",
+    updatedIso: "2026-08-15",
     summary:
-      "Encrypchat no tiene cuentas, no guarda tus conversaciones en la nube y no usa analítica ni publicidad. Tu clave privada, tus chats y tu media viven en tu dispositivo. Lo único que puede tocar un servidor es material cifrado que no podemos leer: el sobre que un relay ciego opcional guarda hasta la entrega, y los servidores STUN públicos que ayudan a montar una llamada y ven direcciones IP.",
+      "Encrypchat no tiene cuentas, no guarda tus conversaciones en la nube y no usa analítica ni publicidad. Tu clave privada, tus chats y tu media viven en tu dispositivo. Lo único que puede tocar un servidor es material cifrado que no podemos leer: el sobre que el relay ciego por defecto guarda hasta la entrega (puedes apagarlo), y los servidores STUN públicos que ayudan a montar una llamada y ven direcciones IP.",
     disclaimer:
       "Este documento describe el comportamiento real del software en su estado actual (pre-1.0). No es asesoría legal, todavía no lo ha revisado un abogado y hay campos pendientes de completar por el operador. Debe cerrarse antes de publicar en Google Play o la App Store.",
     sections: [
@@ -227,9 +234,9 @@ const es: Dictionary = {
       },
       {
         id: "relay",
-        title: "Relay ciego (opcional)",
+        title: "Relay ciego (por defecto)",
         blocks: [
-          "Si tu contacto está offline, podés configurar un relay para que guarde el mensaje cifrado hasta que se reconecte. Está desactivado salvo que lo configures, y el relay puede estar operado por un tercero, en cuyo caso aplican además sus condiciones.",
+          "La app usa por defecto el relay ciego de Encrypchat (https://relay.encrypchat.com) para que los mensajes y las solicitudes lleguen aunque no estén en la misma red. Puedes apagarlo o apuntar a otro. Si usas un relay de un tercero, aplican además sus condiciones.",
           "Lo que ese relay puede ver:",
           [
             "El token de destino al que va dirigido el sobre.",
@@ -263,7 +270,7 @@ const es: Dictionary = {
             "Cámara (Android CAMERA, iOS NSCameraUsageDescription): escanear el QR de un contacto y capturar tu vídeo en una videollamada. En los dos casos los fotogramas se procesan en el dispositivo y no se suben a ningún servidor de Encrypchat. En Linux y Windows no hay cámara en vivo para el QR: se lee desde una imagen o se pega el export.",
             "Ajustes de audio y Bluetooth (Android MODIFY_AUDIO_SETTINGS, BLUETOOTH_CONNECT): rutear el audio de la llamada al altavoz o a unos auriculares.",
             "Fototeca en iOS (NSPhotoLibraryUsageDescription): el sistema puede pedirte acceso cuando elegís una foto para adjuntar. La app recibe solo la imagen que seleccionaste.",
-            "Internet: conectar con tu contacto y, si lo configuraste, con el relay.",
+            "Internet: conectar con tu contacto y, salvo que lo apagues, con el relay de Encrypchat.",
           ],
           "En Android no pedimos permiso de galería: la app ya no declara READ_MEDIA_IMAGES ni READ_EXTERNAL_STORAGE. Al adjuntar se abre el selector de fotos del sistema, que nos entrega únicamente la foto que elegiste; el resto de tu galería sigue fuera de nuestro alcance. En dispositivos antiguos que no traen ese selector se abre el explorador de ficheros del sistema: cambia la experiencia, no el permiso, porque tampoco pide ninguno y también devuelve solo el fichero elegido. En Linux y Windows el diálogo de ficheros del sistema funciona igual.",
           "Ninguno de estos permisos se usa para recopilar datos en segundo plano ni para perfilar. El micrófono solo se activa durante una llamada. La cámara se activa durante una videollamada y mientras está abierta la pantalla de escanear un contacto; al salir, se apaga.",
@@ -273,9 +280,9 @@ const es: Dictionary = {
         id: "actualizaciones",
         title: "Actualizaciones de la app",
         blocks: [
-          "Cuando hay una versión nueva, Encrypchat te lo dice con un diálogo explícito. La actualización es solo de la aplicación (seguridad, estabilidad y mejoras de funciones): no hay nada oculto, y tus chats, fotos y claves privadas no se suben ni se modifican; siguen en este dispositivo. Si aceptás, la app descarga el paquete del catálogo público, comprueba su SHA-256 e invoca el instalador del sistema (en Fedora puede pedir tu contraseña; en Android, el instalador de paquetes). Nunca reemplaza el binario en silencio.",
-          "Para saber si hay versión nueva, la app consulta un fichero público (https://encrypchat.com/latest.json). Esa petición no lleva tu token, ni tus chats, ni un identificador de dispositivo. Cloudflare y nuestro servidor ven la IP, el user agent y la hora, igual que con cualquier visita a encrypchat.com. La descarga del paquete, si la aceptás, es una segunda petición HTTPS al archivo publicado (hoy, GitHub Releases).",
-          "En Fedora, el RPM nuevo reemplaza los archivos en /usr/lib64/encrypchat y deja tus chats en tu directorio de usuario. En Android, el APK encima conserva los datos si la firma es la misma. En el tarball Linux, se descarga el archivo y hay que correr install.sh. Desinstalar o cambiar la clave de firma en Android sí borra la base local.",
+          "Cuando hay una versión nueva, Encrypchat te lo dice con un diálogo explícito. La actualización es solo de la aplicación (seguridad, estabilidad y mejoras de funciones): no hay nada oculto, y tus chats, fotos y claves privadas no se suben ni se modifican; siguen en este dispositivo. Si aceptas y el catálogo trae un paquete para tu sistema, la app lo descarga, comprueba el SHA-256 e invoca el instalador del sistema (en Fedora puede pedir tu contraseña; en Android, el instalador de paquetes). En Windows, el catálogo de esta tanda nombra el setup.exe; el cliente publicado todavía busca windows-zip, así que el aviso puede abrir la página de descargas en vez del instalador. Nunca reemplaza el binario en silencio.",
+          "Para saber si hay versión nueva, la app consulta un fichero público (https://encrypchat.com/latest.json). Esa petición no lleva tu token, ni tus chats, ni un identificador de dispositivo. Cloudflare y nuestro servidor ven la IP, el user agent y la hora, igual que con cualquier visita a encrypchat.com. La descarga del paquete, si la aceptas, es una segunda petición HTTPS al archivo publicado (hoy, GitHub Releases).",
+          "En Fedora, el RPM nuevo reemplaza los archivos en /usr/lib64/encrypchat y deja tus chats en tu directorio de usuario. En Android, el APK encima conserva los datos si la firma es la misma. En el tarball Linux, se descarga el archivo y hay que correr install.sh. En Windows, el setup.exe instala por usuario en %LOCALAPPDATA%\\Programs\\Encrypchat; no está firmado, así que SmartScreen avisa. Desinstalar deja chats y media en los datos de la app, y la identidad en el Administrador de credenciales. Desinstalar en Android, o cambiar la clave de firma, sí borra la base local.",
         ],
         links: [{ path: "/download", label: "Descargar" }],
       },
@@ -303,7 +310,7 @@ const es: Dictionary = {
             "GitHub Releases: hospeda los instaladores que la app descarga si aceptás una actualización.",
             "Google Workspace: presta el buzón de info@elnerd.com. Si nos escribís a esa dirección, tu mensaje y tu remitente se tratan en la infraestructura de Google, con lo que decidas contarnos dentro. Ese correo no va cifrado de extremo a extremo: lo lee Google como cualquier correo, así que no mandes ahí nada que no mandarías por correo normal.",
             "Google STUN: conectividad de llamadas (ve IP y momento de la llamada).",
-            "El operador del relay que elijas, si activás la entrega offline.",
+            "Encrypchat, como operador del relay por defecto (token de destino, tamaño, tiempos e IP; nunca el contenido). Si pones otro relay, ese operador.",
             "Google Play y App Store cuando la app se publique: gestionan la descarga y sus propios datos de cuenta, fuera de nuestro alcance.",
           ],
           "Encrypchat no envía tus datos a ningún otro tercero.",
@@ -319,7 +326,7 @@ const es: Dictionary = {
             "Cruza: la dirección IP, el user agent y la hora de tus visitas al sitio y de la consulta de versión que hace la app, más la descarga del instalador si aceptás una actualización.",
             "Cruza, si elegís escribirnos: el contenido de ese correo y tu dirección de remitente.",
             "Cruza, si hacés una llamada: tu dirección IP y el momento, hacia los servidores STUN públicos de Google.",
-            "Cruza, si configurás un relay: el sobre cifrado, el token de destino, su tamaño, los tiempos y la IP desde la que depositás o consultás, hacia donde esté ese relay, que puede estar en otro país y no ser nuestro. El contenido sigue cifrado: lo que cruza es el sobre y su metadato de red.",
+            "Cruza, salvo que apagues el relay: el sobre cifrado, el token de destino, su tamaño, los tiempos y la IP desde la que depositas o consultas, hacia el relay de Encrypchat o el que hayas puesto. El contenido sigue cifrado: lo que cruza es el sobre y su metadato de red.",
             "No cruza: tus chats en claro, tu media en claro y tus claves privadas. No salen de tu dispositivo, y lo máximo que un relay llega a guardar es ese sobre cifrado, nunca lo que hay dentro.",
           ],
           "Si nos leés desde el Espacio Económico Europeo, el Reino Unido o Suiza, cada uno de esos proveedores publica sus propias garantías para sacar datos de allí: las cláusulas contractuales tipo de su acuerdo de tratamiento, con el addendum del Reino Unido y las adaptaciones suizas cuando corresponden, y en algunos casos una certificación de adecuación. Lo que no vamos a afirmar es que esas garantías estén formalizadas a nuestro nombre: mientras no haya una persona o entidad designada como responsable —lo decimos arriba, en «Quién publica esta política»—, esto es un hueco abierto y no un trámite hecho. Si querés saber qué mecanismo cubre a cada proveedor, pedínoslo y te lo decimos con el enlace a su documento.",
@@ -331,10 +338,10 @@ const es: Dictionary = {
         title: "Retención y borrado",
         blocks: [
           [
-            "En tu dispositivo: los mensajes y la media se conservan hasta que los borres, hasta que uses «borrar identidad» o hasta que desinstales la app. Borrar algo en tu dispositivo no lo borra del dispositivo de tu contacto.",
+            "En tu dispositivo: los mensajes y la media se conservan hasta que los borres o uses «borrar identidad». Desinstalar no es lo mismo en todas las plataformas: en Android e iOS se lleva la base; en Windows y Linux los chats quedan. Borrar algo en tu dispositivo no lo borra del dispositivo de tu contacto.",
             "En el relay: el sobre cifrado se borra tras la entrega o al expirar su TTL, lo que ocurra primero.",
-            "Al desinstalar: desaparecen la base de datos local, los ficheros de media y el resto del directorio privado de la app. No hay copia en la nube ni recuperación de cuenta, así que tus conversaciones se pierden de forma irreversible. Si querés conservar tus contactos, exportalos desde la app antes de desinstalar.",
-            "La clave privada, en cambio, solo se va con la app en Android, donde se guarda dentro del directorio de datos de la app. En iOS, Linux y Windows queda en el llavero del sistema (Keychain, libsecret y el Administrador de credenciales), que por diseño sobrevive a desinstalar una aplicación. Esa clave sola no abre ninguna conversación —los mensajes y la media ya no están en el dispositivo—: es un residuo de identidad, no un archivo de tus chats. Para eliminarla del todo sin tocar el llavero a mano, usá «borrar identidad» dentro de la app antes de desinstalar.",
+            "Al desinstalar: en Android desaparecen base, media y clave (viven en el directorio de la app). En Windows y Linux desinstalar quita el programa y deja chats y media en los datos de la app, y la identidad en el Administrador de credenciales o libsecret. En iOS se lleva base y media y deja la clave en el Keychain. No hay copia en la nube. «Borrar identidad» es lo que quita clave, base y adjuntos.",
+            "La clave privada solo se va con la app en Android. En iOS, Linux y Windows queda en el llavero del sistema. En iOS esa clave sola no abre conversaciones porque desinstalar ya se llevó los mensajes. En Windows y Linux los chats siguen en el dispositivo: la clave que queda sí puede abrirlos. Para irte del todo, usa «borrar identidad» dentro de la app antes de desinstalar.",
             "Con «borrar identidad», dentro de la app: quita primero la clave del llavero del sistema y después la base de datos y los adjuntos. Si se interrumpe, se reanuda en el siguiente arranque antes de abrir nada. Si el sistema se niega a eliminar algún fichero —pasa en Windows cuando otro proceso lo tiene abierto—, la app te dice cuántos quedaron en vez de darlo por completo. Lo que no puede hacer es sobreescribir los bytes: quedan como cifrado sin clave, no como hueco en blanco, y un backup del sistema anterior al borrado puede seguir teniendo la clave.",
             "Ese borrado también se lleva los informes de abuso que la app archivó en su propia carpeta, que son texto en claro con tu token y el del reportado. Lo que no alcanza es lo que sacaste vos a otra ruta: un informe guardado con el diálogo del sistema o un contacto exportado están donde los pusiste, fuera de lo que la app puede ver, y se borran como cualquier otro fichero tuyo.",
             "En este sitio web: no hay registro de accesos que conservar, porque nuestro servidor no lo guarda. Lo que Cloudflare retenga por su cuenta se rige por su política, no por esta.",
@@ -348,7 +355,7 @@ const es: Dictionary = {
         blocks: [
           "Como no operamos un servidor de contenido, no tenemos una copia de tus mensajes que podamos entregarte, rectificar o borrar: esos derechos se ejercen directamente en tu dispositivo, donde tenés control total sobre los datos.",
           "Las solicitudes de acceso, rectificación, supresión, oposición o portabilidad (RGPD y equivalentes) se atienden en privacy@encrypchat.com. En la práctica, la respuesta será casi siempre que el dato no está en nuestro poder.",
-          "Ejercer el borrado significa usar «borrar identidad» dentro de la app: quita la clave del llavero del sistema y después la base de datos y los adjuntos de este dispositivo. Desinstalar también se lleva chats y media, pero en iOS, Linux y Windows deja la clave privada en el llavero hasta que borres esa entrada a mano — está detallado en «Retención y borrado».",
+          "Ejercer el borrado significa usar «borrar identidad» dentro de la app: quita la clave del llavero del sistema y después la base de datos y los adjuntos de este dispositivo. Desinstalar en Android se lleva chats y media; en Windows y Linux no. En iOS, Linux y Windows la clave puede quedar en el llavero si no usaste «borrar identidad» — está detallado en «Retención y borrado».",
           "Un matiz, para no prometer de menos ni de más. Hay una cosa que sí está en nuestro poder: si nos escribiste, ese correo. Sobre él podés pedir acceso o supresión y la respuesta será concreta, no «no lo tenemos». La base jurídica de ese tratamiento mínimo es nuestro interés legítimo en contestarte: no hay publicidad, ni perfilado, ni cesión a terceros con fines propios. Y si creés que lo hacemos mal, podés reclamar ante la autoridad de protección de datos que te corresponda: en el Espacio Económico Europeo, la de tu residencia o tu lugar de trabajo; en el Reino Unido, la ICO.",
         ],
       },
@@ -419,8 +426,8 @@ const es: Dictionary = {
     metaDescription:
       "Términos de uso de Encrypchat: software cliente P2P en desarrollo, entregado tal cual, sin cuentas ni recuperación de claves y sin servicio de mensajería alojado.",
     h1: "Términos de uso",
-    updated: "Última actualización: 12 de agosto de 2026 · versión 1.0 (previa a revisión legal)",
-    updatedIso: "2026-08-12",
+    updated: "Última actualización: 15 de agosto de 2026 · versión 1.0 (previa a revisión legal)",
+    updatedIso: "2026-08-15",
     summary:
       "Encrypchat es software cliente en desarrollo, entregado tal cual. No operamos un servicio de mensajería en la nube: no podemos leer, moderar, recuperar ni restaurar tus conversaciones.",
     disclaimer:
@@ -438,7 +445,7 @@ const es: Dictionary = {
         title: "Qué es y qué no es el servicio",
         blocks: [
           "Encrypchat es software cliente para mensajería cifrada de igual a igual. Cada instalación funciona como cliente y como nodo local: son tus dispositivos los que se conectan entre sí.",
-          "No vendemos ni operamos un servicio de mensajería alojado. La única infraestructura opcional es un relay ciego para entrega offline, que podés configurar o no, y los servidores STUN públicos que ayudan a establecer una llamada.",
+          "No vendemos ni operamos un servicio de mensajería alojado: no guardamos chats legibles. Operamos un relay ciego por defecto (relay.encrypchat.com) que solo guarda sobres cifrados hasta la entrega. Puedes apagarlo o usar el tuyo. Los servidores STUN públicos ayudan a establecer una llamada.",
         ],
       },
       {
@@ -459,7 +466,7 @@ const es: Dictionary = {
         title: "Tus claves son tu responsabilidad",
         blocks: [
           "Tu identidad es un par de claves que solo existe en tu dispositivo. No hay recuperación de cuenta, restablecimiento de contraseña ni copia de respaldo del lado del servidor.",
-          "Perder el dispositivo, borrar los datos de la app, usar «borrar identidad» o desinstalarla elimina de forma irreversible tu historial de conversaciones, y no hay manera de recuperarlo. «Borrar identidad» quita además la clave privada del llavero del sistema; si solo desinstalás, en iOS, Linux y Windows la clave queda ahí hasta que borres esa entrada a mano. Protegé el dispositivo con el bloqueo del sistema operativo y decidí conscientemente qué backups hacés.",
+          "Perder el dispositivo, borrar los datos de la app o usar «borrar identidad» elimina de forma irreversible tu historial, y no hay manera de recuperarlo. Desinstalar no es lo mismo: en Android sí se lleva el historial; en Windows y Linux lo deja. «Borrar identidad» quita además la clave privada del llavero; si solo desinstalas, en iOS, Linux y Windows la clave queda ahí hasta que borres esa entrada a mano. Protege el dispositivo con el bloqueo del sistema operativo y decide conscientemente qué backups haces.",
         ],
       },
       {
@@ -542,8 +549,8 @@ const es: Dictionary = {
     metaDescription:
       "De qué protege Encrypchat y de qué no: adversarios, metadatos, la lista de limitaciones abiertas y cómo reportar una vulnerabilidad.",
     h1: "Seguridad y modelo de amenazas",
-    updated: "Última revisión: 13 de agosto de 2026 · estado del producto: pre-beta (fase 10)",
-    updatedIso: "2026-08-13",
+    updated: "Última revisión: 15 de agosto de 2026 · estado del producto: pre-beta (fase 10)",
+    updatedIso: "2026-08-15",
     summary:
       "Encrypchat cifra el contenido en el dispositivo de origen y no tiene ningún servidor que lo guarde. Esta página dice de qué protege eso, de qué no, y quién aprende qué. Un producto de privacidad que no publica sus límites está mintiendo por omisión, así que la parte importante es la lista de limitaciones conocidas, y está entera más abajo.",
     disclaimer:
@@ -557,7 +564,7 @@ const es: Dictionary = {
             "Cada dispositivo es a la vez cliente y nodo. No hay servidor que guarde chats, media ni claves.",
             "La identidad es un par de claves X25519 generado en el dispositivo. El token («ec_» más 64 caracteres hexadecimales) es el hash SHA-256 de la clave pública. No hay registro, ni teléfono, ni correo, ni cuenta.",
             "Los mensajes se cifran en origen con la clave pública del destinatario (X25519 efímero más ChaCha20-Poly1305) y viajan por TCP directo entre los dos dispositivos.",
-            "Si el otro está desconectado, el mensaje ya cifrado puede quedar en un relay ciego: un buzón que guarda un blob opaco con tiempo de vida y lo borra cuando lo ha entregado, tras una segunda entrega de cortesía o al vencer ese plazo.",
+            "Si no hay ruta P2P, el mensaje ya cifrado puede quedar en el relay ciego por defecto de Encrypchat: un buzón que guarda un blob opaco con tiempo de vida y lo borra cuando lo ha entregado, tras una segunda entrega de cortesía o al vencer ese plazo. Puedes apagar el relay.",
             "Las llamadas son WebRTC directo con DTLS-SRTP.",
           ],
         ],
@@ -594,7 +601,7 @@ const es: Dictionary = {
         id: "relay-operador",
         title: "El operador del relay",
         blocks: [
-          "El relay es opcional y solo interviene cuando el destinatario está desconectado. Guarda el token del destinatario, un blob cifrado y una fecha de caducidad.",
+          "La app usa el relay de Encrypchat por defecto; puedes apagarlo. Interviene cuando no hay ruta P2P: el otro dispositivo está desconectado, o no están en una red que pueda conectar en directo. Guarda el token del destinatario, un blob cifrado y una fecha de caducidad.",
           "No puede leer el contenido: no tiene ninguna clave que lo permita y el diseño no contempla dársela. Tampoco puede recuperar tu identidad desde el token, que es un hash.",
           "Sí puede saber que alguien depositó un mensaje para «ec_abc…», de qué tamaño y a qué hora; ver la dirección IP de quien deposita y la de quien recoge, y por tanto correlacionar «esta IP escribe a este token» con «esta IP es dueña de este token»; retener blobs más de lo que promete o registrar esa correlación, sin que puedas verificarlo desde fuera; y negarse a entregar.",
           "No confíes en el relay para el anonimato. El relay ciego protege el contenido, no la relación. Si tu adversario incluye a quien opera la infraestructura, usá solo conexión directa, o poné Tor o una VPN por debajo.",
@@ -608,7 +615,7 @@ const es: Dictionary = {
           "Bloqueado, con contraseña o biometría: la defensa principal es el cifrado del sistema operativo, no la nuestra.",
           "Desbloqueado: Encrypchat no te protege. Quien tenga la sesión abierta lee todo lo que vos leés. No hay PIN de aplicación, ni bloqueo por inactividad, ni chats ocultos.",
           "Apagado, o con el disco sin cifrar: el fichero de base de datos está cifrado con SQLCipher bajo una clave derivada de la del almacén seguro, así que un portátil robado, un móvil apagado o un backup recuperado no revelan con quién hablás, tus contactos, las fechas ni las rutas de tus adjuntos. Lo que sí queda visible es el listado del directorio de media: el contenido de cada fichero está sellado, pero cuántos hay, su tamaño y su fecha son metadatos del sistema de ficheros. Cifrar el disco del dispositivo sigue siendo buena idea.",
-          "Sobre desinstalar: en iOS, Linux y Windows la clave privada sobrevive a desinstalar la app, porque vive en el almacén del sistema y esas plataformas no lo limpian. Solo en Android desaparece con la app. Para irte del todo está el borrado de identidad dentro de la app, que quita la clave del llavero y después la base de datos y los adjuntos; si se interrumpe, se reanuda en el siguiente arranque antes de abrir nada. Lo que ese borrado no puede hacer es sobreescribir los bytes: quedan como cifrado sin clave, no como hueco en blanco, y un backup del sistema anterior al borrado puede seguir teniendo la clave.",
+          "Sobre desinstalar: en iOS, Linux y Windows la clave privada sobrevive, porque vive en el almacén del sistema. En Windows y Linux también quedan chats y media. Solo en Android desaparecen clave, base y media con la app. Para irte del todo está el borrado de identidad dentro de la app, que quita la clave del llavero y después la base de datos y los adjuntos; si se interrumpe, se reanuda en el siguiente arranque antes de abrir nada. Lo que ese borrado no puede hacer es sobreescribir los bytes: quedan como cifrado sin clave, no como hueco en blanco, y un backup del sistema anterior al borrado puede seguir teniendo la clave.",
         ],
       },
       {
@@ -670,9 +677,9 @@ const es: Dictionary = {
             "El STUN público de Google aprende tu dirección IP pública y el momento de iniciar o recibir una llamada. No aprende con quién hablás, qué decís ni tu token.",
             "Tu par aprende tu token, tu clave pública, tu dirección IP durante la conexión y todo lo que le enviás. No aprende tus otras conversaciones.",
             "Quien tenga tu dispositivo desbloqueado aprende todo.",
-            "Encrypchat, es decir nosotros, no aprende nada de la app: no operamos servidores de contenido y no hay telemetría ni analítica. Las excepciones están fuera de la app. Una es este sitio web: lo sirve un servidor que administramos nosotros, alojado en Oracle Cloud, en Estados Unidos, con Cloudflare por delante como CDN y proxy. Cloudflare ve la dirección IP, el agente de usuario y la hora de cada visita. En esa máquina solo están las páginas públicas: ni chats, ni media, ni claves. La otra es el correo que elijas escribirnos, que no va cifrado de extremo a extremo.",
+            "Encrypchat, es decir nosotros, no leemos el contenido de tus chats: no hay telemetría ni analítica. Si dejas el relay por defecto, sí vemos el token de destino, el tamaño, los tiempos y la IP de depósito o consulta; nunca el texto. Fuera de la app, este sitio web lo sirve un servidor nuestro en Oracle Cloud (Estados Unidos) con Cloudflare por delante: Cloudflare ve la IP, el agente de usuario y la hora de cada visita. En esa máquina solo están las páginas públicas. El correo que elijas escribirnos no va cifrado de extremo a extremo.",
           ],
-          "Tres notas honestas sobre esa lista. El relay ve el token del destinatario: es inevitable, porque sin él no sabe a qué buzón dejar el blob, y por eso es opcional y por eso preferimos siempre la conexión directa. El STUN de Google ve tu IP al llamar: es un tercero que no controlamos, y está ahí porque sin él las llamadas no atraviesan la mayoría de los NAT domésticos — si eso no te sirve, no uses llamadas. Y la correlación es el ataque realista: nadie va a romper ChaCha20, van a mirar quién habló con quién y cuándo.",
+          "Tres notas honestas sobre esa lista. El relay ve el token del destinatario: es inevitable, porque sin él no sabe a qué buzón dejar el blob, y por eso puedes apagarlo, y por eso preferimos siempre la conexión directa. El STUN de Google ve tu IP al llamar: es un tercero que no controlamos, y está ahí porque sin él las llamadas no atraviesan la mayoría de los NAT domésticos — si eso no te sirve, no uses llamadas. Y la correlación es el ataque realista: nadie va a romper ChaCha20, van a mirar quién habló con quién y cuándo.",
         ],
         links: [{ path: "/privacy", hash: "terceros", label: "Privacidad: terceros implicados" }],
       },
@@ -753,7 +760,7 @@ const es: Dictionary = {
               "Alguien puede llenarte el buzón del relay, y en silencio. Depositar no exige autenticarse —hace falta para que cualquiera pueda escribirte estando vos desconectado—, así que quien conozca tu token puede ocupar tu cuota y hacer que los mensajes que te manden mientras tanto se pierdan. El relay responde a todos igual, aceptado o descartado, y esa opacidad es deliberada: distinguirlos convertía al relay en un delator de tu presencia, y avisar al remitente honesto es la misma petición que avisar a quien te está inundando. El precio es que ni él ni vos os enteráis. Los mensajes por conexión directa no se ven afectados, y el buzón se libera según caducan los blobs.",
               "El almacenamiento de adjuntos tiene tope y se llena. 512 MiB por contacto y 2 GiB en total: un contacto que insista verá sus envíos rechazados en vez de llenarte el disco, pero el rechazo es silencioso para él y visible para vos como aviso de cuota. Borrar la conversación libera el espacio; no hay purga automática por antigüedad.",
               "El listado del directorio de media es visible, aunque el contenido esté sellado y la base de datos cifrada: cuántos adjuntos tenés, de qué tamaño y de qué fecha.",
-              "La clave privada sobrevive a desinstalar en iOS, Linux y Windows: vive en el almacén del sistema y esas plataformas no lo limpian. Para irte del todo usá el borrado de identidad de la app, que sí quita la clave del llavero; desinstalar por su cuenta no basta.",
+              "La clave privada sobrevive a desinstalar en iOS, Linux y Windows: vive en el almacén del sistema y esas plataformas no lo limpian. En Windows y Linux también quedan chats y media. Para irte del todo usa el borrado de identidad de la app, que sí quita la clave del llavero; desinstalar por su cuenta no basta.",
               "Quien llama se identifica primero. Al abrir una conexión P2P, quien contesta no revela nada hasta haber verificado a la otra parte, pero la otra parte sí tiene que revelarse antes. Es una propiedad del patrón de handshake, no un descuido: no se le puede probar nada a una clave que todavía no conocés. Consecuencia práctica: alguien que genere una identidad desechable y complete el handshake confirma qué token está detrás de esa dirección IP.",
               "El límite de peticiones del relay depende de la configuración del operador. El relay sabe cobrar el límite a la dirección IP real detrás de un proxy inverso, pero solo si el operador le dice de qué proxies fiarse; sin esa lista ignora la cabecera y cobra a la dirección que conecta, que detrás de un proxy es una sola para todos. Hay techo global de disco —1 GiB por defecto, que rechaza en vez de desalojar nada ya aceptado—. Sin defensa contra inundación distribuida: un flood no lee mensajes ajenos, pero deja el relay inútil para los nuevos.",
               "El informe de abuso ya no sale por el portapapeles, pero en móvil no elegís dónde queda. El camino por defecto es guardarlo como fichero de texto, y en Linux y Windows sale el diálogo del sistema, así que la ruta la elegís vos. En iOS y Android no hay diálogo de guardado, de modo que el fichero va a una carpeta de la propia app: en iOS Documents/Informes, visible desde la app Archivos, y en Android la carpeta de la app en el almacenamiento compartido, que puede leer una computadora conectada por cable. Ese es el residual, y no lo escondemos: lo que sí hace el borrado de identidad es llevarse esa carpeta, para que un informe no sobreviva a la identidad que nombra. Copiar al portapapeles sigue existiendo como segunda acción explícita, debajo de una frase que dice qué es el portapapeles: quitarlo dejaba sin salida el caso de pegar el informe en un correo desde el teléfono y empujaba a algo peor, como una captura de pantalla. El informe se genera local y no lo recibe nadie.",
