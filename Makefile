@@ -22,10 +22,10 @@ export RUSTFLAGS := --remap-path-prefix=$(ROOT)=/encrypchat $(RUSTFLAGS)
 export NEXT_TELEMETRY_DISABLED := 1
 
 .PHONY: check check-rust check-web check-client check-security-txt build-ffi \
-	build-client-linux package package-linux package-rpm package-android help
+	build-client-linux package package-linux package-rpm package-android package-windows help
 
 help:
-	@echo "Targets: check | check-rust | check-web | check-client | check-security-txt | build-ffi | build-client-linux | package | package-linux | package-rpm | package-android | dev-web | dev-client"
+	@echo "Targets: check | check-rust | check-web | check-client | check-security-txt | build-ffi | build-client-linux | package | package-linux | package-rpm | package-android | package-windows | dev-web | dev-client"
 	@echo "Toolchain: put cmake/ninja in .tools/bin if system packages are unavailable"
 	@echo "Packaging: make package → dist/ (see dist/README.md, docs/phase-8.md)"
 
@@ -101,6 +101,12 @@ package-rpm:
 
 package-android:
 	$(ROOT)/scripts/package-android.sh
+
+# Flutter Windows is MSVC: this host cannot compile the .exe. The target wraps
+# a CI (or Windows-desk) bundle in an NSIS per-user installer, or explains how
+# to get that bundle. See scripts/package-windows.sh.
+package-windows:
+	$(ROOT)/scripts/package-windows.sh
 
 package:
 	$(ROOT)/scripts/package-all.sh

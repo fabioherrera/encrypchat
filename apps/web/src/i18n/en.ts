@@ -42,6 +42,8 @@ const en: Dictionary = {
     apk: "APK arm64",
     rpm: "Fedora RPM",
     tarball: "portable tar.gz",
+    setup: "Installer",
+    zip: "portable zip",
   },
   home: {
     heroAria: "Hero",
@@ -59,7 +61,7 @@ const en: Dictionary = {
       "when sealed ciphertext waits offline, and offline when the device cannot reach the network.",
     platformsTitle: "Platforms",
     platformsNote:
-      "We are in testing. Android and Linux have a test build. iOS and Windows have no package here yet.",
+      "We are in testing. Android, Linux, and Windows have a test build. iOS has no package here yet.",
     testingBadge: "Testing",
     softwareDescription:
       "Peer-to-peer encrypted messenger. Messages stay on your devices; optional blind relays hold ciphertext only.",
@@ -92,25 +94,25 @@ const en: Dictionary = {
   download: {
     metaTitle: "Download — testing",
     metaDescription:
-      "Encrypchat is in testing. Unsigned Android APK and Linux RPM or tar.gz. iOS and Windows not yet.",
+      "Encrypchat is in testing. Unsigned Android APK, Linux RPM or tar.gz, and Windows installer. iOS not yet.",
     h1: "Download",
     testingBadge: "Testing",
     testingLead:
       "We are in testing. These installers are for trying the app on real devices. They are not a store build and not a public launch.",
     intro:
-      "Android and Linux have a package. iOS needs a Mac; Windows is built on a Windows machine.",
+      "Android, Linux, and Windows have a test package. iOS needs a Mac.",
     privateNote:
       "The code and these installers are on GitHub. They are still test builds: there is no store listing and no public launch.",
     unsignedNote:
-      "Nothing is signed. Fedora will say so on install. The APK uses the debug key: it is for sideload, not Play Store, and changing that key later forces an uninstall — which on Android does wipe the local database.",
+      "Nothing is signed. Fedora will say so on install. The APK uses the debug key: it is for sideload, not Play Store, and changing that key later forces an uninstall — which on Android does wipe the local database. On Windows, SmartScreen warns; the way past it is More info, then Run anyway.",
     androidSideload:
       "On Android the system blocks the APK because it is not on the Play Store. That is expected. Download it, open it from Files or Downloads, and when it warns «for your security» or Play Protect: Settings → Apps → Special app access → Install unknown apps → Chrome or Files → Allow. Then «Install anyway». arm64 phones only (almost every phone from the last few years).",
     upgradeNote:
-      "If Encrypchat is already installed, the app tells you when a newer version is out. The notice is explicit: it updates only the program (security, stability, and features), nothing is hidden, and your chats, photos, and keys stay on the device. If you accept, it downloads the package, checks its SHA-256, and hands it to the system installer (a password on Fedora, the installer on Android). The binary is never replaced in silence.",
+      "If Encrypchat is already installed, the app tells you when a newer version is out. The notice is explicit: it updates only the program (security, stability, and features), nothing is hidden, and your chats, photos, and keys stay on the device. If you accept, it downloads the package, checks its SHA-256, and hands it to the system installer (a password on Fedora, the installer on Android, setup.exe on Windows). The binary is never replaced in silence.",
     checksums: "Check SHA-256",
     releasePage: "Notes for this batch",
     sourceNote:
-      "Windows: on the machine, scripts\\package-windows.ps1. iOS: needs a macOS host (scripts/package-ios.sh). The code is in the same repository.",
+      "The Windows installer is per-user (no admin) and unsigned. Uninstalling leaves chats and the identity; use delete identity inside the app to remove those. iOS: needs a macOS host (scripts/package-ios.sh). The code is in the same repository.",
   },
   faq: {
     metaTitle: "FAQ",
@@ -132,7 +134,7 @@ const en: Dictionary = {
       },
       {
         q: "Which platforms are supported?",
-        a: "Android, iOS, Linux (Fedora), and Windows are first-class targets. There is an Android APK and a Linux RPM or tar.gz as test builds on GitHub Releases. iOS and Windows have no package on that list yet. Store links come when publishing starts.",
+        a: "Android, iOS, Linux (Fedora), and Windows are first-class targets. There is an Android APK, a Linux RPM or tar.gz, and a Windows installer as test builds on GitHub Releases. The Windows installer is unsigned: SmartScreen warns; the way past it is More info, then Run anyway. iOS has no package on that list yet. Store links come when publishing starts.",
       },
       {
         q: "How do I add a contact?",
@@ -160,7 +162,7 @@ const en: Dictionary = {
       },
       {
         q: "How do I delete my identity and my data?",
-        a: "From inside the app, with \u201cdelete identity\u201d: it removes the key from the system keyring first and then the database and the attachments, so there is nothing left to clean up by hand. If it is interrupted, it resumes on the next launch before anything else opens. What that deletion cannot do is overwrite the bytes: they remain as ciphertext without a key, not as blank space, and a system backup taken before the deletion may still hold the key. Simply uninstalling also takes the database and the media files, but on iOS, Linux, and Windows it leaves the private key in the system keyring until you delete that entry by hand.",
+        a: "From inside the app, with \u201cdelete identity\u201d: it removes the key from the system keyring first and then the database and the attachments, so there is nothing left to clean up by hand. If it is interrupted, it resumes on the next launch before anything else opens. What that deletion cannot do is overwrite the bytes: they remain as ciphertext without a key, not as blank space, and a system backup taken before the deletion may still hold the key. Uninstalling is not delete identity. On Android it does take the database and media. On Windows, setup.exe removes the program and leaves chats, media, and the identity in Credential Manager. On Linux (RPM) the database stays in your home directory and the key in libsecret. On iOS, uninstalling takes the database and leaves the key in the Keychain.",
       },
       {
         q: "Do you use analytics or advertising?",
@@ -168,7 +170,7 @@ const en: Dictionary = {
       },
       {
         q: "Does the app update itself if I already installed it?",
-        a: "It tells you; it does not do it in silence. The dialog says the update is the application only — security, stability, and features — that nothing is hidden, and that your chats, photos, and keys stay on this device. If you accept, it downloads the package, checks its SHA-256, and hands it to the system installer. The version check reads encrypchat.com/latest.json and does not carry your token or your chats.",
+        a: "It tells you; it does not do it in silence. The dialog says the update is the application only — security, stability, and features — that nothing is hidden, and that your chats, photos, and keys stay on this device. If you accept, it downloads the package, checks its SHA-256, and hands it to the system installer. On Windows that opens the unsigned setup.exe: SmartScreen warns again. The version check reads encrypchat.com/latest.json and does not carry your token or your chats.",
       },
     ],
   },
@@ -180,8 +182,8 @@ const en: Dictionary = {
     metaDescription:
       "What data exists in Encrypchat and where it lives: chats on your device, in an encrypted database. Optional blind relay, P2P calls, no accounts, no analytics.",
     h1: "Privacy policy",
-    updated: "Last updated: 13 August 2026 · version 1.0 (pending counsel review)",
-    updatedIso: "2026-08-13",
+    updated: "Last updated: 15 August 2026 · version 1.0 (pending counsel review)",
+    updatedIso: "2026-08-15",
     summary:
       "Encrypchat has no accounts, keeps no copy of your conversations in the cloud, and runs no analytics or advertising. Your private key, your chats, and your media live on your device. The only thing a server can touch is ciphertext we cannot read: the sealed envelope an optional blind relay holds until delivery, and the public STUN servers that help set up a call and see IP addresses.",
     disclaimer:
@@ -273,9 +275,9 @@ const en: Dictionary = {
         id: "actualizaciones",
         title: "App updates",
         blocks: [
-          "When a newer version exists, Encrypchat tells you with an explicit dialog. The update is the application only (security, stability, and feature improvements): nothing is hidden, and your chats, photos, and private keys are not uploaded or modified; they stay on this device. If you accept, the app downloads the package from the public catalog, checks its SHA-256, and hands it to the system installer (on Fedora it may ask for your password; on Android, the package installer). It never replaces the binary in silence.",
+          "When a newer version exists, Encrypchat tells you with an explicit dialog. The update is the application only (security, stability, and feature improvements): nothing is hidden, and your chats, photos, and private keys are not uploaded or modified; they stay on this device. If you accept, the app downloads the package from the public catalog, checks its SHA-256, and hands it to the system installer (on Fedora it may ask for your password; on Android, the package installer; on Windows, setup.exe). It never replaces the binary in silence.",
           "To learn whether a newer version exists, the app fetches a public file (https://encrypchat.com/latest.json). That request does not carry your token, your chats, or a device identifier. Cloudflare and our own server see the IP, user agent, and time, as with any visit to encrypchat.com. Downloading the package, if you accept, is a second HTTPS request to the published file (today, GitHub Releases).",
-          "On Fedora, the new RPM replaces the files in /usr/lib64/encrypchat and leaves your chats in your home directory. On Android, installing the APK over the current one keeps the data if the signing key is the same. For the Linux tarball, the file is downloaded and you still run install.sh. Uninstalling, or changing the Android signing key, does wipe the local database.",
+          "On Fedora, the new RPM replaces the files in /usr/lib64/encrypchat and leaves your chats in your home directory. On Android, installing the APK over the current one keeps the data if the signing key is the same. For the Linux tarball, the file is downloaded and you still run install.sh. On Windows, setup.exe installs per-user under %LOCALAPPDATA%\\Programs\\Encrypchat; it is unsigned, so SmartScreen warns. Uninstalling leaves chats and media in the app data, and the identity in Credential Manager. Uninstalling on Android, or changing the signing key, does wipe the local database.",
         ],
         links: [{ path: "/download", label: "Download" }],
       },
@@ -333,8 +335,8 @@ const en: Dictionary = {
           [
             "On your device: messages and media stay until you delete them, until you use \u201cdelete identity\u201d, or until you uninstall the app. Deleting something on your device does not delete it from your contact's device.",
             "On the relay: the encrypted envelope is deleted after delivery or when its TTL expires, whichever comes first.",
-            "On uninstall: the local database, the media files, and the rest of the app's private directory are gone. There is no cloud copy and no account recovery, so your conversations are lost irreversibly. Export your contacts from the app first if you want to keep them.",
-            "The private key, however, only leaves with the app on Android, where it is stored inside the app's data directory. On iOS, Linux, and Windows it stays in the system keyring (Keychain, libsecret, and Credential Manager), which by design survives uninstalling an application. That key on its own opens no conversation — the messages and media are no longer on the device: it is a leftover identity, not an archive of your chats. To remove it completely without touching the keyring by hand, use \u201cdelete identity\u201d inside the app before uninstalling.",
+            "On uninstall: on Android the database, media, and key go with the app. On Windows and Linux, uninstalling removes the program and leaves chats and media in the app data, and the identity in Credential Manager or libsecret. On iOS it takes the database and media and leaves the key in the Keychain. There is no cloud copy. Delete identity is what removes the key, the database, and the attachments.",
+            "The private key only leaves with the app on Android. On iOS, Linux, and Windows it stays in the system keyring. On iOS that leftover key opens no conversation, because uninstalling already took the messages. On Windows and Linux the chats are still on the device: the leftover key can open them. To leave completely, use delete identity inside the app before uninstalling.",
             "With \u201cdelete identity\u201d, inside the app: it removes the key from the system keyring first and then the database and the attachments. If it is interrupted, it resumes on the next launch before anything else opens. If the system refuses to remove a file \u2014 which happens on Windows when another process holds it open \u2014 the app tells you how many were left instead of calling it done. What it cannot do is overwrite the bytes: they remain as ciphertext without a key, not as blank space, and a system backup taken before the deletion may still hold the key.",
             "That deletion also takes the abuse reports the app filed in its own folder, which are plaintext carrying your token next to the reported one. What it does not reach is what you took elsewhere: a report saved through the system dialog, or an exported contact, sit where you put them, outside anything the app can see, and you delete them like any other file of yours.",
             "On this website: there is no access log to keep, because our server does not store one. Whatever Cloudflare retains on its own side is governed by its policy, not by this one.",
@@ -348,7 +350,7 @@ const en: Dictionary = {
         blocks: [
           "Because we run no content server, we hold no copy of your messages to hand over, correct, or erase: you exercise those rights directly on your device, where you have full control over the data.",
           "Access, rectification, erasure, objection, and portability requests (GDPR and equivalents) are handled at privacy@encrypchat.com. In practice, the answer will almost always be that we do not hold the data.",
-          "Exercising erasure means using \u201cdelete identity\u201d inside the app: it removes the key from the system keyring and then the database and the attachments from this device. Uninstalling also takes chats and media, but on iOS, Linux, and Windows it leaves the private key in the keyring until you delete that entry by hand \u2014 see \u201cRetention and deletion\u201d for the detail.",
+          "Exercising erasure means using \u201cdelete identity\u201d inside the app: it removes the key from the system keyring and then the database and the attachments from this device. Uninstalling on Android takes chats and media; on Windows and Linux it does not. On iOS, Linux, and Windows the key may stay in the keyring if you did not use delete identity \u2014 see \u201cRetention and deletion\u201d for the detail.",
           "One clarification, so we neither promise too little nor too much. There is one thing we do hold: if you wrote to us, that email. For it you can ask for access or erasure and the answer will be concrete, not \u201cwe do not have it\u201d. The legal basis for that minimal processing is our legitimate interest in replying to you: there is no advertising, no profiling, and no sharing with third parties for their own purposes. And if you think we are getting it wrong, you can lodge a complaint with the data protection authority that covers you: in the European Economic Area, the one where you live or work; in the United Kingdom, the ICO.",
         ],
       },
@@ -457,7 +459,7 @@ const en: Dictionary = {
         title: "Your keys are your responsibility",
         blocks: [
           "Your identity is a key pair that exists only on your device. There is no account recovery, no password reset, and no server-side backup.",
-          "Losing the device, clearing the app data, using \u201cdelete identity\u201d, or uninstalling irreversibly destroys your conversation history, and there is no way to get it back. \u201cDelete identity\u201d also removes the private key from the system keyring; if you only uninstall, on iOS, Linux, and Windows that key stays there until you delete the entry by hand. Protect the device with the operating system lock and make a conscious decision about which backups you keep.",
+          "Losing the device, clearing the app data, or using \u201cdelete identity\u201d irreversibly destroys your conversation history, and there is no way to get it back. Uninstalling is not the same: on Android it does take the history; on Windows and Linux it leaves it. \u201cDelete identity\u201d also removes the private key from the system keyring; if you only uninstall, on iOS, Linux, and Windows that key stays there until you delete the entry by hand. Protect the device with the operating system lock and make a conscious decision about which backups you keep.",
         ],
       },
       {

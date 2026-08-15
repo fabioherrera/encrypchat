@@ -1,6 +1,6 @@
 # Fase 8 — Paridad multiplataforma y empaquetado
 
-**Estado:** **In progress / packaging-first** (Linux, Fedora y Android listos; Windows se compila en Windows o en CI)  
+**Estado:** **In progress / packaging-first** (Linux, Fedora y Android listos; Windows se compila en CI o en un host Windows y este Linux envuelve el bundle en un instalador NSIS)  
 **Estrategia:** instaladores en `dist/` para probar F4–F7 en dispositivos reales. iOS sigue como gap documentado, con la ruta exacta de build para cuando haya host macOS.
 
 ## Objetivo de este corte
@@ -10,7 +10,7 @@
 | Linux x64 portable `.tar.gz` + `install.sh` | **Sí** → `make package-linux` |
 | Fedora `.rpm` | **Sí** → `make package-rpm` (sin firmar, sin repo detrás) |
 | Android arm64 release APK | **Sí** → `make package-android` (debug-signed sideload) |
-| Windows x64 `.zip` | **Sí, en Windows** → `scripts\package-windows.ps1`, o `gh workflow run windows.yml`; no se puede cross-compilar desde Linux |
+| Windows x64 `.zip` + `setup.exe` | **Sí, en dos pasos** → el `.exe` de Flutter se compila en Windows (`scripts\package-windows.ps1`) o en CI (`.github/workflows/windows.yml`); este host Linux lo envuelve con NSIS (`make package-windows`). No se cross-compila el runner MSVC |
 | iOS IPA / TestFlight | **Gap** — sin macOS/firma; pasos exactos en `scripts/package-ios.sh` |
 | Landing download | Enlaces a GitHub Releases; la página dice que estamos en pruebas |
 
@@ -97,6 +97,10 @@ Medido en el mismo host, versión 1.0.0 (con WebRTC F7 dentro):
 | `encrypchat-android-arm64-1.0.0.apk` | ~90 MiB (94,4 MB) | 15,2 MiB (15 977 647 B) | **16,6 MiB (17 404 076 B)** |
 | `encrypchat-linux-x64-1.0.0.tar.gz` | ~21 MiB (~22,0 MB) | 19,6 MiB (20 560 525 B) | **20,7 MiB (21 750 908 B)** |
 | `encrypchat-1.0.0-1.fc44.x86_64.rpm` | — | — | **17,3 MiB (18 179 544 B)** |
+
+Windows 1.0.6 (CI `windows-latest` + NSIS en este host): zip **23,1 MiB (24 180 227 B)**,
+`setup.exe` **18,2 MiB (19 083 111 B)**. El instalador pesa menos porque LZMA comprime
+el mismo bundle mejor que el zip de 7z.
 
 Descomprimido en disco: APK 34,8 MB de libs extraídas; bundle Linux 47 MiB (antes 55 MiB);
 RPM 51,7 MiB instalados.
@@ -187,7 +191,8 @@ Ninguno se puede buildar en este host Linux. Lo que sí quedó verificado/prepar
 - `windows/flutter/generated_plugin_registrant.cc` registra `flutter_webrtc`, `flutter_secure_storage_windows` y `file_selector_windows`.
 - `windows/CMakeLists.txt` ahora instala `apps/client/native/encrypchat_core.dll` junto al `.exe`, que es el primer candidato de `lib/core/native_library.dart`. Antes no había regla: el bundle habría salido sin el core.
 - `image_picker` no tiene implementación Windows → adjuntar fotos usa el fallback `file_selector`, igual que Linux.
-- Falta: host Windows + VS 2022 para `flutter build windows --release` y empaquetar el zip/MSIX. El script está escrito y comprueba el toolchain antes de arrancar: `scripts\package-windows.ps1` (`scripts/package-windows.sh` explica los dos caminos desde Linux). Para llevar el código sin push: `git bundle create encrypchat.bundle main`.
+- El runner MSVC sigue sin cross-compilarse. Lo que este host sí hace es el instalador: `packaging/windows/encrypchat.nsi` (NSIS, por usuario, sin admin) a partir del zip de CI o de un escritorio Windows. `make package-windows` / `scripts/package-windows.sh`. Un PR que toque ese empaquetado arranca `windows.yml`.
+- Falta: alguien que lo ejecute en hardware Windows real, y firma Authenticode (hoy SmartScreen avisa). Para llevar el código sin push: `git bundle create encrypchat.bundle main`.
 
 **iOS**
 
@@ -204,15 +209,15 @@ Ninguno se puede buildar en este host Linux. Lo que sí quedó verificado/prepar
 - [x] Linux tarball + Android APK
 - [x] APK adelgazado a un solo ABI útil (arm64-v8a) con verificación automática
 - [x] Docs / how-to-test / roadmap actualizados
-- [x] Landing download: APK, RPM y tar.gz de la tanda de prueba; iOS/Windows sin URL inventada
+- [x] Landing download: APK, RPM, tar.gz e instalador Windows de la tanda de prueba; iOS sin URL inventada
 - [x] `build.gradle.kts` listo para keystore de release opcional
 - [x] Windows: regla de instalación del `.dll` del core
 - [x] Fedora `.rpm`, con comprobación de que no depende de sus propias bibliotecas
 - [x] Ninguna ruta de la máquina de compilación viaja en los binarios (y el empaquetado se
       detiene si aparece una nueva)
-- [x] Windows: los mismos pasos en CI y en un script para la máquina Windows — falta
-      **ejecutarlo** (CI necesita el workflow publicado y cupo de Actions; el script,
-      la máquina) y que alguien lo pruebe en hardware real
+- [x] Windows: zip + instalador NSIS por usuario (`setup.exe`); CI y
+      `scripts\package-windows.ps1` producen el bundle, este host lo envuelve.
+      Falta **probarlo** en hardware Windows real y firmarlo.
 - [ ] iOS binario real (bloqueado por host macOS)
 - [ ] `crates/core` enlazado en iOS (bloqueado por macOS)
 - [ ] Firma release Android ejecutada + stores

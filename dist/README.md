@@ -14,8 +14,8 @@ make package-rpm
 make package-android
 ```
 
-Scripts: `scripts/package-linux.sh`, `scripts/package-rpm.sh`, `scripts/package-android.sh`, `scripts/package-all.sh`.  
-Windows is built on Windows (`scripts\package-windows.ps1`) or in CI (`gh workflow run windows.yml`, then `gh run download`) — the runner bills Actions minutes at 2x on a private repo. iOS still needs a macOS host (`scripts/package-ios.sh`, exit 2).
+Scripts: `scripts/package-linux.sh`, `scripts/package-rpm.sh`, `scripts/package-android.sh`, `scripts/package-windows.sh`, `scripts/package-all.sh`.  
+Windows `.exe` is compiled on Windows (`scripts\package-windows.ps1`) or in CI (`.github/workflows/windows.yml`). This Linux host then wraps that bundle in an NSIS per-user installer: `make package-windows`. iOS still needs a macOS host (`scripts/package-ios.sh`, exit 2).
 
 ## Expected files (after a successful package)
 
@@ -24,7 +24,8 @@ Windows is built on Windows (`scripts\package-windows.ps1`) or in CI (`gh workfl
 | `encrypchat-linux-x64-<version>.tar.gz` | Linux x64 | ~22 MB | Portable Flutter bundle + `install.sh`; libs stripped |
 | `encrypchat-<version>-1.fc*.x86_64.rpm` | Fedora x64 | ~19 MB | Same bundle under `/usr/lib64/encrypchat`; unsigned |
 | `encrypchat-android-arm64-<version>.apk` | Android arm64 | ~22 MB | Release APK, arm64-v8a only; **debug-signed** unless `android/key.properties` exists — not for Play Store |
-| `encrypchat-windows-x64-<version>.zip` | Windows x64 | ~25 MB | Built on a Windows host, or by CI on `windows-latest` (artifact kept 30 days) |
+| `encrypchat-windows-x64-<version>.zip` | Windows x64 | 23.1 MiB (24 180 227 B) | Portable Flutter bundle; built on a Windows host or by CI (`windows-latest`, 30 days) |
+| `encrypchat-windows-x64-<version>-setup.exe` | Windows x64 | 18.2 MiB (19 083 111 B) | NSIS per-user installer of that bundle (`make package-windows` on Linux; CI writes the same file with NSIS 3.12, ~19.0 MB) |
 
 `<version>` comes from `apps/client/pubspec.yaml` (e.g. `1.0.0`).
 
@@ -65,18 +66,31 @@ encrypted database, and only the in-app identity delete removes it.
 adb install -r encrypchat-android-arm64-<version>.apk
 ```
 
-**Windows** — on the Windows machine, from the repo root:
+**Windows** — two artifacts, same unsigned binary. The zip runs in place. The
+`setup.exe` is per-user (no admin): Start Menu + `%LOCALAPPDATA%\Programs\Encrypchat`.
+Uninstall leaves chats and the Credential Manager identity; use «borrar identidad»
+inside the app to remove those.
+
+On a Windows machine, from the repo root (writes both the zip and, if NSIS is
+installed, the installer):
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\package-windows.ps1
 ```
 
-Or from CI, when there are Actions minutes:
+From this Linux host, once a bundle exists (CI artifact or a copied zip):
 
 ```bash
-gh workflow run windows.yml
-gh run download --name encrypchat-windows-x64-<version>
+make package-windows
+# → dist/encrypchat-windows-x64-<version>-setup.exe
 ```
+
+`scripts/package-windows.sh` reuses `dist/*.zip`, or downloads a successful
+`windows.yml` run **on main** (never the last PR build: same version number,
+different bits). Pin a specific run with `ENCRYPCHAT_WINDOWS_RUN=<id>`. A PR
+that touches the Windows packaging starts that workflow and uploads a
+`-prN` artifact; `gh workflow run windows.yml` also starts it, from a token
+with `actions:write`.
 
 Unsigned, so SmartScreen blocks the first run: "More info" → "Run anyway".
 
@@ -98,9 +112,9 @@ one, bump `TEST_RELEASE_TAG` in `apps/web/src/lib/site.ts`.
 
 - **iOS** — needs macOS + Xcode + signing, and `crates/core` linked into Runner
   (`-force_load libencrypchat_core.a`). Exact steps: `scripts/package-ios.sh`.
-- **Windows** — no longer a gap in *producing* a binary (a script on a Windows
-  host, or CI), but nothing here is signed and nobody has run it on real
-  hardware yet.
+- **Windows** — test `setup.exe` and zip are on the same GitHub Release as
+  Android/Linux (`pruebas-2026-08-14-barra`) and linked from
+  https://encrypchat.com/es/download. Unsigned; not yet run on real hardware.
 - **Android release signing** — debug keystore today; drop
   `apps/client/android/key.properties` to sign for real (see docs/phase-8.md).
   Changing the signing key forces an uninstall, which wipes the local encrypted

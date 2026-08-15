@@ -11,7 +11,7 @@ Tras `make package` (ver [phase-8.md](phase-8.md) y [`dist/README.md`](../dist/R
 | Fedora RPM | `dist/encrypchat-<version>-1.fc*.x86_64.rpm` | ~18 MB |
 | Linux portable | `dist/encrypchat-linux-x64-<version>.tar.gz` | ~21 MB |
 | Android APK (arm64) | `dist/encrypchat-android-arm64-<version>.apk` | ~17 MB |
-| Windows zip | Se compila en la máquina Windows (`scripts\package-windows.ps1`) o en CI | ~25 MB |
+| Windows zip + setup.exe | Bundle en CI o en una máquina Windows; este host envuelve el zip en NSIS (`make package-windows`) | ~25 MB |
 
 ### Instalar en Fedora
 
@@ -42,11 +42,24 @@ Instala en `~/.local/share/encrypchat`, symlink `~/.local/bin/encrypchat`, deskt
 
 ### Instalar Windows
 
-No hay build de Windows en `dist/`: este host es Fedora y el runner de Flutter
-para Windows es un proyecto MSVC, que no se cross-compila. Hay dos caminos, y
-los dos corren los mismos pasos.
+El runner de Flutter para Windows es un proyecto MSVC: este host no produce
+`encrypchat.exe`. Sí produce el **instalador** (`setup.exe`) a partir de un
+bundle que ya exista — CI o un escritorio Windows.
 
-**En la propia máquina Windows** (la que va a probarlo, así que ya hace falta):
+```bash
+make package-windows
+# → dist/encrypchat-windows-x64-<version>-setup.exe
+```
+
+El instalador es por usuario (sin admin): menú Inicio y
+`%LOCALAPPDATA%\Programs\Encrypchat`. Desinstalar deja los chats y la identidad
+en el Administrador de credenciales; «borrar identidad» dentro de la app es lo
+que los quita. Sin firmar: SmartScreen → «Más información» → «Ejecutar de
+todas formas».
+
+**El bundle**, si todavía no está en `dist/`:
+
+En la propia máquina Windows (la que va a probarlo):
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\package-windows.ps1
@@ -54,28 +67,21 @@ powershell -ExecutionPolicy Bypass -File scripts\package-windows.ps1
 
 Necesita Rust (rustup), Flutter en el PATH, Visual Studio con "Desktop
 development with C++" y el Modo de desarrollador activado —Flutter enlaza los
-plugins con symlinks y sin eso falla con un error que parece de toolchain—. El
-script comprueba las cuatro cosas antes de empezar y deja
-`dist\encrypchat-windows-x64-<version>.zip`.
+plugins con symlinks y sin eso falla con un error que parece de toolchain—.
+Con NSIS (`choco install nsis`) ese script también escribe el `setup.exe`.
 
-Para llevar el código sin pasar por GitHub, `dist/encrypchat-source.bundle` es
-la historia completa en un fichero: copialo y en Windows
-`git clone encrypchat-source.bundle encrypchat`.
-
-**Desde CI**, si hay minutos de Actions disponibles:
+O CI (el repo es público; el runner no factura). Un PR que toque
+`packaging/windows` o `windows.yml` lo arranca; desde un token con
+`actions:write` también `gh workflow run windows.yml`.
 
 ```bash
-gh workflow run windows.yml     # o pestaña Actions → windows → Run workflow
-gh run download --name encrypchat-windows-x64-<version>
+ENCRYPCHAT_WINDOWS_RUN=<id> make package-windows
+# sin el id, make package-windows solo acepta un artefacto de main/tag,
+# nunca el último success de un PR (mismo número de versión, otros bits).
 ```
 
-En un repo privado los runners de Windows cuestan el doble: un build son unos
-30-50 minutos del cupo mensual.
-
-Sin firmar por los dos caminos: en el primer arranque SmartScreen lo bloquea y
-hay que pasar por "Más información" → "Ejecutar de todas formas". Nadie lo ha
-probado todavía en hardware real — si algo falla, ese es el primer sitio donde
-mirar.
+Nadie lo ha ejecutado todavía en hardware real — si algo falla, ese es el
+primer sitio donde mirar.
 
 ### Instalar Android
 
@@ -228,7 +234,7 @@ make package
 | Enlaces a privacidad y términos | Sí (F9; Mi token → Acerca de) |
 | Base local cifrada de fichero completo | Sí (F10; SQLCipher + cuerpos AEAD — [audit-f3-storage.md](audit-f3-storage.md)) |
 | Fedora / Linux / Android instaladores | Sí (`dist/`) |
-| Windows instalador | Sí, compilando en Windows (`scripts\package-windows.ps1`) o en CI — sin firmar y sin probar en hardware |
+| Windows instalador | Sí: bundle en CI/Windows, `setup.exe` NSIS desde este host (`make package-windows`) — sin firmar y sin probar en hardware |
 | Android otras ABIs (x86_64, armeabi-v7a) | No — core Rust solo aarch64 ([phase-8.md](phase-8.md)) |
 | Firma release Android | No — debug keystore; procedimiento en [phase-8.md](phase-8.md) |
 | iOS package | Gap F8 — necesita host macOS; pasos exactos en `scripts/package-ios.sh` |
