@@ -66,9 +66,9 @@ jobs:
           flutter pub get
           flutter build windows --release --tree-shake-icons
 
-      # Flutter links the MSVC CRT and does not copy it. Without these three
-      # DLLs the .exe dies on a machine that has never installed Visual Studio,
-      # which is every tester who is not the builder.
+      # Flutter links the MSVC CRT and does not copy it. Without these three DLLs
+      # the .exe dies on a machine that has never installed Visual Studio,
+      # which is every tester who is not the builder. App-local copy, no admin.
       - name: Bundle the MSVC CRT
         shell: pwsh
         run: scripts/bundle-windows-crt.ps1
