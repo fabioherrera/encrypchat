@@ -120,14 +120,20 @@ apksigner verify --print-certs dist/encrypchat-android-arm64-*.apk
    dispositivo antiguo sin Play Services se abre el explorador de documentos
    (también sin permiso).
 5. Llamada: iconos 📞 / 📹 en el chat (ambos peers P2P online; STUN público).
-6. Opcional offline chat: en Chats → ☁ configurar URL del relay (`http://IP:8787`).
-   Cerrá la app del destinatario, mandale texto y una foto (queda ☁ *vía relay*), y
-   abrila: llegan atribuidos al remitente real, que sale del propio criptograma —
-   ya no hay campo `from` que declarar. Mandá lo mismo dos veces desde el relay y
-   fijate que no aparece duplicado. **Dejá la app abierta un par de minutos después
+6. Relay: la app usa `https://relay.encrypchat.com` por defecto (P2P se intenta
+   primero). Tres estados en ☁: Encrypchat, URL propia (las dos puntas igual),
+   o Apagar (solo misma red). Relay local: Chats → ☁ → `http://IP:8787` — ver
+   [`services/relay/README.md`](../services/relay/README.md) o
+   [`deploy/relay/docker-compose.yml`](../deploy/relay/docker-compose.yml).
+   Si ya compartes Tailscale/ZeroTier con el otro, la tarjeta lista esa IP y el
+   P2P entra sin el buzón.
+   Cierra la app del destinatario, mándale texto y una foto (queda ☁ *vía relay*), y
+   ábrela: llegan atribuidos al remitente real, que sale del propio criptograma —
+   ya no hay campo `from` que declarar. Manda lo mismo dos veces desde el relay y
+   fíjate que no aparece duplicado. **Deja la app abierta un par de minutos después
    de recibir**: el relay ya no borra al entregar, entrega otra vez a los 60 s y esa
    segunda copia tiene que morir en la deduplicación por `msg_id` — nada nuevo en
-   pantalla, ni bubble ni fichero repetido. Probalo en un móvil y en desktop, que es
+   pantalla, ni bubble ni fichero repetido. Pruébalo en un móvil y en desktop, que es
    donde se ve si el buzón local aguanta la reentrega. Los dos extremos tienen que ir en `0.8.0`: con
    un core anterior la app no arranca y lo dice en pantalla. Si el relay entrega
    algo que no cuadra, en Chats sale un aviso; el detalle por motivo está en ☁.

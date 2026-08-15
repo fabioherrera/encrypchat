@@ -63,8 +63,8 @@ class _DeleteIdentityPageState extends State<DeleteIdentityPage> {
         // where it is with the retry on it. Force-quitting instead is safe:
         // the next launch finishes the wipe before anything else runs.
         _failure =
-            'No se pudo completar el borrado (${e.runtimeType}). Volvé a '
-            'intentarlo. Tu identidad ya está marcada para borrarse: si cerrás '
+            'No se pudo completar el borrado (${e.runtimeType}). Vuelve a '
+            'intentarlo. Tu identidad ya está marcada para borrarse: si cierras '
             'la app, se termina de borrar al abrirla de nuevo.';
       });
       return;
@@ -78,7 +78,7 @@ class _DeleteIdentityPageState extends State<DeleteIdentityPage> {
         content: Text(
           report.isClean
               ? 'Identidad borrada de este dispositivo.'
-              : 'Identidad borrada. ${report.filesLeft} fichero(s) que el '
+              : 'Identidad borrada. ${report.filesLeft} archivo(s) que el '
                     'sistema no dejó eliminar quedaron en el disco, cifrados '
                     'con una clave que ya no existe.',
         ),
@@ -104,7 +104,7 @@ class _DeleteIdentityPageState extends State<DeleteIdentityPage> {
             const _Bullets([
               'Tu clave privada y tu token. Nadie te va a poder escribir a ese '
                   'token nunca más, y no hay forma de volver a demostrar que '
-                  'sos vos: la clave no existe en ningún otro lado.',
+                  'eras tú: la clave no existe en ningún otro lado.',
               'Todas tus conversaciones, con los mensajes que hayas recibido y '
                   'enviado.',
               'Todas las fotos y archivos que hayas mandado o recibido.',
@@ -117,8 +117,8 @@ class _DeleteIdentityPageState extends State<DeleteIdentityPage> {
               'Lo que ya le mandaste a otras personas: está en sus '
                   'dispositivos y ellas deciden qué hacer con eso.',
               'Una copia de seguridad del dispositivo hecha antes de este '
-                  'borrado, si tenés backups del sistema activados: puede '
-                  'contener tanto los ficheros cifrados como la clave.',
+                  'borrado, si tienes copias de seguridad del sistema: puede '
+                  'contener tanto los archivos cifrados como la clave.',
             ]),
             const SizedBox(height: 20),
             const _SectionTitle('Qué significa "borrar" en este dispositivo'),
@@ -129,8 +129,8 @@ class _DeleteIdentityPageState extends State<DeleteIdentityPage> {
                 'clave que vive en el llavero del sistema. Esa clave se borra '
                 'primero: desde ese momento, lo que quede en el disco es '
                 'ciphertext que ya nadie puede abrir.\n\n'
-                'Después se borran los ficheros. Borrar un fichero no '
-                'sobreescribe sus bytes — ni acá ni en ninguna app —, así que '
+                'Después se borran los archivos. Borrar un archivo no '
+                'sobreescribe sus bytes — ni aquí ni en ninguna app —, así que '
                 'en almacenamiento flash pueden seguir existiendo un tiempo, '
                 'hasta que el sistema reutilice ese espacio. Siguen siendo '
                 'ilegibles sin la clave, pero no te prometemos que los bytes '
@@ -144,7 +144,7 @@ class _DeleteIdentityPageState extends State<DeleteIdentityPage> {
             ),
             const SizedBox(height: 28),
             const Text(
-              'Escribí $_confirmWord para confirmar',
+              'Escribe $_confirmWord para confirmar',
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,

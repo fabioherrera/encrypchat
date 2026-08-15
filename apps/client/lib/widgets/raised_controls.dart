@@ -49,11 +49,11 @@ class RaisedCircleButton extends StatelessWidget {
                   background,
                 ],
               ),
-              boxShadow: enabled
-                  ? EncrypchatColors.raisedShadow
-                  : const [],
+              boxShadow: enabled ? EncrypchatColors.raisedShadow : const [],
             ),
-            child: Center(child: Icon(icon, size: iconSize, color: iconColor)),
+            child: Center(
+              child: Icon(icon, size: iconSize, color: iconColor),
+            ),
           ),
         ),
       ),

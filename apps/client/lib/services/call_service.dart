@@ -74,7 +74,7 @@ class CallService extends ChangeNotifier {
       throw StateError('Ya hay una llamada en curso');
     }
     if (_messaging.isBlocked(peer.token)) {
-      throw StateError('Contacto bloqueado: desbloqueálo para llamarlo.');
+      throw StateError('Contacto bloqueado: desbloquéalo para llamarlo.');
     }
     await ensureRenderers();
     // OS prompts via getUserMedia (mic/camera manifests declared).

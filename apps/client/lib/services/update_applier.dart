@@ -10,14 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import '../core/update_copy.dart';
 import 'update_checker.dart';
 
-enum UpdateApplyPhase {
-  idle,
-  downloading,
-  verifying,
-  installing,
-  done,
-  failed,
-}
+enum UpdateApplyPhase { idle, downloading, verifying, installing, done, failed }
 
 /// Downloads the catalogued package, checks SHA-256, then hands it to the OS
 /// installer. Never runs without the user having accepted the consent dialog.
@@ -161,7 +154,7 @@ class UpdateApplier extends ChangeNotifier {
     final opened = await Process.run(opener, [path]);
     if (opened.exitCode != 0) {
       throw UpdateApplyException(
-        'El archivo está en $path. Abrilo con el instalador del sistema.',
+        'El archivo está en $path. Ábrelo con el instalador del sistema.',
       );
     }
   }
@@ -202,7 +195,7 @@ class AndroidUpdateBridge {
     if (!await canInstall()) {
       await openInstallPermission();
       throw const UpdateApplyException(
-        'Android pide permiso para instalar esta app. Concedelo y volvé a '
+        'Android pide permiso para instalar esta app. Concédelo y vuelve a '
         'tocar Actualizar la app.',
       );
     }

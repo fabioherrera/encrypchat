@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../core/call_signal.dart';
+import '../core/default_relay.dart';
 import '../core/lan_listen.dart';
 import '../core/media_picker.dart';
 import '../models/chat_message.dart';
@@ -480,7 +481,7 @@ class _ChatPageState extends State<ChatPage> {
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
               child: blocked
                   ? const Text(
-                      'No podés escribirle mientras esté bloqueado.',
+                      'No puedes escribirle mientras esté bloqueado.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 13,
@@ -832,7 +833,7 @@ Future<void> showRelayDialog(
   SessionController session,
 ) async {
   final controller = TextEditingController(
-    text: session.messaging.relayBaseUrl ?? 'http://127.0.0.1:8787',
+    text: session.messaging.relayBaseUrl ?? encrypchatDefaultRelayUrl,
   );
   await showDialog<void>(
     context: context,
@@ -846,10 +847,15 @@ Future<void> showRelayDialog(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Solo ciphertext + token + TTL. Sin plaintext. '
-              'Ejemplo: http://192.168.1.10:8787',
-              style: TextStyle(fontSize: 13, color: EncrypchatColors.muted),
+            Text(
+              relayCloudDialogBody(
+                configured: session.messaging.relayConfigured,
+                usesDefault: session.messaging.usesDefaultRelay,
+              ),
+              style: const TextStyle(
+                fontSize: 13,
+                color: EncrypchatColors.muted,
+              ),
             ),
             const SizedBox(height: 8),
             // The relay's silence is a property, not a gap, and this is the one
@@ -873,7 +879,7 @@ Future<void> showRelayDialog(
               controller: controller,
               decoration: const InputDecoration(
                 labelText: 'URL base del relay',
-                hintText: 'http://127.0.0.1:8787',
+                hintText: encrypchatDefaultRelayUrl,
               ),
             ),
             const SizedBox(height: 12),
@@ -899,8 +905,17 @@ Future<void> showRelayDialog(
               await session.messaging.setRelayBaseUrl(null);
               if (context.mounted) Navigator.pop(context);
             },
-            child: const Text('Quitar'),
+            child: const Text('Apagar'),
           ),
+          if (!session.messaging.usesDefaultRelay)
+            TextButton(
+              onPressed: () async {
+                await session.messaging.useDefaultRelay();
+                unawaited(session.messaging.pullFromRelay());
+                if (context.mounted) Navigator.pop(context);
+              },
+              child: const Text('Usar Encrypchat'),
+            ),
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cerrar'),
@@ -994,8 +1009,8 @@ class RelayInsecureNotice extends StatelessWidget {
             child: Text(
               'Relay sin TLS (http://). Los mensajes van cifrados de extremo a '
               'extremo, pero tu token de destino, tu clave pública y el proof '
-              'viajan en claro: cualquiera en la red puede ver con quién hablás '
-              'y cuándo. Usá https fuera de una LAN de confianza.',
+              'viajan en claro: cualquiera en la red puede ver con quién hablas '
+              'y cuándo. Usa https fuera de una LAN de confianza.',
               style: TextStyle(
                 fontSize: compact ? 12 : 12.5,
                 height: 1.35,
@@ -1159,10 +1174,11 @@ Future<void> showSendFailedDialog(
         relayReady
             ? 'No hay sesión P2P con este contacto y el relay tampoco '
                   'pudo tomarlo. $error'
-            : 'Agendar no abre un canal. Sin sesión P2P y sin relay el '
-                  'mensaje no sale: el otro no ve Solicitudes ni el hola.\n\n'
-                  'Misma Wi‑Fi: Chats → icono de enlace, y pedile su IP y '
-                  'puerto (no 127.0.0.1). O configurá un relay en ☁.\n\n'
+            : 'Agregar un contacto no abre un canal. Sin sesión P2P y sin '
+                  'relay el mensaje no sale: la otra persona no ve '
+                  'Solicitudes ni el saludo.\n\n'
+                  'Misma Wi‑Fi: Chats → icono de enlace, y pídele su IP y '
+                  'puerto (no 127.0.0.1). O configura un relay en ☁.\n\n'
                   '$error',
       ),
       actions: [
@@ -1246,7 +1262,7 @@ Future<void> showConnectPeerDialog(
               const SizedBox(height: 12),
             ] else if (addr != null) ...[
               const Text(
-                'El nodo solo anuncia loopback. En otro teléfono usá la IP '
+                'El nodo solo anuncia loopback. En otro teléfono usa la IP '
                 'de esta Wi‑Fi y el puerto de abajo.',
                 style: TextStyle(fontSize: 12, color: EncrypchatColors.muted),
               ),

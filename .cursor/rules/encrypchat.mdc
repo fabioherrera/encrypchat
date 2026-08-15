@@ -25,9 +25,11 @@ Paridad funcional entre móvil y desktop. No degradar desktop ni asumir solo mó
 - Marca y dominio primario: **Encrypchat** / **https://encrypchat.com** (raíz *encrypt* con **y**).
 - Variante `encripchat.com` (con *i*): solo redirect al primario si se registra.
 - Nunca renombrar la marca en copy o código de producto.
-- Tagline: `DECENTRALIZED P2P CHAT | ZERO-CLOUD`.
+- Tagline de marca: `DECENTRALIZED P2P CHAT | ZERO-CLOUD`.
+- Frase de producto (honesta): `P2P cuando se puede. Cifrado siempre. Sin nube de chats.` Zero-cloud es **de contenido**. No decir “sin intermediarios” ni “siempre P2P” si hay relay.
 - Logo: escudo + bocadillos + candado, azul marino, fondo blanco (`encrypchat logo.png`).
 - UI light aprobada: `docs/design/design-system.md` (tokens navy `#0F2744`, canvas `#F4F6F8`, bubble-out `#E6ECF4`). Landing y Flutter deben reutilizarlos. Dark pendiente.
+- **Idioma de UI y chat:** español neutro / Colombia-Bogotá. Tuteo (`tú`, `tienes`, `puedes`, `toca`, `pega`, `pídele`). Sin voseo rioplatense (`vos`, `tenés`, `podés`, `tocá`, `pegá`, `pedile`, `acá`). Tú, no usted. Ustedes, no vosotros. Preferir `aquí`, `archivo`, `computador` frente a `acá`, `fichero`, `ordenador`.
 
 ## Invariantes (no negociables)
 
@@ -35,7 +37,7 @@ Paridad funcional entre móvil y desktop. No degradar desktop ni asumir solo mó
 2. **E2EE real**: cifrar en origen con clave del destinatario; relays solo ven ciphertext.
 3. **Identidad por token** (hash de clave pública). No directorio telefónico central como fuente de verdad.
 4. **Cada dispositivo = cliente + nodo local**.
-5. **Relay ciego** (opcional, offline): TTL, borrado post-entrega, sin plaintext ni metadatos de contenido.
+5. **Relay ciego** (encendido por defecto en `relay.encrypchat.com`; se puede apagar o cambiar): TTL, borrado post-entrega, sin plaintext. El operador ve token de destino, tamaño, tiempos e IP.
 6. **P2P preferido** para media/llamadas si ambos online; relay solo si hace falta.
 7. **Claims honestos**: no “imposible de hackear”, no zero-knowledge absoluto si hay metadata de red/relay.
 8. **Paridad multiplataforma** Android / iOS / Linux / Windows.

@@ -12,6 +12,7 @@ Cloudflare Zero Trust → Networks → Tunnels → your tunnel → install conne
 | --- | --- |
 | `encrypchat.com` | `http://dokploy-traefik:80` |
 | `www.encrypchat.com` | `http://dokploy-traefik:80` |
+| `relay.encrypchat.com` | `http://dokploy-traefik:80` (Dokploy service `deploy/relay`) |
 
 Domain spelling: **encrypchat.com** (with **y**).
 

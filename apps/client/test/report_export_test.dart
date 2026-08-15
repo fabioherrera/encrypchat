@@ -184,7 +184,7 @@ void main() {
 
       // Readable before the button is pressed, not in a warning afterwards.
       expect(
-        find.textContaining('otras apps pueden leer lo que copiás'),
+        find.textContaining('otras apps pueden leer lo que copias'),
         findsOneWidget,
       );
       expect(find.text('Copiar al portapapeles'), findsOneWidget);

@@ -46,7 +46,7 @@ class _BlockedPageState extends State<BlockedPage> {
                     ),
                     SizedBox(height: 8),
                     Text(
-                      'Podés bloquear desde el chat o desde la ficha del '
+                      'Puedes bloquear desde el chat o desde la ficha del '
                       'contacto. El bloqueo se aplica en este dispositivo y '
                       'sigue activo después de reiniciar.',
                       textAlign: TextAlign.center,

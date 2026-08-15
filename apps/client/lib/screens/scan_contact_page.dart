@@ -49,8 +49,8 @@ Future<String?> scanContactCardFromImage(
     if (context.mounted) {
       await _explain(
         context,
-        'Esa imagen no tiene un QR legible. Pedile que abra Mi token y '
-        'volvé a sacarle foto al recuadro, o pegá el export.',
+        'Esa imagen no tiene un QR legible. Pídele que abra Mi token y '
+        'vuelve a sacarle foto al recuadro, o pega el export.',
       );
     }
     return null;
@@ -59,7 +59,7 @@ Future<String?> scanContactCardFromImage(
     if (context.mounted) {
       await _explain(
         context,
-        'Ese QR no es una tarjeta de Encrypchat. Pedile que abra Mi token '
+        'Ese QR no es una tarjeta de Encrypchat. Pídele que abra Mi token '
         'y te muestre el QR de ahí.',
       );
     }
@@ -161,7 +161,7 @@ class _ScanContactPageState extends State<ScanContactPage> {
             child: Padding(
               padding: EdgeInsets.fromLTRB(24, 0, 24, 32),
               child: Text(
-                'Apuntá al QR de Mi token en el otro dispositivo.',
+                'Apunta al QR de Mi token en el otro dispositivo.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: EncrypchatColors.paper,
@@ -218,10 +218,10 @@ class _CameraError extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               denied
-                  ? 'Sin permiso de cámara no se puede escanear. Podés '
+                  ? 'Sin permiso de cámara no se puede escanear. Puedes '
                         'concederlo en Ajustes, o volver y pegar el export.'
-                  : 'Esta cámara no se pudo abrir. Pegá el export desde '
-                        'Contactos, o leé el QR desde una imagen.',
+                  : 'Esta cámara no se pudo abrir. Pega el export desde '
+                        'Contactos, o lee el QR desde una imagen.',
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: EncrypchatColors.paper,

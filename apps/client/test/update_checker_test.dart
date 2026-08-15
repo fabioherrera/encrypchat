@@ -75,7 +75,8 @@ void main() {
       'packages': {
         'linux-rpm': {
           'url': 'http://evil.example/encrypchat.rpm',
-          'sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          'sha256':
+              'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
           'file': 'encrypchat.rpm',
         },
       },

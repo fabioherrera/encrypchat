@@ -24,7 +24,7 @@ Future<bool> confirmBlock(
         'descartan en este dispositivo antes de abrirlos. Tampoco vas a poder '
         'escribirle mientras esté bloqueado.\n\n'
         'Si estás en una llamada con esta persona, se corta ahora mismo.\n\n'
-        'No se le avisa. El historial que ya tenés se conserva. Podés '
+        'No se le avisa. El historial que ya tienes se conserva. Puedes '
         'desbloquear cuando quieras.',
       ),
       actions: [
@@ -159,12 +159,12 @@ Future<void> _showSavedDialog(BuildContext context, SavedReport saved) {
 /// is somewhere the person did not pick, so the screen has to say how to get
 /// back to it.
 String get _appFolderHint => Platform.isIOS
-    ? 'Acá no hay un diálogo para elegir dónde guardar, así que el archivo '
-          'quedó en la carpeta de Encrypchat. Lo encontrás desde la app '
+    ? 'Aquí no hay un diálogo para elegir dónde guardar, así que el archivo '
+          'quedó en la carpeta de Encrypchat. Lo encuentras desde la app '
           'Archivos, en «En mi iPhone».'
-    : 'Acá no hay un diálogo para elegir dónde guardar, así que el archivo '
+    : 'Aquí no hay un diálogo para elegir dónde guardar, así que el archivo '
           'quedó en la carpeta de Encrypchat. Para sacarlo del teléfono, '
-          'conectalo a una computadora.';
+          'conéctalo a un computador.';
 
 class _ReportDialog extends StatefulWidget {
   const _ReportDialog({
@@ -240,7 +240,7 @@ class _ReportDialogState extends State<_ReportDialog> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Informe copiado. Pegalo donde lo necesites y después copiá '
+            'Informe copiado. Pégalo donde lo necesites y después copia '
             'cualquier otra cosa.',
           ),
         ),
@@ -272,7 +272,7 @@ class _ReportDialogState extends State<_ReportDialog> {
               const Text(
                 'Encrypchat no tiene servidor de moderación y no puede leer '
                 'esta conversación: va cifrada de extremo a extremo entre los '
-                'dos dispositivos. El informe se arma acá y lo guardás vos en '
+                'dos dispositivos. El informe se arma aquí y lo guardas tú en '
                 'un archivo; nadie lo recibe automáticamente.',
                 style: TextStyle(
                   fontSize: 13,
@@ -328,8 +328,8 @@ class _ReportDialogState extends State<_ReportDialog> {
               // the press rather than in a warning afterwards.
               const Text(
                 'El portapapeles es un espacio compartido: otras apps pueden '
-                'leer lo que copiás y en algunos sistemas se sincroniza con tu '
-                'cuenta. Guardar el informe en un archivo lo deja solo acá.',
+                'leer lo que copias y en algunos sistemas se sincroniza con tu '
+                'cuenta. Guardar el informe en un archivo lo deja solo aquí.',
                 style: TextStyle(
                   fontSize: 12,
                   height: 1.4,

@@ -9,11 +9,7 @@ import '../theme/encrypchat_colors.dart';
 
 /// In-app notice that a newer package exists.
 class UpdateBanner extends StatelessWidget {
-  const UpdateBanner({
-    super.key,
-    required this.info,
-    required this.onReview,
-  });
+  const UpdateBanner({super.key, required this.info, required this.onReview});
 
   final UpdateInfo info;
   final VoidCallback onReview;
@@ -46,10 +42,7 @@ class UpdateBanner extends StatelessWidget {
                 ),
               ),
             ),
-            TextButton(
-              onPressed: onReview,
-              child: const Text('Ver'),
-            ),
+            TextButton(onPressed: onReview, child: const Text('Ver')),
           ],
         ),
       ),
@@ -95,10 +88,7 @@ class UpdateOfferDialog extends StatelessWidget {
             phase == UpdateApplyPhase.installing;
         return AlertDialog(
           title: const Text(UpdateCopy.title),
-          content: SizedBox(
-            width: 420,
-            child: _body(phase, busy),
-          ),
+          content: SizedBox(width: 420, child: _body(phase, busy)),
           actions: [
             if (!busy && phase != UpdateApplyPhase.done)
               TextButton(
@@ -142,10 +132,7 @@ class UpdateOfferDialog extends StatelessWidget {
           const SizedBox(height: 12),
           const Text(
             UpdateCopy.body,
-            style: TextStyle(
-              height: 1.45,
-              color: EncrypchatColors.ink,
-            ),
+            style: TextStyle(height: 1.45, color: EncrypchatColors.ink),
           ),
         ],
       );

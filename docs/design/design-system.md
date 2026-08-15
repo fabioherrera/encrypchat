@@ -14,6 +14,7 @@
 2. Logo = **referencia de color y marca**. No poner el escudo en el header del chat (igual que WhatsApp/Telegram).
 3. Híbrido **WhatsApp densidad + Telegram chrome limpio**, con estados Encrypchat (P2P / relé / offline).
 4. Azul marino serio; sin purple glow, sin verdosos WhatsApp como acento primario.
+5. **Copy en español neutro / Colombia-Bogotá** (tuteo: tú / tienes / toca / pídele). Sin voseo rioplatense.
 
 ## Tokens (light)
 

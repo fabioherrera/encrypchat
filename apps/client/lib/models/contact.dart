@@ -20,14 +20,14 @@ class ContactCardException implements Exception {
   /// The shape is wrong: not an export line at all, or truncated.
   static const unreadable = ContactCardException(
     'Esa tarjeta de contacto no se pudo leer. Tiene que empezar con '
-    '"encrypchat:contact:v1:" y llegar completa: pedile que la exporte de '
-    'nuevo, o volvé a escanear el QR entero.',
+    '"encrypchat:contact:v1:" y llegar completa: pídele que la exporte de '
+    'nuevo, o vuelve a escanear el QR entero.',
   );
 
   /// A bare `ec_…` token. Identity is the token, but encryption needs the
   /// public key that only travels in the export line / QR.
   static const tokenOnly = ContactCardException(
-    'Eso es solo el token. Sin la clave pública no se puede cifrar: pedile '
+    'Eso es solo el token. Sin la clave pública no se puede cifrar: pídele '
     'que toque Exportar contacto en Mi token y te pase esa línea completa '
     '(empieza con encrypchat:contact:v1:).',
   );
@@ -36,7 +36,7 @@ class ContactCardException implements Exception {
   /// transit or copied by halves.
   static const tokenMismatch = ContactCardException(
     'El token de esa tarjeta no corresponde a su clave pública. Está alterada '
-    'o quedó mal copiada: pedile la tarjeta otra vez y no la edites a mano.',
+    'o quedó mal copiada: pídele la tarjeta otra vez y no la edites a mano.',
   );
 
   /// The core refused the key: `InvalidPublicKey` (2). Either degenerate, or a
@@ -46,7 +46,7 @@ class ContactCardException implements Exception {
   static const malformedKey = ContactCardException(
     'La clave pública de esa tarjeta está mal codificada, así que no se puede '
     'usar como identidad. No es un problema de red: la tarjeta está mal. '
-    'Pedile que la genere de nuevo con una versión al día de Encrypchat.',
+    'Pídele que la genere de nuevo con una versión al día de Encrypchat.',
   );
 
   @override

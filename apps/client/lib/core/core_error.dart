@@ -60,7 +60,7 @@ class CoreVersionException implements Exception {
 
   String get message =>
       'El core nativo es viejo (${found ?? 'versión desconocida'}); '
-      'esta app necesita $required o superior. Reconstruilo con `make build-ffi`.';
+      'esta app necesita $required o superior. Reconstrúyelo con `make build-ffi`.';
 
   @override
   String toString() => 'CoreVersionException: $message';

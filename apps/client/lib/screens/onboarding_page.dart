@@ -72,8 +72,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
               ),
               const SizedBox(height: 28),
               const Text(
-                'Creá una identidad en este dispositivo. '
-                'Las claves privadas no salen del teléfono o PC.',
+                'Crea una identidad en este dispositivo. '
+                'Las claves privadas no salen del teléfono o el computador.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: EncrypchatColors.ink,

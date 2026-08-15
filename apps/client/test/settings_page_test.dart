@@ -54,11 +54,8 @@ void main() {
       MaterialApp(
         home: Builder(
           builder: (context) => TextButton(
-            onPressed: () => showUpdateOffer(
-              context: context,
-              info: info,
-              applier: applier,
-            ),
+            onPressed: () =>
+                showUpdateOffer(context: context, info: info, applier: applier),
             child: const Text('open'),
           ),
         ),
@@ -70,10 +67,7 @@ void main() {
     expect(find.text(UpdateCopy.title), findsOneWidget);
     expect(find.textContaining('solo la aplicación'), findsOneWidget);
     expect(find.textContaining('No hay nada oculto'), findsOneWidget);
-    expect(
-      find.textContaining('siguen en este dispositivo'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('siguen en este dispositivo'), findsOneWidget);
     expect(find.text(UpdateCopy.apply), findsNothing);
     expect(find.text(UpdateCopy.openSite), findsOneWidget);
     expect(find.text(UpdateCopy.later), findsOneWidget);

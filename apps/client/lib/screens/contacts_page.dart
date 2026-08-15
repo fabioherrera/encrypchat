@@ -113,10 +113,10 @@ class _ContactsPageState extends State<ContactsPage> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Pedile al otro que abra Mi token y toque '
-                      'Exportar contacto. Pegá esa línea acá. '
-                      'Agendar no le avisa: el primer mensaje que le '
-                      'llegue sale en Solicitudes.',
+                      'Pídele que abra Mi token y toque Exportar contacto. '
+                      'Pega esa línea aquí. Dar tu tarjeta no crea una '
+                      'solicitud en este dispositivo: si no te llega '
+                      'Solicitudes, agrega tú también la de esa persona.',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: EncrypchatColors.muted),
                     ),

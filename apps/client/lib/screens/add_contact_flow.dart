@@ -47,10 +47,10 @@ class _AddContactDialogState extends State<_AddContactDialog> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              'Pedile al otro que abra Mi token y toque Exportar contacto. '
-              'Pegá esa línea acá. Encrypchat intenta avisarle: si hay '
-              'ruta (misma Wi‑Fi o relay), le aparece en Solicitudes '
-              'para autorizarte.',
+              'Pídele a la otra persona que abra Mi token y toque '
+              'Exportar contacto. Pega esa línea aquí. Primero se intenta '
+              'P2P; si no hay ruta, el aviso va en un sobre al relay. Si '
+              'llega, le aparece en Solicitudes para que te autorice.',
             ),
             const SizedBox(height: 16),
             TextField(
@@ -119,15 +119,15 @@ Future<void> showContactSaved(
   final text = switch (announce) {
     ContactAnnounce.delivered =>
       'Le avisamos. En su Encrypchat debería aparecer Solicitudes '
-          'para autorizarte (sin sonido).',
+          'para que te autorice (sin sonido).',
     ContactAnnounce.viaRelay =>
       'Le avisamos por relay. Cuando abra la app, verá Solicitudes '
-          'para autorizarte.',
+          'para que te autorice.',
     ContactAnnounce.noRoute =>
-      'Quedó agendado acá, pero no hay ruta: el otro no ve nada '
-          'todavía. El export tiene que traer su IP de esta Wi‑Fi '
-          '(versión 1.0.5 o posterior), o configurá un relay (☁). En '
-          'Fedora el firewall puede tapar el puerto del nodo.',
+      'Quedó guardado aquí, pero el aviso no salió: no hay sesión P2P '
+          'y el relay no pudo tomarlo. Los dos necesitan internet y el '
+          'relay encendido (☁, por defecto el de Encrypchat). En la misma '
+          'Wi‑Fi también puedes abrir el puerto del nodo.',
   };
   return showDialog<void>(
     context: context,

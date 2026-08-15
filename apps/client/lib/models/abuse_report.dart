@@ -59,8 +59,8 @@ class AbuseReport {
           'Encrypchat no tiene servidor de moderación y no puede leer los '
           'mensajes: van cifrados de extremo a extremo entre los dos '
           'dispositivos.',
-      'No incluye el contenido de la conversación. Si necesitás aportar '
-          'pruebas ante una autoridad o ante otra plataforma, adjuntalas vos.',
+      'No incluye el contenido de la conversación. Si necesitas aportar '
+          'pruebas ante una autoridad o ante otra plataforma, adjúntalas tú.',
       'Bloquear corta la entrega de mensajes, fotos y llamadas de ese token en '
           'este dispositivo. No impide que esa persona genere una identidad '
           'nueva.',

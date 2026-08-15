@@ -42,7 +42,7 @@ class SettingsPage extends StatelessWidget {
       UpdateStatus.available =>
         'Hay $latest. Esta copia es $encrypchatVersion.',
       UpdateStatus.failed =>
-        'No se pudo consultar. Probá de nuevo o abrí la página de descargas.',
+        'No se pudo consultar. Prueba de nuevo o abre la página de descargas.',
     };
 
     return Scaffold(
@@ -52,11 +52,8 @@ class SettingsPage extends StatelessWidget {
         children: [
           UpdateBanner(
             info: info,
-            onReview: () => showUpdateOffer(
-              context: context,
-              info: info,
-              applier: applier,
-            ),
+            onReview: () =>
+                showUpdateOffer(context: context, info: info, applier: applier),
           ),
           const _SectionTitle('Esta instalación'),
           ListTile(
@@ -120,14 +117,14 @@ class SettingsPage extends StatelessWidget {
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Text(
-              'La actualización es explícita: aparece un aviso, leés de qué '
-              'se trata y tocás Actualizar la app. Encrypchat descarga el '
+              'La actualización es explícita: aparece un aviso, lees de qué '
+              'se trata y tocas Actualizar la app. Encrypchat descarga el '
               'paquete, comprueba su SHA-256 e invoca el instalador del '
               'sistema. No se tocan chats, fotos ni claves: viven en este '
               'dispositivo.\n\n'
               '· Fedora (RPM): el sistema pide tu contraseña y reemplaza '
               'los archivos en /usr/lib64/encrypchat.\n'
-              '· Linux portable: se descarga el tar.gz; corré install.sh '
+              '· Linux portable: se descarga el tar.gz; ejecuta install.sh '
               'en el mismo prefijo.\n'
               '· Android: el instalador del sistema pide confirmar. Los '
               'datos se conservan si la firma es la misma.\n'

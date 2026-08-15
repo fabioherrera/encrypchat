@@ -70,15 +70,19 @@ class _AboutPageState extends State<AboutPage> {
             child: Text(
               'Los mensajes van cifrados de extremo a extremo: Encrypchat no '
               'los puede leer ni moderar, y no hay servidor que reciba una '
-              'denuncia. Lo que sí podés hacer desde el chat o desde la ficha '
+              'denuncia. Primero se intenta P2P en este dispositivo. Si no '
+              'hay ruta, un sobre cifrado puede ir al relay (el de Encrypchat '
+              'por defecto): no leemos el chat; sí vemos token de destino, '
+              'tamaño, hora e IP. En ☁ puedes poner el tuyo o apagarlo.\n\n'
+              'Lo que sí puedes hacer desde el chat o desde la ficha '
               'de un contacto:\n\n'
               '· Bloquear: sus mensajes, fotos y llamadas se descartan en este '
               'dispositivo antes de abrirlos, y el bloqueo sigue después de '
               'reiniciar.\n'
               '· Reportar: se arma un informe con el token, el motivo y tu '
               'descripción, y se copia a tu portapapeles. No se envía a ningún '
-              'servidor ni incluye el contenido de la conversación; vos '
-              'decidís si se lo das a alguien.\n\n'
+              'servidor ni incluye el contenido de la conversación; tú '
+              'decides si se lo das a alguien.\n\n'
               'Bloquear no impide que esa persona cree una identidad nueva con '
               'otro token.',
               style: TextStyle(

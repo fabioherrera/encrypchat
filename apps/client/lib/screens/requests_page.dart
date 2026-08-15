@@ -6,6 +6,7 @@ import '../models/message_request.dart';
 import '../services/messaging_service.dart';
 import '../services/session_controller.dart';
 import '../theme/encrypchat_colors.dart';
+import 'add_contact_flow.dart';
 
 /// Messages from identities that are not contacts.
 ///
@@ -56,7 +57,7 @@ class _RequestsPageState extends State<RequestsPage> {
           _PolicyHeader(displaced: session.messaging.displacedRequests),
           Expanded(
             child: requests.isEmpty
-                ? const _EmptyState()
+                ? _EmptyState(session: session)
                 : ListView.separated(
                     padding: const EdgeInsets.only(bottom: 24),
                     itemCount: requests.length,
@@ -91,7 +92,7 @@ class _PolicyHeader extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Alguien que no tenés agendado puede escribirte, porque tu token '
+            'Alguien que no tienes en contactos puede escribirte, porque tu token '
             'está hecho para compartirse. Hasta que lo aceptes: no suena, no '
             'puede mandarte adjuntos ni llamarte, y solo entran '
             '${MessagingService.maxRequestMessagesPerPeer} mensajes cortos '
@@ -128,7 +129,9 @@ class _PolicyHeader extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+  const _EmptyState({required this.session});
+
+  final SessionController session;
 
   @override
   Widget build(BuildContext context) {
@@ -154,11 +157,18 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Cuando alguien te agregue y haya ruta (misma Wi‑Fi o relay), '
-              'aparece acá para que lo autorices. Agendar en el otro '
-              'dispositivo no alcanza si el aviso no llega.',
+              'Dar tu tarjeta no crea una solicitud aquí. El aviso llega '
+              'por P2P (misma Wi‑Fi) o en un sobre al relay. Si no llega, '
+              'pega su export en Agregar contacto: así los dos quedan en '
+              'contactos, sin esperar este aviso.',
               textAlign: TextAlign.center,
               style: TextStyle(color: EncrypchatColors.muted),
+            ),
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              onPressed: () => showAddContactDialog(context, session),
+              icon: const Icon(Icons.person_add_alt_1),
+              label: const Text('Agregar su export'),
             ),
           ],
         ),
@@ -209,7 +219,7 @@ class _RequestCard extends StatelessWidget {
                     'nada más de este token: ni mensajes, ni adjuntos, ni '
                     'llamadas. No se le avisa.'
               : 'Se borran sus mensajes de este dispositivo. Si vuelve a '
-                    'escribir, aparecerá otra vez acá.',
+                    'escribir, aparecerá otra vez aquí.',
         ),
         actions: [
           TextButton(
@@ -279,7 +289,7 @@ class _RequestCard extends StatelessWidget {
               padding: EdgeInsets.only(top: 10),
               child: Text(
                 'Escribió por P2P, y una trama P2P no trae su clave pública: '
-                'para responderle necesitás su tarjeta de contacto (token + QR) '
+                'para responderle necesitas su tarjeta de contacto (token + QR) '
                 'e importarla desde Contactos.',
                 style: TextStyle(
                   fontSize: 12,
@@ -397,7 +407,7 @@ class _NameDialogState extends State<_NameDialog> {
         children: [
           Text(
             'Se guarda ${widget.request.shortToken} como contacto: desde ahora '
-            'podrá mandarte adjuntos y llamarte, y vos podrás escribirle.',
+            'podrá mandarte adjuntos y llamarte, y tú podrás escribirle.',
             style: const TextStyle(fontSize: 13, color: EncrypchatColors.muted),
           ),
           const SizedBox(height: 12),

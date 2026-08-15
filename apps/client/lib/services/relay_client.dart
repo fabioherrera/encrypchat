@@ -73,11 +73,11 @@ class RelayClient {
         // with nothing on screen.
         return StateError(
           'El relay no acepta la forma de esta petición ($op): la app y el '
-          'relay hablan versiones distintas del protocolo. Actualizá alguno '
+          'relay hablan versiones distintas del protocolo. Actualiza alguno '
           'de los dos.',
         );
       case 429:
-        return StateError('Relay saturado ($op): reintentá en un momento');
+        return StateError('Relay saturado ($op): reintenta en un momento');
       case 507:
         // No longer anything to do with the recipient. A mailbox over quota is
         // answered like an acceptance now — telling those two apart is what let
@@ -86,7 +86,7 @@ class RelayClient {
         // relay, not waiting for somebody to read their messages.
         return StateError(
           'El relay se quedó sin espacio ($op). No depende del destinatario: '
-          'usá otro relay, o esperá a que los dos estén online para ir por P2P.',
+          'usa otro relay, o espera a que los dos estén en línea para ir por P2P.',
         );
       default:
         return StateError('Relay $op falló (HTTP $status)');

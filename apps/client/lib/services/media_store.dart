@@ -106,7 +106,7 @@ class MediaStore {
     final total = await totalBytes();
     if (total + bytes > maxInboundBytesTotal) {
       throw MediaQuotaException(
-        'El almacén de adjuntos está lleno (${_mib(total)} MiB). Borrá algún '
+        'El almacén de adjuntos está lleno (${_mib(total)} MiB). Borra algún '
         'adjunto para volver a recibir.',
         global: true,
       );

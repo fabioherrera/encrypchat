@@ -60,12 +60,14 @@ class _MyTokenPageState extends State<MyTokenPage> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Para que te agreguen, tocá Exportar contacto y pasales esa '
-            'línea — o mostrá el QR. El token solo no alcanza: hace falta '
+            'Para que te agreguen, toca Exportar contacto y pásales esa '
+            'línea — o muestra el QR. El token solo no alcanza: hace falta '
             'la clave pública. Si el nodo está en marcha, el export incluye '
-            'tu dirección en esta Wi‑Fi para que el otro pueda conectar. '
-            'Agendarte no les avisa: el primer mensaje que te llegue sale '
-            'en Solicitudes. Nunca compartas la clave secreta.',
+            'tu dirección en esta Wi‑Fi.\n\n'
+            'Dar tu tarjeta no te agrega a nadie. Si esa persona te agrega '
+            'y hay ruta (P2P en esta red, o el relay), te aparece '
+            'Solicitudes. Si no aparece nada, pega también su export en '
+            'Agregar contacto. Nunca compartas la clave secreta.',
             style: TextStyle(color: EncrypchatColors.muted, height: 1.4),
           ),
           const SizedBox(height: 28),

@@ -83,7 +83,7 @@ class _ChatsPageState extends State<ChatsPage> {
     final nodeLine = lan.isNotEmpty
         ? 'Nodo P2P: ${lan.join(' · ')}'
         : listen != null
-        ? 'Nodo P2P: $listen (loopback: en otro dispositivo usá tu IP de Wi‑Fi)'
+        ? 'Nodo P2P: $listen (loopback: en otro dispositivo usa tu IP de Wi‑Fi)'
         : null;
     final relayInsecure =
         session.hasMessaging && session.messaging.relayIsInsecure;
@@ -198,7 +198,7 @@ class _ChatsPageState extends State<ChatsPage> {
           Expanded(
             child: session.contacts.isEmpty
                 ? Center(
-                    child: Padding(
+                    child: SingleChildScrollView(
                       padding: const EdgeInsets.all(32),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -219,11 +219,12 @@ class _ChatsPageState extends State<ChatsPage> {
                           ),
                           const SizedBox(height: 8),
                           const Text(
-                            'Pedile al otro que abra Mi token y toque '
-                            'Exportar contacto. Agendar no le avisa: el '
-                            'primer mensaje que le llegue sale en '
-                            'Solicitudes. Misma Wi‑Fi o un relay (☁); si '
-                            'no hay ruta, el hola no sale.',
+                            'Pídele su export (Mi token → Exportar contacto) '
+                            'y pégalo en Agregar contacto. Dar tu tarjeta no '
+                            'crea una solicitud aquí: ves Solicitudes cuando '
+                            'su aviso llega (P2P en la misma red, o un sobre '
+                            'al relay). Si no aparece, agrega tú también la '
+                            'de esa persona.',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: EncrypchatColors.muted,
@@ -248,10 +249,10 @@ class _ChatsPageState extends State<ChatsPage> {
                       child: Text(
                         _filter == _ChatFilter.unread
                             ? 'Los no leídos todavía no se cuentan en la lista. '
-                                  'Usá Todos.'
+                                  'Usa Todos.'
                             : _filter == _ChatFilter.relay
                             ? 'El filtro Relé llega cuando la lista sepa qué '
-                                  'chat fue por relé. Usá Todos.'
+                                  'chat fue por relé. Usa Todos.'
                             : 'Ningún chat coincide con la búsqueda.',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
@@ -292,13 +293,13 @@ class _ChatsPageState extends State<ChatsPage> {
                         ),
                         subtitle: Text(
                           blocked
-                              ? 'Bloqueado · no recibís nada de este token'
+                              ? 'Bloqueado · no recibes nada de este token'
                               : session.hasMessaging
                               ? session.messaging.routeLabel(
                                   c.token,
                                   blocked: false,
                                 )
-                              : 'Tocá para chatear',
+                              : 'Toca para chatear',
                           style: const TextStyle(color: EncrypchatColors.muted),
                         ),
                         onTap: () => _open(c),

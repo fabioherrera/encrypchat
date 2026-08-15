@@ -8,6 +8,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../core/core_error.dart';
 import '../core/core_worker.dart';
+import '../core/default_relay.dart';
 import '../core/encrypchat_core.dart';
 import '../core/call_signal.dart';
 import '../core/contact_intro.dart';
@@ -106,19 +107,19 @@ extension InboundDropCopy on InboundDropReason {
   String get detail => switch (this) {
     InboundDropReason.legacyFormat =>
       'Alguien te escribió con una versión anterior de Encrypchat. Ese '
-          'formato no autenticaba al remitente, así que no se acepta: pedile '
+          'formato no autenticaba al remitente, así que no se acepta: pídele '
           'que actualice.',
     InboundDropReason.truncated =>
-      'El mensaje llegó incompleto desde el relay. Pedile que lo reenvíe.',
+      'El mensaje llegó incompleto desde el relay. Pídele que lo reenvíe.',
     InboundDropReason.notForUs =>
       'El relay entregó un mensaje que no está dirigido a esta identidad, o '
           'con la cabecera corrupta. No se puede leer ni saber quién lo mandó.',
     InboundDropReason.forged =>
-      'Un mensaje iba dirigido a vos, pero el remitente no se pudo verificar: '
+      'Un mensaje iba dirigido a ti, pero el remitente no se pudo verificar: '
           'o alguien intentó hacerse pasar por un contacto, o el mensaje fue '
           'manipulado. Se descartó sin mostrarlo ni atribuirlo a nadie.',
     InboundDropReason.malformedSenderKey =>
-      'Un mensaje iba dirigido a vos, pero la clave de quien lo firmó está mal '
+      'Un mensaje iba dirigido a ti, pero la clave de quien lo firmó está mal '
           'codificada: es la misma clave de siempre escrita de otra forma, lo '
           'que le daría un token distinto y, con él, una vuelta a un bloqueo. '
           'Se descartó sin atribuirlo a nadie.',
@@ -135,26 +136,26 @@ extension InboundDropCopy on InboundDropReason {
     InboundDropReason.unreadable =>
       'Un mensaje se descifró bien pero su contenido no se pudo interpretar.',
     InboundDropReason.strangerMedia =>
-      'Alguien que no tenés agendado intentó mandarte un adjunto. Las '
-          'solicitudes son solo de texto: aceptalo como contacto y podrá '
+      'Alguien que no tienes en contactos intentó mandarte un adjunto. Las '
+          'solicitudes son solo de texto: acéptalo como contacto y podrá '
           'mandarte fotos y archivos.',
     InboundDropReason.strangerCall =>
-      'Alguien que no tenés agendado intentó llamarte. No suena: agregalo como '
-          'contacto si querés recibir sus llamadas.',
+      'Alguien que no tienes en contactos intentó llamarte. No suena: agrégalo '
+          'como contacto si quieres recibir sus llamadas.',
     InboundDropReason.requestsFull =>
       'Hay demasiadas solicitudes esperando, así que llegó una que no entró. '
-          'Resolvé las que tenés en Solicitudes para volver a recibir.',
+          'Resuelve las que tienes en Solicitudes para volver a recibir.',
     InboundDropReason.senderFull =>
-      'Alguien que no tenés agendado siguió escribiendo después de agotar los '
-          'mensajes que se le permiten. Está en Solicitudes: aceptalo, '
-          'descartalo o bloquealo.',
+      'Alguien que no tienes en contactos siguió escribiendo después de agotar '
+          'los mensajes que se le permiten. Está en Solicitudes: acéptalo, '
+          'descártalo o bloquéalo.',
     InboundDropReason.strangerTooLong =>
-      'Alguien que no tenés agendado mandó algo más grande de lo que puede ser '
-          'una solicitud, así que se descartó. Si te quiere mandar un archivo, '
-          'agendalo como contacto primero.',
+      'Alguien que no tienes en contactos mandó algo más grande de lo que '
+          'puede ser una solicitud, así que se descartó. Si te quiere mandar '
+          'un archivo, agrégalo como contacto primero.',
     InboundDropReason.mediaQuota =>
-      'Un adjunto no se guardó porque se llenó el cupo de adjuntos. Borrá una '
-          'conversación con fotos para liberar espacio y pedile que lo reenvíe.',
+      'Un adjunto no se guardó porque se llenó el cupo de adjuntos. Borra una '
+          'conversación con fotos para liberar espacio y pídele que lo reenvíe.',
   };
 
   /// The cases that describe an attempt against the user rather than an
@@ -216,6 +217,7 @@ class MessagingService extends ChangeNotifier {
     RelayClient? relay,
     MediaStore? mediaStore,
     FlutterSecureStorage? storage,
+    String? defaultRelayUrl,
   }) : _core = core,
        _identity = identity,
        _database = database,
@@ -225,7 +227,8 @@ class MessagingService extends ChangeNotifier {
            storage ??
            const FlutterSecureStorage(
              aOptions: AndroidOptions(encryptedSharedPreferences: true),
-           );
+           ),
+       _defaultRelayUrl = defaultRelayUrl;
 
   /// Where the relay address lives in the OS secure store. Public so deleting
   /// the identity can remove it with the rest — see `IdentityWipe`.
@@ -306,6 +309,7 @@ class MessagingService extends ChangeNotifier {
   final RelayClient _relay;
   final MediaStore _media;
   final FlutterSecureStorage _storage;
+  final String? _defaultRelayUrl;
 
   Timer? _poll;
   Timer? _relayPoll;
@@ -392,6 +396,10 @@ class MessagingService extends ChangeNotifier {
   bool get relayConfigured => _relay.isConfigured;
   String? get relayBaseUrl => _relay.baseUrl;
 
+  /// True when the compiled Encrypchat relay is the one in use.
+  bool get usesDefaultRelay =>
+      relayConfigured && _relay.baseUrl == _defaultRelayUrl;
+
   /// True when this process has an open P2P session with [token].
   ///
   /// That is not "the other person opened the app". It is only "we can talk
@@ -405,7 +413,7 @@ class MessagingService extends ChangeNotifier {
     if (!nodeRunning) return 'Tu nodo está detenido';
     if (isLivePeer(token)) return 'Sesión P2P';
     if (relayConfigured) return 'Sin sesión P2P · relay listo';
-    return 'Sin ruta · conectá o usá un relay';
+    return 'Sin ruta · conecta o usa un relay';
   }
 
   void rememberDialHints(String token, List<String> hints) {
@@ -654,15 +662,18 @@ class MessagingService extends ChangeNotifier {
   }
 
   Future<void> loadRelayUrl() async {
-    final url = await _storage.read(key: relayUrlStorageKey);
-    _relay.baseUrl = (url != null && url.trim().isNotEmpty) ? url.trim() : null;
+    final stored = await _storage.read(key: relayUrlStorageKey);
+    _relay.baseUrl = resolveRelayUrl(
+      stored: stored,
+      defaultUrl: _defaultRelayUrl,
+    );
     notifyListeners();
   }
 
   Future<void> setRelayBaseUrl(String? url) async {
     final trimmed = url?.trim();
-    if (trimmed == null || trimmed.isEmpty) {
-      await _storage.delete(key: relayUrlStorageKey);
+    if (trimmed == null || trimmed.isEmpty || trimmed == encrypchatRelayOff) {
+      await _storage.write(key: relayUrlStorageKey, value: encrypchatRelayOff);
       _relay.baseUrl = null;
     } else {
       await _storage.write(key: relayUrlStorageKey, value: trimmed);
@@ -670,6 +681,14 @@ class MessagingService extends ChangeNotifier {
     }
     // Pointing at a different relay is the usual answer to the fault, so the old
     // verdict must not outlive the address it was about.
+    _relayPullFault = null;
+    notifyListeners();
+  }
+
+  /// Forget a custom URL or an explicit off and go back to the compiled default.
+  Future<void> useDefaultRelay() async {
+    await _storage.delete(key: relayUrlStorageKey);
+    _relay.baseUrl = _defaultRelayUrl;
     _relayPullFault = null;
     notifyListeners();
   }
@@ -1015,8 +1034,8 @@ class MessagingService extends ChangeNotifier {
         status: MessageStatus.error,
         error: switch (e.code) {
           CoreException.peerOffline =>
-            'Sin ruta P2P. Misma Wi‑Fi: Chats → enlace, o configurá un relay '
-                '(☁). Agendar no abre un socket.',
+            'Sin ruta P2P. Misma Wi‑Fi: Chats → enlace, o configura un relay '
+                '(☁). Agregar un contacto no abre un socket.',
           CoreException.peerBlocked => blockedMessage,
           _ => e.toString(),
         },
@@ -1186,7 +1205,7 @@ class MessagingService extends ChangeNotifier {
             status: MessageStatus.error,
             error:
                 'Adjunto ($sealedSize B sellado) supera el límite del relay '
-                '($relayMaxBlobBytes B). Conectá P2P o comprimí la imagen.',
+                '($relayMaxBlobBytes B). Conecta P2P o comprime la imagen.',
           );
           await _database.updateMessageStatus(id, MessageStatus.error);
           _pushCache(message);
@@ -1260,7 +1279,7 @@ class MessagingService extends ChangeNotifier {
     if (sealed.blob.length > relayMaxBlobBytes) {
       throw StateError(
         'El mensaje sellado (${sealed.blob.length} B) supera el límite del '
-        'relay ($relayMaxBlobBytes B). Conectá P2P o mandá algo más corto.',
+        'relay ($relayMaxBlobBytes B). Conecta P2P o envía algo más corto.',
       );
     }
     await _relay.enqueue(destToken: peer.token, blob: sealed.blob);
@@ -1792,7 +1811,7 @@ class MessagingService extends ChangeNotifier {
     final pub = request.publicKey;
     if (pub == null) {
       throw StateError(
-        'Falta su clave pública: pedile su tarjeta de contacto (token + QR) '
+        'Falta su clave pública: pídele su tarjeta de contacto (token + QR) '
         'para poder responderle.',
       );
     }
@@ -1808,7 +1827,7 @@ class MessagingService extends ChangeNotifier {
       if (e.code == CoreException.invalidPublicKey) {
         throw StateError(
           'La clave que trae esa solicitud está mal codificada, así que no se '
-          'puede guardar como identidad. Pedile su tarjeta (token + QR).',
+          'puede guardar como identidad. Pídele su tarjeta (token + QR).',
         );
       }
       rethrow;
@@ -1937,14 +1956,14 @@ class MessagingService extends ChangeNotifier {
   /// Shown wherever a send is refused for a blocked peer, no matter which of
   /// the two layers cut it: this class up front, or the core with `PeerBlocked`.
   static const blockedMessage =
-      'Contacto bloqueado: desbloqueálo para volver a escribirle o llamarlo.';
+      'Contacto bloqueado: desbloquéalo para volver a escribirle o llamarlo.';
 
   /// A stored card whose public key the core refuses (`InvalidPublicKey`). The
   /// realistic way to get one is an import from before the core started
   /// rejecting non-canonical encodings, so the fix is a new card, not a retry.
   static const malformedCardMessage =
       'La clave pública guardada de este contacto está mal codificada, así que '
-      'no se le puede escribir. Pedile su tarjeta (token + QR) otra vez.';
+      'no se le puede escribir. Pídele su tarjeta (token + QR) otra vez.';
 
   void _assertNotBlocked(String token) {
     if (isBlocked(token)) {

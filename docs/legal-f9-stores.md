@@ -4,6 +4,8 @@
 **Alcance:** requisitos de publicación de la app Flutter (`apps/client`) en Google Play y App Store, con el estado real del repo hoy.  
 **No es asesoría legal.** Ningún abogado ha revisado este expediente. Antes de enviar a revisión hace falta un pase de abogado sobre privacidad, términos, clasificación por edad y control de exportación.
 
+**Actualización (relay por defecto).** La app ya no trata el relay como opt-in de un tercero: usa `https://relay.encrypchat.com` salvo que la persona lo apague. Play/Apple **Data Not Collected** por el relay **ya no es defendible**. Hay que declarar al menos identificadores / datos de red con propósito de entrega, cifrados en tránsito, retención = TTL. Rehacer Data safety / App Privacy antes de enviar.
+
 Permisos de micro/cámara y frases que **no** se pueden afirmar: [legal-f7-calls.md](legal-f7-calls.md).  
 Estado de empaquetado y firma: [phase-8.md](phase-8.md).  
 Limitaciones reales del producto: [audit-f5-relay.md](audit-f5-relay.md) · [audit-f6-media.md](audit-f6-media.md) · [audit-f7-calls.md](audit-f7-calls.md) · [audit-f3-storage.md](audit-f3-storage.md).
@@ -55,20 +57,21 @@ Declaración propuesta, coherente con lo que hace el código:
 
 | Sección | Respuesta | Justificación |
 | --- | --- | --- |
-| ¿Recopila o comparte datos de usuario? | **No** para todas las categorías | No hay cuenta, backend de contenido, analítica ni SDK de terceros que exfiltre |
-| Mensajes / fotos | No recopilados | E2EE en origen; se guardan en el dispositivo; el relay solo ve el sobre cifrado |
-| Contactos | No recopilados | No se lee la agenda del teléfono; los contactos son tokens introducidos a mano o por QR |
-| Identificadores / publicidad | No | Sin advertising ID, sin atribución |
+| ¿Recopila o comparte datos de usuario? | **Sí** — identificadores / datos de red | Encrypchat opera `relay.encrypchat.com` por defecto. Ve token de destino, tamaño del sobre, hora e IP. No hay cuenta ni analítica |
+| Mensajes / fotos | No en claro | E2EE en origen; el relay solo guarda el sobre cifrado (`ECS1`) hasta entrega o TTL |
+| Contactos | No recopilados | No se lee la agenda; los contactos son tokens pegados o por QR |
+| Identificadores / publicidad | No de anuncios. Sí IP + token de destino en el relay | Sin advertising ID. El token no es un teléfono |
 | Diagnóstico / crash logs | No | Sin crash reporting ni telemetría |
-| Ubicación | No | No se pide ningún permiso de ubicación |
-| ¿Datos cifrados en tránsito? | **Sí** | E2EE en origen + DTLS-SRTP en llamadas |
-| ¿El usuario puede pedir el borrado? | **Sí, en el dispositivo** | No hay cuenta que borrar; desinstalar elimina identidad e historial |
+| Ubicación | No | No se pide permiso de ubicación |
+| ¿Datos cifrados en tránsito? | **Sí** | E2EE en origen + TLS al relay + DTLS-SRTP en llamadas |
+| ¿El usuario puede pedir el borrado? | **Sí, en el dispositivo**; el sobre del relay muere al entregarse o al TTL | No hay cuenta que borrar |
 
 Matices que deben ir en la ficha, no ocultarse:
 
-- Si el usuario configura un relay, ese servicio procesa el sobre cifrado, el token de destino, el tamaño, los tiempos y la IP de conexión.
+- El relay por defecto es **nuestro**. “Data Not Collected” no es defendible.
+- Quien apaga ☁ o pone otro URL no nos manda el sobre; la ficha igual describe el default.
 - Las llamadas usan STUN público de Google: ve IP y momento de la llamada.
-- Play interpreta "recopilar" como envío fuera del dispositivo a un servidor **del desarrollador**. El relay puede ser de terceros y es opcional; declararlo como funcionalidad y describirlo en la privacidad, no como recopilación propia. **Confirmar esta lectura con abogado.**
+- **Confirmar el formulario con abogado** antes de enviar.
 
 ### Permisos y políticas
 
@@ -92,14 +95,15 @@ Matices que deben ir en la ficha, no ocultarse:
 
 ### App Privacy (nutrition labels)
 
-Declaración propuesta: **Data Not Collected** en todas las categorías.
+Declaración propuesta: **sí se recopilan** identificadores / datos de red (token de destino, IP, tamaño, tiempos) con propósito de entrega, porque Encrypchat opera el relay por defecto. **Data Not Collected** ya no es defendible.
 
-Condiciones para que esa declaración sea cierta y sostenible:
+Condiciones que sí siguen en pie:
 
-- Ningún SDK de terceros incorporado recopila datos en nombre del desarrollador (verificado hoy: sin analítica, sin publicidad, sin crash reporting).
-- El relay es infraestructura opcional elegida por la persona usuaria y solo procesa cifrado; se describe en la política de privacidad.
-- STUN público de Google es un ayudante de conectividad, no un recolector de datos en nuestro nombre.
-- **Confirmar con abogado** antes de firmar el formulario: Apple pregunta también por datos que recopilen "third-party partners", y la lectura de relay + STUN debe quedar documentada por escrito.
+- Ningún SDK de terceros de analítica, publicidad o crash reporting.
+- El cuerpo del mensaje no se recopila: solo el sobre cifrado, y se borra al entregar o al TTL.
+- Quien apaga el relay o pone el suyo no nos manda el sobre; la etiqueta igual describe el default.
+- STUN público de Google ve IP y momento de la llamada.
+- **Confirmar con abogado** antes de firmar el formulario.
 
 ### Purpose strings
 

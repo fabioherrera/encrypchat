@@ -25,7 +25,7 @@ abstract final class UpdateCopy {
   static const verifying = 'Comprobando el archivo…';
   static const installing = 'Instalando…';
   static const done =
-      'Listo. Si el sistema no reinició Encrypchat, cerrala y volvé a abrirla.';
+      'Listo. Si el sistema no reinició Encrypchat, ciérrala y vuelve a abrirla.';
   static const hashMismatch =
       'El archivo no coincide con la suma publicada. No se instala. '
       'Nada de tus datos se tocó.';

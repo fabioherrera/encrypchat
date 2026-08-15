@@ -29,6 +29,42 @@ and stays blind. What changed is that a forged sender no longer survives on the 
 side. Anti-abuse at the relay therefore remains what it was — per-IP rate limits and the
 per-destination quota — and cannot become sender-based without breaking blindness.
 
+## Public Encrypchat relay
+
+The Flutter client ships `https://relay.encrypchat.com` as the default mailbox
+so two devices can exchange sealed messages and contact intros without sharing
+a LAN. P2P is still tried first; this mailbox is only the fallback. You can
+point ☁ at your own URL (both devices must match) or turn it off (LAN only).
+
+Deploy the public instance as its own Dokploy service:
+
+1. **Commit and push** `deploy/relay/` and `services/relay/Dockerfile` — Dokploy
+   clones GitHub, not your laptop.
+2. **Dokploy** → Docker Compose → compose path (relative):
+   `deploy/relay/docker-compose.yml`
+   Never an absolute `/home/iofab/...` path. Add domain `relay.encrypchat.com`
+   on service `relay`. Details: [`deploy/relay/README.md`](../../deploy/relay/README.md).
+3. Env: `ENCRYPCHAT_RELAY_TRUSTED_PROXIES=127.0.0.1,::1,172.16.0.0/12`
+4. Cloudflare Zero Trust → same tunnel → public hostname
+   `relay.encrypchat.com` → `http://dokploy-traefik:80`.
+5. Check `https://relay.encrypchat.com/healthz` answers `200`.
+
+The app can still point at another URL, or turn the relay off (LAN-only).
+Both devices must use the **same** mailbox URL. P2P stays first either way.
+
+## Run your own (small group)
+
+Same binary. 1 vCPU / 1 GB is enough for a handful of devices. Keep the
+1 GiB pending default unless you expect offline photos.
+
+```bash
+# both apps: Chats → ☁ → http://YOUR_IP:8787  (HTTPS in production)
+cargo run -p encrypchat_relay
+```
+
+Or `deploy/relay/docker-compose.yml` on a VPS. HTTPS in front (Caddy/nginx/Traefik).
+Set `ENCRYPCHAT_RELAY_TRUSTED_PROXIES` if you terminate TLS on a proxy.
+
 ## Run
 
 ```bash
@@ -82,9 +118,9 @@ system catches the misconfiguration that a paragraph in a README does not.
 | `ENCRYPCHAT_RELAY_TRUSTED_PROXIES` | *(empty)* | Addresses/CIDRs whose `X-Forwarded-For` is believed. **Required behind a proxy** |
 | `ENCRYPCHAT_RELAY_MAX_MSGS` | `200` | Pending blobs per destination token |
 | `ENCRYPCHAT_RELAY_MAX_BYTES` | `8388608` | Pending bytes per destination token (8 MiB) |
-| `ENCRYPCHAT_RELAY_MAX_TOTAL_BYTES` | `1073741824` | Pending bytes across **all** mailboxes (1 GiB) |
+| `ENCRYPCHAT_RELAY_MAX_TOTAL_BYTES` | `1073741824` | Pending bytes across **all** mailboxes (1 GiB). Public compose sets 8 GiB |
 | `ENCRYPCHAT_RELAY_ENQUEUE_RPM` | `60` | `enqueue` requests per minute, per client IP |
-| `ENCRYPCHAT_RELAY_CHALLENGE_RPM` | `30` | `challenge` (and `pull`) requests per minute, per client IP |
+| `ENCRYPCHAT_RELAY_CHALLENGE_RPM` | `120` | `challenge` (and `pull`) requests per minute, per client IP |
 | `ENCRYPCHAT_RELAY_PULL_LEASE_SECS` | `60` | How long a delivered blob is hidden before its second and last delivery. Under 20 s warns at startup — see [Delivery](#delivery-is-at-least-once-twice-at-most) |
 
 Unparseable numbers fall back to the default and log a warning; an unparseable proxy list is

@@ -11,7 +11,8 @@ Deploy web: **Dokploy** construye el `Dockerfile` de la raíz y sirve el export 
 
 - Sitio: **https://encrypchat.com**
 - Marca: **Encrypchat** (con *y*). Variante `encripchat.com` → redirect si se registra.
-- Tagline: `DECENTRALIZED P2P CHAT | ZERO-CLOUD`
+- Tagline de marca: `DECENTRALIZED P2P CHAT | ZERO-CLOUD`
+- Frase de producto: `P2P cuando se puede. Cifrado siempre. Sin nube de chats.`
 - Logo: `encrypchat logo.png`
 - **UI aprobada (light):** [docs/design/design-system.md](docs/design/design-system.md) — tokens + mockup chat; usar en landing, Flutter y marca. Dark pendiente.
 

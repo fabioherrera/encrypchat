@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../core/core_error.dart';
+import '../core/default_relay.dart';
 import '../core/encrypchat_core.dart';
 import '../models/contact.dart';
 import '../models/message_request.dart';
@@ -138,7 +139,12 @@ class SessionController extends ChangeNotifier {
     contacts = await _database.listContacts();
     _messaging =
         _messagingInjected ??
-        MessagingService(core: core, identity: identity, database: _database);
+        MessagingService(
+          core: core,
+          identity: identity,
+          database: _database,
+          defaultRelayUrl: encrypchatDefaultRelayUrl,
+        );
     _messaging!.setContacts(contacts);
     await _messaging!.loadBlocked();
     await _messaging!.loadRequests();
@@ -233,7 +239,7 @@ class SessionController extends ChangeNotifier {
     }
     if (contact.token == identity.token) {
       throw const ContactCardException(
-        'Esa tarjeta es la tuya: no podés agregarte como contacto.',
+        'Esa tarjeta es la tuya: no puedes agregarte como contacto.',
       );
     }
     await _database.upsertContact(contact);

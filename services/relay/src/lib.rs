@@ -55,7 +55,11 @@ pub const DEFAULT_MAX_MAILBOX_BYTES: usize = 8 * 1024 * 1024;
 pub const DEFAULT_ENQUEUE_PER_MIN: u32 = 60;
 
 /// Challenge (and pull) budget per client IP, per minute.
-pub const DEFAULT_CHALLENGE_PER_MIN: u32 = 30;
+///
+/// 120 leaves room for several devices behind one CGNAT/home NAT (each app
+/// polls about 8 times a minute). 30 made 3–4 phones on the same public IP
+/// start seeing `429`.
+pub const DEFAULT_CHALLENGE_PER_MIN: u32 = 120;
 
 /// Abuse limits. Every field is overridable by env var (see `README.md`).
 #[derive(Debug, Clone)]

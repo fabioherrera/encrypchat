@@ -85,7 +85,9 @@ class _ShellPageState extends State<ShellPage> {
       setState(() {});
       return;
     }
-    final stillThere = widget.session.contacts.any((c) => c.token == open.token);
+    final stillThere = widget.session.contacts.any(
+      (c) => c.token == open.token,
+    );
     setState(() {
       if (!stillThere) _openPeer = null;
     });
@@ -380,7 +382,7 @@ class _EmptyConversation extends StatelessWidget {
               ),
               SizedBox(height: 16),
               Text(
-                'Elegí un chat',
+                'Elige un chat',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
