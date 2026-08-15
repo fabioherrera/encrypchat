@@ -17,5 +17,6 @@ echo
 echo "=== Artifacts ==="
 ls -lh "${ROOT}/dist/"*.tar.gz "${ROOT}/dist/"*.rpm "${ROOT}/dist/"*.apk 2>/dev/null || true
 echo
-echo "Windows: gh workflow run windows.yml  (scripts/package-windows.sh explains)"
+echo "Windows: make package-windows  (wraps a CI zip in the NSIS setup.exe;"
+echo "         scripts/package-windows.sh explains how to get the zip)"
 echo "iOS: needs a macOS host — scripts/package-ios.sh"

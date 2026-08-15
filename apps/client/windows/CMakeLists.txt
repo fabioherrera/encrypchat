@@ -88,7 +88,7 @@ if(PLUGIN_BUNDLED_LIBRARIES)
 endif()
 
 # Bundled encrypchat_core (Rust FFI), next to the .exe where
-# lib/core/native_library.dart looks for it. Built by scripts/package-windows.sh.
+# lib/core/native_library.dart looks for it. Built by scripts/package-windows.ps1.
 set(ENCRYPCHAT_CORE_DLL "${CMAKE_CURRENT_SOURCE_DIR}/../native/encrypchat_core.dll")
 if(EXISTS "${ENCRYPCHAT_CORE_DLL}")
   install(FILES "${ENCRYPCHAT_CORE_DLL}"

@@ -5,14 +5,23 @@
 # in `make package` — one of the four platforms the product claims parity on, with no way to
 # even see it fail. A hosted Windows runner closes it without anyone buying a second machine.
 #
-# Manual by default: this costs minutes and nobody needs a Windows build on every commit.
-# Tags build automatically, because that is when the artifact is worth keeping.
+# Manual by default: nobody needs a Windows build on every commit. Tags build
+# automatically, because that is when the artifact is worth keeping. A PR that
+# touches this workflow or the NSIS packaging also builds — that is how a Linux
+# host starts a Windows compile without actions:write on workflow_dispatch.
 name: windows
 
 on:
   workflow_dispatch:
   push:
     tags: ["v*"]
+  pull_request:
+    paths:
+      - ".github/workflows/windows.yml"
+      - "packaging/windows/**"
+      - "scripts/package-windows.ps1"
+      - "scripts/package-windows.sh"
+      - "scripts/package-windows-installer.sh"
 
 jobs:
   build:
@@ -76,11 +85,24 @@ jobs:
           7z a -tzip "../../../../../../../dist/${name}.zip" ./*
           echo "name=${name}" >> "$GITHUB_OUTPUT"
 
+      # NSIS is the analog of the Fedora RPM: Start Menu, Add/Remove Programs, an
+      # uninstaller that takes the program back out and leaves chats alone. The
+      # same .nsi compiles on this runner and on a Linux host that only has the zip.
+      - name: NSIS installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          choco install nsis -y --no-progress
+          export PATH="/c/Program Files (x86)/NSIS:/c/Program Files/NSIS:${PATH}"
+          scripts/package-windows-installer.sh apps/client/build/windows/x64/runner/Release
+
       # Not a release: unsigned, and Windows will say so loudly when it runs. Retained for a
       # month, which is the window in which someone is actually testing it.
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.package.outputs.name }}
-          path: dist/*.zip
+          path: |
+            dist/*.zip
+            dist/*-setup.exe
           retention-days: 30
           if-no-files-found: error

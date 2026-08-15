@@ -139,9 +139,30 @@ if (Test-Path $Zip) { Remove-Item -Force $Zip }
 Compress-Archive -Path (Join-Path $Bundle '*') -DestinationPath $Zip
 $MiB = [math]::Round((Get-Item $Zip).Length / 1MB, 1)
 
+Write-Host "  zip: $Zip ($MiB MiB)"
+
+# Same NSIS script the Linux host compiles after downloading this zip. On a
+# machine that already has makensis (CI installs it; a desk may not) we wrap
+# the bundle here so the tester gets a Start Menu entry and an uninstaller
+# without a second hop.
+$Installer = Join-Path $Root 'scripts\package-windows-installer.sh'
+$Setup = Join-Path $Root "dist\encrypchat-windows-x64-$Version-setup.exe"
+$Bash = Get-Command 'bash' -ErrorAction SilentlyContinue
+if ($Bash) {
+    Write-Host '==> NSIS installer' -ForegroundColor Cyan
+    Invoke-Native $Bash.Source $Installer $Bundle
+} else {
+    Write-Warning "bash not on PATH; zip is ready, installer skipped. On Linux: scripts/package-windows-installer.sh $Zip"
+}
+
 Write-Host ''
 Write-Host "OK: $Zip ($MiB MiB)" -ForegroundColor Green
-Write-Host 'Unzip anywhere and run encrypchat.exe - no installer, nothing written outside'
-Write-Host 'the folder except the identity, which goes to the Windows credential store.'
+if (Test-Path $Setup) {
+    $SetupMiB = [math]::Round((Get-Item $Setup).Length / 1MB, 1)
+    Write-Host "OK: $Setup ($SetupMiB MiB)" -ForegroundColor Green
+}
+Write-Host 'The zip runs in place. The setup.exe is per-user (no admin): Start Menu'
+Write-Host 'and %LOCALAPPDATA%\Programs\Encrypchat. Uninstall leaves chats and the'
+Write-Host 'identity in Credential Manager — use "borrar identidad" inside the app.'
 Write-Host 'Unsigned: SmartScreen warns on first run ("More info" -> "Run anyway").'
 Write-Host 'It works if the app reaches the identity screen instead of the core-missing banner.'
