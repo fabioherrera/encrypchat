@@ -1,7 +1,7 @@
 name: encrypchat
 description: Encrypchat — decentralized P2P chat (Flutter client)
 publish_to: "none"
-version: 1.0.6+6
+version: 1.0.7+7
 
 environment:
   sdk: ^3.12.2

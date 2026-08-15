@@ -832,103 +832,129 @@ Future<void> showRelayDialog(
   BuildContext context,
   SessionController session,
 ) async {
+  final messaging = session.messaging;
+  var enabled = messaging.relayConfigured;
   final controller = TextEditingController(
-    text: session.messaging.relayBaseUrl ?? encrypchatDefaultRelayUrl,
+    text: messaging.relayBaseUrl ?? encrypchatDefaultRelayUrl,
   );
   await showDialog<void>(
     context: context,
     builder: (context) {
-      return AlertDialog(
-        title: const Text('Relay ciego'),
-        // The drop summary grows with the number of distinct reasons, which on a
-        // short phone screen is enough to overflow the dialog.
-        scrollable: true,
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              relayCloudDialogBody(
-                configured: session.messaging.relayConfigured,
-                usesDefault: session.messaging.usesDefaultRelay,
+      return StatefulBuilder(
+        builder: (context, setLocal) {
+          return AlertDialog(
+            title: const Text('Relay ciego'),
+            scrollable: true,
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Usar relay'),
+                  subtitle: Text(
+                    enabled
+                        ? 'Encendido. P2P se intenta primero.'
+                        : 'Apagado. Solo misma Wi‑Fi o un puerto abierto.',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: EncrypchatColors.muted,
+                    ),
+                  ),
+                  value: enabled,
+                  activeThumbColor: EncrypchatColors.relay,
+                  onChanged: (on) async {
+                    if (on) {
+                      await messaging.useDefaultRelay();
+                      controller.text = encrypchatDefaultRelayUrl;
+                      unawaited(messaging.pullFromRelay());
+                    } else {
+                      await messaging.setRelayBaseUrl(null);
+                    }
+                    setLocal(() => enabled = on);
+                  },
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  relayCloudDialogBody(
+                    configured: enabled,
+                    usesDefault: enabled && messaging.usesDefaultRelay,
+                  ),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: EncrypchatColors.muted,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'El relay no confirma entregas: acepta el mensaje igual '
+                  'aunque no le quede sitio para ese buzón, porque responder '
+                  'distinto delataría si esa persona se conectó. La única '
+                  'confirmación real es P2P, cuando su dispositivo acusa '
+                  'recibo.',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    height: 1.35,
+                    color: EncrypchatColors.muted,
+                  ),
+                ),
+                if (enabled) ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: controller,
+                    decoration: const InputDecoration(
+                      labelText: 'URL del buzón',
+                      hintText: encrypchatDefaultRelayUrl,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: controller,
+                    builder: (context, value, _) {
+                      if (RelayClient.isSecureUrl(value.text) ||
+                          value.text.trim().isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      return const RelayInsecureNotice(compact: true);
+                    },
+                  ),
+                ],
+                RelayPullFaultNotice(session: session, compact: true),
+                _InboundDropsSummary(messaging: messaging),
+              ],
+            ),
+            actions: [
+              if (enabled && !messaging.usesDefaultRelay)
+                TextButton(
+                  onPressed: () async {
+                    await messaging.useDefaultRelay();
+                    controller.text = encrypchatDefaultRelayUrl;
+                    unawaited(messaging.pullFromRelay());
+                    setLocal(() {});
+                  },
+                  child: const Text('Usar Encrypchat'),
+                ),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cerrar'),
               ),
-              style: const TextStyle(
-                fontSize: 13,
-                color: EncrypchatColors.muted,
-              ),
-            ),
-            const SizedBox(height: 8),
-            // The relay's silence is a property, not a gap, and this is the one
-            // surface with room to say why: it accepts a blob the same way
-            // whether or not it has space for that mailbox, because answering
-            // differently told anybody holding a token when its owner was
-            // online. The cost lands on the sender, so the sender is told.
-            const Text(
-              'El relay no confirma entregas: acepta el mensaje igual aunque no '
-              'le quede sitio para ese buzón, porque responder distinto '
-              'delataría si esa persona se conectó. La única confirmación real '
-              'es P2P, cuando su dispositivo acusa recibo.',
-              style: TextStyle(
-                fontSize: 12.5,
-                height: 1.35,
-                color: EncrypchatColors.muted,
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              decoration: const InputDecoration(
-                labelText: 'URL base del relay',
-                hintText: encrypchatDefaultRelayUrl,
-              ),
-            ),
-            const SizedBox(height: 12),
-            ValueListenableBuilder<TextEditingValue>(
-              valueListenable: controller,
-              builder: (context, value, _) {
-                if (RelayClient.isSecureUrl(value.text) ||
-                    value.text.trim().isEmpty) {
-                  return const SizedBox.shrink();
-                }
-                return const RelayInsecureNotice(compact: true);
-              },
-            ),
-            // Repeated here because this dialog is where the banner sends you,
-            // and arriving without the reason turns it into a guess.
-            RelayPullFaultNotice(session: session, compact: true),
-            _InboundDropsSummary(messaging: session.messaging),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              await session.messaging.setRelayBaseUrl(null);
-              if (context.mounted) Navigator.pop(context);
-            },
-            child: const Text('Apagar'),
-          ),
-          if (!session.messaging.usesDefaultRelay)
-            TextButton(
-              onPressed: () async {
-                await session.messaging.useDefaultRelay();
-                unawaited(session.messaging.pullFromRelay());
-                if (context.mounted) Navigator.pop(context);
-              },
-              child: const Text('Usar Encrypchat'),
-            ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              await session.messaging.setRelayBaseUrl(controller.text);
-              unawaited(session.messaging.pullFromRelay());
-              if (context.mounted) Navigator.pop(context);
-            },
-            child: const Text('Guardar'),
-          ),
-        ],
+              if (enabled)
+                FilledButton(
+                  onPressed: () async {
+                    final text = controller.text.trim();
+                    if (text.isEmpty || text == encrypchatDefaultRelayUrl) {
+                      await messaging.useDefaultRelay();
+                    } else {
+                      await messaging.setRelayBaseUrl(text);
+                    }
+                    unawaited(messaging.pullFromRelay());
+                    if (context.mounted) Navigator.pop(context);
+                  },
+                  child: const Text('Guardar'),
+                ),
+            ],
+          );
+        },
       );
     },
   ).whenComplete(controller.dispose);

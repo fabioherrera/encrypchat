@@ -15,9 +15,17 @@ computador, el clone de Dokploy no los ve.
 
    No pongas `/home/iofab/cursor/EncrypChat.com/...`. Esa ruta es de tu Fedora;
    dentro de Dokploy no existe, y el log sale `Compose file not found`.
-4. **Domains:** añade `relay.encrypchat.com` y elige el servicio `relay`.
-   Sin dominio, Dokploy a veces miente con el mismo error.
-5. Puerto: `8787`.
+4. **Domains** (el recuadro azul pide Redeploy después de cambiar esto):
+
+   | Campo | Valor |
+   | --- | --- |
+   | Service Name | `relay` |
+   | Host | `relay.encrypchat.com` |
+   | Path / Internal Path | `/` |
+   | Container Port | **`8787`** (no 80: el proceso escucha 8787) |
+   | HTTPS | off (el TLS lo termina Cloudflare) |
+
+   Si dejas puerto **80**, Traefik habla con un puerto vacío y no llega a `/healthz`.
 6. Env: `ENCRYPCHAT_RELAY_TRUSTED_PROXIES=127.0.0.1,::1,172.16.0.0/12`
 7. Deploy.
 

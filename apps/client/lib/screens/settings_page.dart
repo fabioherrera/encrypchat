@@ -9,6 +9,7 @@ import '../theme/encrypchat_colors.dart';
 import '../widgets/update_banner.dart';
 import 'about_page.dart';
 import 'blocked_page.dart';
+import 'chat_page.dart';
 
 /// Ajustes: versión, actualización con consentimiento y legal/bloqueo.
 class SettingsPage extends StatelessWidget {
@@ -55,6 +56,47 @@ class SettingsPage extends StatelessWidget {
             onReview: () =>
                 showUpdateOffer(context: context, info: info, applier: applier),
           ),
+          if (session.hasMessaging) ...[
+            const _SectionTitle('Relay'),
+            SwitchListTile(
+              tileColor: EncrypchatColors.paper,
+              title: const Text('Usar relay'),
+              subtitle: Text(
+                session.messaging.relayConfigured
+                    ? (session.messaging.usesDefaultRelay
+                          ? 'Encrypchat. P2P se intenta primero. '
+                                'No leemos el chat; el buzón ve token, '
+                                'tamaño, hora e IP.'
+                          : 'Buzón propio. P2P se intenta primero.')
+                    : 'Apagado. Solo misma Wi‑Fi o un puerto abierto.',
+                style: const TextStyle(color: EncrypchatColors.muted),
+              ),
+              value: session.messaging.relayConfigured,
+              activeThumbColor: EncrypchatColors.relay,
+              onChanged: (on) async {
+                if (on) {
+                  await session.messaging.useDefaultRelay();
+                  await session.messaging.pullFromRelay();
+                } else {
+                  await session.messaging.setRelayBaseUrl(null);
+                }
+              },
+            ),
+            ListTile(
+              tileColor: EncrypchatColors.paper,
+              leading: const Icon(
+                Icons.cloud_outlined,
+                color: EncrypchatColors.relay,
+              ),
+              title: const Text('URL del buzón'),
+              subtitle: Text(
+                session.messaging.relayBaseUrl ?? 'Apagado',
+                style: const TextStyle(color: EncrypchatColors.muted),
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => showRelayDialog(context, session),
+            ),
+          ],
           const _SectionTitle('Esta instalación'),
           ListTile(
             tileColor: EncrypchatColors.paper,
