@@ -1,0 +1,56 @@
+# Encrypchat public blind relay — Dokploy Docker Compose.
+#
+# Panel (GitHub source):
+#   Type: Docker Compose
+#   Compose path (RELATIVE, not a laptop path):
+#     deploy/relay/docker-compose.yml
+#   Domain: relay.encrypchat.com  → service name `relay`
+#   Port: 8787
+#
+# "Compose file not found" almost always means one of:
+#   1. This file is not on the branch Dokploy clones (it must be committed).
+#   2. Compose path is an absolute path like /home/iofab/... — that path
+#      does not exist inside Dokploy. Use the relative path above.
+#   3. No domain added yet (Dokploy sometimes reports that as this error).
+#
+# Cloudflare Zero Trust → this tunnel → add public hostname:
+#   relay.encrypchat.com → http://dokploy-traefik:80
+# (same pattern as encrypchat.com; Traefik routes by Host.)
+#
+# Required env (F-13): the relay sits behind Traefik, so every request looks
+# like it comes from the proxy unless these CIDRs are trusted.
+#
+#   ENCRYPCHAT_RELAY_TRUSTED_PROXIES=127.0.0.1,::1,172.16.0.0/12
+#
+# Rate-limit at Traefik as well. See services/relay/README.md.
+
+services:
+  relay:
+    build:
+      context: ../..
+      dockerfile: services/relay/Dockerfile
+    container_name: encrypchat-relay
+    restart: unless-stopped
+    environment:
+      ENCRYPCHAT_RELAY_ADDR: 0.0.0.0:8787
+      ENCRYPCHAT_RELAY_DB: /data/relay.sqlite
+      ENCRYPCHAT_RELAY_TRUSTED_PROXIES: ${ENCRYPCHAT_RELAY_TRUSTED_PROXIES:-127.0.0.1,::1,172.16.0.0/12}
+      # Public Encrypchat mailbox (~1000 online). Self-host keeps the binary
+      # default (1 GiB) unless you set this.
+      ENCRYPCHAT_RELAY_MAX_TOTAL_BYTES: ${ENCRYPCHAT_RELAY_MAX_TOTAL_BYTES:-8589934592}
+      ENCRYPCHAT_RELAY_CHALLENGE_RPM: ${ENCRYPCHAT_RELAY_CHALLENGE_RPM:-120}
+      RUST_LOG: info
+    volumes:
+      - relay-data:/data
+    ports:
+      - "8787:8787"
+    networks:
+      - dokploy-network
+
+volumes:
+  relay-data:
+
+networks:
+  dokploy-network:
+    external: true
+    name: dokploy-network
