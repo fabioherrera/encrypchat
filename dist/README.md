@@ -85,10 +85,12 @@ make package-windows
 # → dist/encrypchat-windows-x64-<version>-setup.exe
 ```
 
-`scripts/package-windows.sh` reuses `dist/*.zip`, or downloads the latest
-successful `windows.yml` run. A PR that touches the Windows packaging starts
-that workflow; `gh workflow run windows.yml` also does, from a token with
-`actions:write`.
+`scripts/package-windows.sh` reuses `dist/*.zip`, or downloads a successful
+`windows.yml` run **on main** (never the last PR build: same version number,
+different bits). Pin a specific run with `ENCRYPCHAT_WINDOWS_RUN=<id>`. A PR
+that touches the Windows packaging starts that workflow and uploads a
+`-prN` artifact; `gh workflow run windows.yml` also starts it, from a token
+with `actions:write`.
 
 Unsigned, so SmartScreen blocks the first run: "More info" → "Run anyway".
 

@@ -30,16 +30,25 @@ download_ci_zip() {
   if ! command -v gh >/dev/null 2>&1; then
     return 1
   fi
-  echo "==> Looking for a successful windows.yml run"
-  local run
-  run="$(gh run list --workflow=windows.yml --status=success --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)"
+  local run="${ENCRYPCHAT_WINDOWS_RUN:-}"
+  if [[ -z "${run}" ]]; then
+    # Never pick a PR build: those share a version number with main and a
+    # trojanized zip would become "the" Windows package. Pin with
+    # ENCRYPCHAT_WINDOWS_RUN when you really want a specific run (this PR).
+    echo "==> Looking for a successful windows.yml run on main"
+    run="$(gh run list --workflow=windows.yml --status=success --branch main --limit 20 \
+      --json databaseId,event --jq '[.[] | select(.event != "pull_request")][0].databaseId' 2>/dev/null || true)"
+  else
+    echo "==> Using ENCRYPCHAT_WINDOWS_RUN=${run}"
+  fi
   if [[ -z "${run}" || "${run}" == "null" ]]; then
     return 1
   fi
-  echo "==> Downloading artifact ${ARTIFACT} from run ${run}"
+  echo "==> Downloading artifact from run ${run}"
   local tmp
   tmp="$(mktemp -d "${ROOT}/dist/.gh-windows.XXXXXX")"
-  if ! gh run download "${run}" --name "${ARTIFACT}" --dir "${tmp}"; then
+  # PR runs upload a -prN name; main/tags upload the plain version name.
+  if ! gh run download "${run}" --dir "${tmp}" 2>/dev/null; then
     rm -rf "${tmp}"
     return 1
   fi
@@ -79,8 +88,9 @@ Get the bundle, then re-run this script:
 
      gh workflow run windows.yml          # from a token that can dispatch
      gh run watch --exit-status
-     gh run download --name ${ARTIFACT} --dir dist
-     scripts/package-windows.sh
+     ENCRYPCHAT_WINDOWS_RUN=<id> scripts/package-windows.sh
+     # make package-windows on its own only accepts a main/tag artifact,
+     # never the last PR build (same version number, different bits).
 
 2. On a Windows machine — free, and it is the machine that will test the
    build anyway:

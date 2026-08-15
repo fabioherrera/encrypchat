@@ -136,7 +136,14 @@ foreach ($needed in 'encrypchat.exe', 'encrypchat_core.dll', 'data') {
 Write-Host '==> Package' -ForegroundColor Cyan
 New-Item -ItemType Directory -Force -Path (Split-Path $Zip) | Out-Null
 if (Test-Path $Zip) { Remove-Item -Force $Zip }
-Compress-Archive -Path (Join-Path $Bundle '*') -DestinationPath $Zip
+# PDBs carry the builder path and are not needed to run. Copy first so the
+# Flutter build tree stays debuggable.
+$ZipStage = Join-Path $Root 'dist\.stage-windows-zip'
+if (Test-Path $ZipStage) { Remove-Item -Recurse -Force $ZipStage }
+Copy-Item -Path $Bundle -Destination $ZipStage -Recurse
+Get-ChildItem -Path $ZipStage -Recurse -Filter *.pdb -File | Remove-Item -Force
+Compress-Archive -Path (Join-Path $ZipStage '*') -DestinationPath $Zip
+Remove-Item -Recurse -Force $ZipStage
 $MiB = [math]::Round((Get-Item $Zip).Length / 1MB, 1)
 
 Write-Host "  zip: $Zip ($MiB MiB)"

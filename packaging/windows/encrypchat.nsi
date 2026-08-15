@@ -5,10 +5,10 @@
 ;
 ; Per-user, no elevation. The analog of Linux install.sh, not of the RPM:
 ; nothing lands in Program Files, and Add/Remove Programs is written to HKCU.
-; Chats, media and the SQLCipher key live outside this tree
-; (%APPDATA%\com.encrypchat\encrypchat and Windows Credential Manager) and
-; this uninstaller does not touch them. "Delete identity" inside the app is
-; the way to remove those.
+; The install directory is fixed — there is no folder picker — so RMDir of
+; $INSTDIR cannot reach %APPDATA%\com.encrypchat\encrypchat (SQLCipher +
+; media) or Windows Credential Manager (identity + db_key). "Delete identity"
+; inside the app is the way to remove those.
 ;
 ; Required -D flags (passed by the packaging script):
 ;   PRODUCT_VERSION   1.0.6
@@ -42,11 +42,11 @@ RequestExecutionLevel user
 !define PRODUCT_PUBLISHER "Encrypchat"
 !define PRODUCT_WEB_SITE "https://encrypchat.com"
 !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
+!define INSTALL_DIR_LEAF "Encrypchat"
 
 Name "${PRODUCT_NAME}"
 OutFile "${OUT_FILE}"
-InstallDir "$LOCALAPPDATA\Programs\Encrypchat"
-InstallDirRegKey HKCU "Software\Encrypchat" "InstallDir"
+InstallDir "$LOCALAPPDATA\Programs\${INSTALL_DIR_LEAF}"
 BrandingText "Encrypchat ${PRODUCT_VERSION} — DECENTRALIZED P2P CHAT | ZERO-CLOUD"
 
 VIProductVersion "${PRODUCT_VERSION}.0"
@@ -65,7 +65,7 @@ VIAddVersionKey "CompanyName" "${PRODUCT_PUBLISHER}"
 !define MUI_UNICON "${ICON_FILE}"
 
 !define MUI_WELCOMEPAGE_TITLE "Encrypchat"
-!define MUI_WELCOMEPAGE_TEXT "Instala el cliente de escritorio. Los chats, las fotos y las claves se quedan en este dispositivo: no hay cuenta y ningun servidor guarda una copia de una conversacion.$\r$\n$\r$\nEsta copia no esta firmada. Windows SmartScreen avisara la primera vez; el paso es Mas informacion y luego Ejecutar de todas formas.$\r$\n$\r$\nDesinstalar quita el programa. No borra tus conversaciones ni la identidad del Administrador de credenciales. Para eso, usa borrar identidad dentro de la app."
+!define MUI_WELCOMEPAGE_TEXT "Instala el cliente de escritorio. Los chats, las fotos y las claves se quedan en este dispositivo: no hay cuenta. El cifrado ocurre antes de que nada salga del aparato, asi que un relay opcional —solo si el otro lado esta offline— ve ciphertext y nunca plaintext.$\r$\n$\r$\nEsta copia no esta firmada. Windows SmartScreen avisara la primera vez; el paso es Mas informacion y luego Ejecutar de todas formas.$\r$\n$\r$\nDesinstalar quita el programa. No borra tus conversaciones ni la identidad del Administrador de credenciales. Para eso, usa borrar identidad dentro de la app."
 
 !define MUI_FINISHPAGE_RUN "$INSTDIR\encrypchat.exe"
 !define MUI_FINISHPAGE_RUN_TEXT "Abrir Encrypchat"
@@ -75,18 +75,26 @@ VIAddVersionKey "CompanyName" "${PRODUCT_PUBLISHER}"
 
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_LICENSE "${LICENSE_FILE}"
-!insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_LANGUAGE "Spanish"
 
+Function .onInit
+  SetShellVarContext current
+  StrCpy $INSTDIR "$LOCALAPPDATA\Programs\${INSTALL_DIR_LEAF}"
+FunctionEnd
+
+Function un.onInit
+  SetShellVarContext current
+  StrCpy $INSTDIR "$LOCALAPPDATA\Programs\${INSTALL_DIR_LEAF}"
+FunctionEnd
+
 Section "Encrypchat" SecApp
   SectionIn RO
-  SetOutPath "$INSTDIR"
-  ; Replace the previous install tree. User data is not here.
-  RMDir /r "$INSTDIR"
+  SetShellVarContext current
+  StrCpy $INSTDIR "$LOCALAPPDATA\Programs\${INSTALL_DIR_LEAF}"
   SetOutPath "$INSTDIR"
   File /r "${BUNDLE_DIR}\*.*"
 
@@ -103,7 +111,7 @@ Section "Encrypchat" SecApp
   CreateShortCut "$SMPROGRAMS\Encrypchat\Desinstalar Encrypchat.lnk" "$INSTDIR\Uninstall.exe"
 
   WriteRegStr HKCU "${PRODUCT_UNINST_KEY}" "DisplayName" "${PRODUCT_NAME}"
-  WriteRegStr HKCU "${PRODUCT_UNINST_KEY}" "UninstallString" "$INSTDIR\Uninstall.exe"
+  WriteRegStr HKCU "${PRODUCT_UNINST_KEY}" "UninstallString" '"$INSTDIR\Uninstall.exe"'
   WriteRegStr HKCU "${PRODUCT_UNINST_KEY}" "DisplayIcon" "$INSTDIR\encrypchat.exe"
   WriteRegStr HKCU "${PRODUCT_UNINST_KEY}" "DisplayVersion" "${PRODUCT_VERSION}"
   WriteRegStr HKCU "${PRODUCT_UNINST_KEY}" "Publisher" "${PRODUCT_PUBLISHER}"
@@ -118,9 +126,13 @@ Section "Encrypchat" SecApp
 SectionEnd
 
 Section "Uninstall"
-  ; Intentionally not deleted:
-  ;   $APPDATA\com.encrypchat\encrypchat   (SQLCipher DB + sealed media)
-  ;   Windows Credential Manager           (identity + db_key)
+  SetShellVarContext current
+  StrCpy $INSTDIR "$LOCALAPPDATA\Programs\${INSTALL_DIR_LEAF}"
+  ; Refuse to delete anything that is not the install tree we wrote.
+  ; Chats/media live under $APPDATA\com.encrypchat\encrypchat — a different
+  ; root — and the identity stays in Credential Manager.
+  StrCmp $INSTDIR "$LOCALAPPDATA\Programs\${INSTALL_DIR_LEAF}" +2 0
+    Abort "InstallDir inesperado; no se borra nada."
   Delete "$SMPROGRAMS\Encrypchat\Encrypchat.lnk"
   Delete "$SMPROGRAMS\Encrypchat\Desinstalar Encrypchat.lnk"
   RMDir "$SMPROGRAMS\Encrypchat"

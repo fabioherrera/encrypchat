@@ -75,8 +75,9 @@ O CI (el repo es público; el runner no factura). Un PR que toque
 `actions:write` también `gh workflow run windows.yml`.
 
 ```bash
-gh run download --name encrypchat-windows-x64-<version> --dir dist
-make package-windows
+ENCRYPCHAT_WINDOWS_RUN=<id> make package-windows
+# sin el id, make package-windows solo acepta un artefacto de main/tag,
+# nunca el último success de un PR (mismo número de versión, otros bits).
 ```
 
 Nadie lo ha ejecutado todavía en hardware real — si algo falla, ese es el

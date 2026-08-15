@@ -67,20 +67,32 @@ fi
 
 MAKENSIS="$(find_makensis)"
 STAGE="${ROOT}/dist/.stage-windows-installer"
+BUNDLE="${STAGE}/bundle"
 rm -rf "${STAGE}"
-mkdir -p "${STAGE}"
+mkdir -p "${BUNDLE}"
 
 if [[ -d "${INPUT}" ]]; then
-  echo "==> Bundle directory ${INPUT}"
-  BUNDLE="${INPUT}"
+  echo "==> Staging bundle directory ${INPUT}"
+  # Copy: never delete PDBs out of the Flutter build tree.
+  cp -a "${INPUT}/." "${BUNDLE}/"
 elif [[ -f "${INPUT}" ]]; then
   echo "==> Unzip ${INPUT}"
-  python3 - "${INPUT}" "${STAGE}/bundle" <<'PY'
-import sys, zipfile
+  python3 - "${INPUT}" "${BUNDLE}" <<'PY'
+import os, sys, zipfile
 from pathlib import Path
+
 src, dest = Path(sys.argv[1]), Path(sys.argv[2])
-dest.mkdir(parents=True)
+dest.mkdir(parents=True, exist_ok=True)
+dest_r = dest.resolve()
 with zipfile.ZipFile(src) as zf:
+    for info in zf.infolist():
+        name = info.filename.replace("\\", "/")
+        parts = Path(name).parts
+        if name.startswith("/") or ".." in parts:
+            raise SystemExit(f"refusing zip member {info.filename!r}")
+        target = (dest / name).resolve()
+        if target != dest_r and not str(target).startswith(str(dest_r) + os.sep):
+            raise SystemExit(f"refusing zip member {info.filename!r}")
     zf.extractall(dest)
 # A zip of the Release folder has exe at the root. A zip of a named folder
 # has one extra level; flatten that so NSIS always sees the same layout.
@@ -91,11 +103,15 @@ if len(entries) == 1 and entries[0].is_dir() and not (dest / "encrypchat.exe").e
         child.rename(dest / child.name)
     inner.rmdir()
 PY
-  BUNDLE="${STAGE}/bundle"
 else
   echo "error: ${INPUT} is neither a directory nor a zip" >&2
   exit 1
 fi
+
+# MSVC/Flutter leave *.pdb next to the exe. They carry the builder path and
+# are not needed to run. Linux packaging refuses leftover builder paths;
+# dropping the PDBs is the equivalent we can do without a Windows dumpbin.
+find "${BUNDLE}" -type f -name '*.pdb' -delete
 
 for needed in encrypchat.exe encrypchat_core.dll; do
   if [[ ! -f "${BUNDLE}/${needed}" ]]; then

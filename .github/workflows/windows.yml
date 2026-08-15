@@ -23,6 +23,10 @@ on:
       - "scripts/package-windows.sh"
       - "scripts/package-windows-installer.sh"
 
+concurrency:
+  group: windows-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: windows-latest
@@ -80,9 +84,13 @@ jobs:
           set -euo pipefail
           version="$(sed -n 's/^version:[[:space:]]*\([^+[:space:]]*\).*/\1/p' apps/client/pubspec.yaml | head -1)"
           name="encrypchat-windows-x64-${version}"
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            name="${name}-pr${GITHUB_EVENT_NUMBER}"
+          fi
           mkdir -p dist
           cd apps/client/build/windows/x64/runner/Release
-          7z a -tzip "../../../../../../../dist/${name}.zip" ./*
+          # PDBs carry the builder path and are not needed to run.
+          7z a -tzip "../../../../../../../dist/${name}.zip" ./* -xr!*.pdb
           echo "name=${name}" >> "$GITHUB_OUTPUT"
 
       # NSIS is the analog of the Fedora RPM: Start Menu, Add/Remove Programs, an
