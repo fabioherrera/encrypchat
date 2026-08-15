@@ -209,7 +209,7 @@ Ninguno se puede buildar en este host Linux. Lo que sí quedó verificado/prepar
 - [x] Linux tarball + Android APK
 - [x] APK adelgazado a un solo ABI útil (arm64-v8a) con verificación automática
 - [x] Docs / how-to-test / roadmap actualizados
-- [x] Landing download: APK, RPM y tar.gz de la tanda de prueba; iOS/Windows sin URL inventada
+- [x] Landing download: APK, RPM, tar.gz e instalador Windows de la tanda de prueba; iOS sin URL inventada
 - [x] `build.gradle.kts` listo para keystore de release opcional
 - [x] Windows: regla de instalación del `.dll` del core
 - [x] Fedora `.rpm`, con comprobación de que no depende de sus propias bibliotecas

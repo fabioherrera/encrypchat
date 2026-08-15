@@ -112,9 +112,9 @@ one, bump `TEST_RELEASE_TAG` in `apps/web/src/lib/site.ts`.
 
 - **iOS** — needs macOS + Xcode + signing, and `crates/core` linked into Runner
   (`-force_load libencrypchat_core.a`). Exact steps: `scripts/package-ios.sh`.
-- **Windows** — no longer a gap in *producing* a binary: CI or a Windows host
-  compiles the bundle; this Linux host wraps it in `*-setup.exe`. Nothing is
-  signed and nobody has run it on real hardware yet.
+- **Windows** — test `setup.exe` and zip are on the same GitHub Release as
+  Android/Linux (`pruebas-2026-08-14-barra`) and linked from
+  https://encrypchat.com/es/download. Unsigned; not yet run on real hardware.
 - **Android release signing** — debug keystore today; drop
   `apps/client/android/key.properties` to sign for real (see docs/phase-8.md).
   Changing the signing key forces an uninstall, which wipes the local encrypted

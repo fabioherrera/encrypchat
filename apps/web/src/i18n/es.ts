@@ -42,6 +42,8 @@ const es: Dictionary = {
     apk: "APK arm64",
     rpm: "RPM Fedora",
     tarball: "tar.gz portable",
+    setup: "Instalador",
+    zip: "zip portable",
   },
   home: {
     heroAria: "Hero",
@@ -59,7 +61,7 @@ const es: Dictionary = {
       "cuando el cifrado sellado espera offline, y offline cuando el dispositivo no alcanza la red.",
     platformsTitle: "Plataformas",
     platformsNote:
-      "Estamos en testing. Android y Linux tienen build de prueba. iOS y Windows todavía no tienen paquete aquí.",
+      "Estamos en testing. Android, Linux y Windows tienen build de prueba. iOS todavía no tiene paquete aquí.",
     testingBadge: "En pruebas",
     softwareDescription:
       "Mensajero cifrado de igual a igual. Los mensajes permanecen en tus dispositivos; los relays ciegos opcionales solo guardan cifrado.",
@@ -92,25 +94,25 @@ const es: Dictionary = {
   download: {
     metaTitle: "Descargar — en pruebas",
     metaDescription:
-      "Encrypchat está en pruebas. APK Android y RPM o tar.gz para Linux, sin firmar. iOS y Windows todavía no.",
+      "Encrypchat está en pruebas. APK Android, RPM o tar.gz Linux e instalador Windows, sin firmar. iOS todavía no.",
     h1: "Descargar",
     testingBadge: "En pruebas",
     testingLead:
       "Estamos en testing. Estos instaladores sirven para probar en dispositivos reales, no son una versión de tienda ni un lanzamiento público.",
     intro:
-      "Android y Linux tienen paquete. iOS necesita un Mac; Windows se compila en una máquina Windows.",
+      "Android, Linux y Windows tienen paquete de prueba. iOS necesita un Mac.",
     privateNote:
       "El código y estos instaladores están en GitHub. Siguen siendo de prueba: no hay ficha de tienda ni lanzamiento público.",
     unsignedNote:
-      "Nada está firmado. Fedora lo dice al instalar. El APK va con la clave de depuración: sirve para sideload, no para Play Store, y cambiar esa clave más adelante obliga a desinstalar — lo que en Android sí borra la base local.",
+      "Nada está firmado. Fedora lo dice al instalar. El APK va con la clave de depuración: sirve para sideload, no para Play Store, y cambiar esa clave más adelante obliga a desinstalar — lo que en Android sí borra la base local. En Windows, SmartScreen avisa; el paso es Más información y luego Ejecutar de todas formas.",
     androidSideload:
       "En Android el sistema bloquea el APK porque no está en Play Store. Eso es lo esperado. Bajalo, abrilo desde Archivos o Descargas, y cuando avise «por tu seguridad» o Play Protect: Ajustes → Aplicaciones → Acceso especial → Instalar apps desconocidas → Chrome o Archivos → Permitir. Después «Instalar de todos modos». Solo teléfonos arm64 (casi todos los de los últimos años).",
     upgradeNote:
-      "Si ya tenés Encrypchat instalado, la app te avisa cuando hay una versión nueva. El aviso es explícito: actualiza solo el programa (seguridad, estabilidad y funciones), no hay nada oculto, y tus chats, fotos y claves se quedan en el dispositivo. Si aceptás, descarga el paquete, comprueba su SHA-256 e invoca el instalador del sistema (contraseña en Fedora, instalador en Android). No se reemplaza el binario en silencio.",
+      "Si ya tenés Encrypchat instalado, la app te avisa cuando hay una versión nueva. El aviso es explícito: actualiza solo el programa (seguridad, estabilidad y funciones), no hay nada oculto, y tus chats, fotos y claves se quedan en el dispositivo. Si aceptás, descarga el paquete, comprueba su SHA-256 e invoca el instalador del sistema (contraseña en Fedora, instalador en Android, setup.exe en Windows). No se reemplaza el binario en silencio.",
     checksums: "Comprobar SHA-256",
     releasePage: "Notas de esta tanda",
     sourceNote:
-      "Windows: en la máquina, scripts\\package-windows.ps1. iOS: hace falta un host macOS (scripts/package-ios.sh). El código está en el mismo repositorio.",
+      "El instalador de Windows es por usuario (sin admin) y no está firmado. Desinstalar deja chats e identidad; «borrar identidad» dentro de la app es lo que los quita. iOS: hace falta un host macOS (scripts/package-ios.sh). El código está en el mismo repositorio.",
   },
   faq: {
     metaTitle: "FAQ",
@@ -132,7 +134,7 @@ const es: Dictionary = {
       },
       {
         q: "¿Qué plataformas soportan?",
-        a: "Android, iOS, Linux (Fedora) y Windows son objetivos de primera clase. Hoy hay APK para Android y RPM o tar.gz para Linux, como builds de prueba en GitHub Releases. iOS y Windows todavía no tienen paquete en esa lista. Las tiendas, cuando empiece la publicación.",
+        a: "Android, iOS, Linux (Fedora) y Windows son objetivos de primera clase. Hoy hay APK para Android, RPM o tar.gz para Linux e instalador para Windows, como builds de prueba en GitHub Releases. El instalador de Windows no está firmado: SmartScreen avisa; el paso es Más información y Ejecutar de todas formas. iOS todavía no tiene paquete en esa lista. Las tiendas, cuando empiece la publicación.",
       },
       {
         q: "¿Cómo agrego un contacto?",
@@ -160,7 +162,7 @@ const es: Dictionary = {
       },
       {
         q: "¿Cómo borro mi identidad y mis datos?",
-        a: "Desde la app, con «borrar identidad»: quita primero la clave del llavero del sistema y después la base de datos y los adjuntos, así que no hay que limpiar nada a mano. Si se interrumpe, se reanuda en el siguiente arranque antes de abrir nada. Lo que ese borrado no puede hacer es sobreescribir los bytes: quedan como cifrado sin clave, no como hueco en blanco, y un backup del sistema anterior al borrado puede seguir teniendo la clave. Desinstalar sin más también se lleva la base de datos y los ficheros de media, pero en iOS, Linux y Windows deja la clave privada en el llavero del sistema hasta que borres esa entrada a mano.",
+        a: "Desde la app, con «borrar identidad»: quita primero la clave del llavero del sistema y después la base de datos y los adjuntos, así que no hay que limpiar nada a mano. Si se interrumpe, se reanuda en el siguiente arranque antes de abrir nada. Lo que ese borrado no puede hacer es sobreescribir los bytes: quedan como cifrado sin clave, no como hueco en blanco, y un backup del sistema anterior al borrado puede seguir teniendo la clave. Desinstalar no es «borrar identidad». En Android sí se lleva base y media. En Windows el setup.exe quita el programa y deja chats, media y la identidad en el Administrador de credenciales. En Linux (RPM) la base queda en el directorio de usuario y la clave en libsecret. En iOS desinstalar se lleva la base y deja la clave en el Keychain.",
       },
       {
         q: "¿Usan analítica o publicidad?",
@@ -168,7 +170,7 @@ const es: Dictionary = {
       },
       {
         q: "¿La app se actualiza sola si ya la instalé?",
-        a: "Te avisa, no lo hace en silencio. El diálogo dice que la actualización es solo de la aplicación —seguridad, estabilidad y funciones—, que no hay nada oculto y que tus chats, fotos y claves se quedan en este dispositivo. Si aceptás, descarga el paquete, comprueba su SHA-256 e invoca el instalador del sistema. La consulta de versión lee encrypchat.com/latest.json y no lleva tu token ni tus chats.",
+        a: "Te avisa, no lo hace en silencio. El diálogo dice que la actualización es solo de la aplicación —seguridad, estabilidad y funciones—, que no hay nada oculto y que tus chats, fotos y claves se quedan en este dispositivo. Si aceptás, descarga el paquete, comprueba su SHA-256 e invoca el instalador del sistema. En Windows se abre el setup.exe sin firmar: SmartScreen vuelve a avisar. La consulta de versión lee encrypchat.com/latest.json y no lleva tu token ni tus chats.",
       },
     ],
   },
@@ -180,8 +182,8 @@ const es: Dictionary = {
     metaDescription:
       "Qué datos existen en Encrypchat y dónde viven: chats en tu dispositivo, en base de datos cifrada. Relay ciego opcional, llamadas P2P, sin cuentas ni analítica.",
     h1: "Política de privacidad",
-    updated: "Última actualización: 13 de agosto de 2026 · versión 1.0 (previa a revisión legal)",
-    updatedIso: "2026-08-13",
+    updated: "Última actualización: 15 de agosto de 2026 · versión 1.0 (previa a revisión legal)",
+    updatedIso: "2026-08-15",
     summary:
       "Encrypchat no tiene cuentas, no guarda tus conversaciones en la nube y no usa analítica ni publicidad. Tu clave privada, tus chats y tu media viven en tu dispositivo. Lo único que puede tocar un servidor es material cifrado que no podemos leer: el sobre que un relay ciego opcional guarda hasta la entrega, y los servidores STUN públicos que ayudan a montar una llamada y ven direcciones IP.",
     disclaimer:
@@ -273,9 +275,9 @@ const es: Dictionary = {
         id: "actualizaciones",
         title: "Actualizaciones de la app",
         blocks: [
-          "Cuando hay una versión nueva, Encrypchat te lo dice con un diálogo explícito. La actualización es solo de la aplicación (seguridad, estabilidad y mejoras de funciones): no hay nada oculto, y tus chats, fotos y claves privadas no se suben ni se modifican; siguen en este dispositivo. Si aceptás, la app descarga el paquete del catálogo público, comprueba su SHA-256 e invoca el instalador del sistema (en Fedora puede pedir tu contraseña; en Android, el instalador de paquetes). Nunca reemplaza el binario en silencio.",
+          "Cuando hay una versión nueva, Encrypchat te lo dice con un diálogo explícito. La actualización es solo de la aplicación (seguridad, estabilidad y mejoras de funciones): no hay nada oculto, y tus chats, fotos y claves privadas no se suben ni se modifican; siguen en este dispositivo. Si aceptás, la app descarga el paquete del catálogo público, comprueba su SHA-256 e invoca el instalador del sistema (en Fedora puede pedir tu contraseña; en Android, el instalador de paquetes; en Windows, el setup.exe). Nunca reemplaza el binario en silencio.",
           "Para saber si hay versión nueva, la app consulta un fichero público (https://encrypchat.com/latest.json). Esa petición no lleva tu token, ni tus chats, ni un identificador de dispositivo. Cloudflare y nuestro servidor ven la IP, el user agent y la hora, igual que con cualquier visita a encrypchat.com. La descarga del paquete, si la aceptás, es una segunda petición HTTPS al archivo publicado (hoy, GitHub Releases).",
-          "En Fedora, el RPM nuevo reemplaza los archivos en /usr/lib64/encrypchat y deja tus chats en tu directorio de usuario. En Android, el APK encima conserva los datos si la firma es la misma. En el tarball Linux, se descarga el archivo y hay que correr install.sh. Desinstalar o cambiar la clave de firma en Android sí borra la base local.",
+          "En Fedora, el RPM nuevo reemplaza los archivos en /usr/lib64/encrypchat y deja tus chats en tu directorio de usuario. En Android, el APK encima conserva los datos si la firma es la misma. En el tarball Linux, se descarga el archivo y hay que correr install.sh. En Windows, el setup.exe instala por usuario en %LOCALAPPDATA%\\Programs\\Encrypchat; no está firmado, así que SmartScreen avisa. Desinstalar deja chats y media en los datos de la app, y la identidad en el Administrador de credenciales. Desinstalar en Android, o cambiar la clave de firma, sí borra la base local.",
         ],
         links: [{ path: "/download", label: "Descargar" }],
       },
@@ -333,8 +335,8 @@ const es: Dictionary = {
           [
             "En tu dispositivo: los mensajes y la media se conservan hasta que los borres, hasta que uses «borrar identidad» o hasta que desinstales la app. Borrar algo en tu dispositivo no lo borra del dispositivo de tu contacto.",
             "En el relay: el sobre cifrado se borra tras la entrega o al expirar su TTL, lo que ocurra primero.",
-            "Al desinstalar: desaparecen la base de datos local, los ficheros de media y el resto del directorio privado de la app. No hay copia en la nube ni recuperación de cuenta, así que tus conversaciones se pierden de forma irreversible. Si querés conservar tus contactos, exportalos desde la app antes de desinstalar.",
-            "La clave privada, en cambio, solo se va con la app en Android, donde se guarda dentro del directorio de datos de la app. En iOS, Linux y Windows queda en el llavero del sistema (Keychain, libsecret y el Administrador de credenciales), que por diseño sobrevive a desinstalar una aplicación. Esa clave sola no abre ninguna conversación —los mensajes y la media ya no están en el dispositivo—: es un residuo de identidad, no un archivo de tus chats. Para eliminarla del todo sin tocar el llavero a mano, usá «borrar identidad» dentro de la app antes de desinstalar.",
+            "Al desinstalar: en Android desaparecen base, media y clave (viven en el directorio de la app). En Windows y Linux desinstalar quita el programa y deja chats y media en los datos de la app, y la identidad en el Administrador de credenciales o libsecret. En iOS se lleva base y media y deja la clave en el Keychain. No hay copia en la nube. «Borrar identidad» es lo que quita clave, base y adjuntos.",
+            "La clave privada solo se va con la app en Android. En iOS, Linux y Windows queda en el llavero del sistema. En iOS esa clave sola no abre conversaciones porque desinstalar ya se llevó los mensajes. En Windows y Linux los chats siguen en el dispositivo: la clave que queda sí puede abrirlos. Para irte del todo, usá «borrar identidad» dentro de la app antes de desinstalar.",
             "Con «borrar identidad», dentro de la app: quita primero la clave del llavero del sistema y después la base de datos y los adjuntos. Si se interrumpe, se reanuda en el siguiente arranque antes de abrir nada. Si el sistema se niega a eliminar algún fichero —pasa en Windows cuando otro proceso lo tiene abierto—, la app te dice cuántos quedaron en vez de darlo por completo. Lo que no puede hacer es sobreescribir los bytes: quedan como cifrado sin clave, no como hueco en blanco, y un backup del sistema anterior al borrado puede seguir teniendo la clave.",
             "Ese borrado también se lleva los informes de abuso que la app archivó en su propia carpeta, que son texto en claro con tu token y el del reportado. Lo que no alcanza es lo que sacaste vos a otra ruta: un informe guardado con el diálogo del sistema o un contacto exportado están donde los pusiste, fuera de lo que la app puede ver, y se borran como cualquier otro fichero tuyo.",
             "En este sitio web: no hay registro de accesos que conservar, porque nuestro servidor no lo guarda. Lo que Cloudflare retenga por su cuenta se rige por su política, no por esta.",
@@ -348,7 +350,7 @@ const es: Dictionary = {
         blocks: [
           "Como no operamos un servidor de contenido, no tenemos una copia de tus mensajes que podamos entregarte, rectificar o borrar: esos derechos se ejercen directamente en tu dispositivo, donde tenés control total sobre los datos.",
           "Las solicitudes de acceso, rectificación, supresión, oposición o portabilidad (RGPD y equivalentes) se atienden en privacy@encrypchat.com. En la práctica, la respuesta será casi siempre que el dato no está en nuestro poder.",
-          "Ejercer el borrado significa usar «borrar identidad» dentro de la app: quita la clave del llavero del sistema y después la base de datos y los adjuntos de este dispositivo. Desinstalar también se lleva chats y media, pero en iOS, Linux y Windows deja la clave privada en el llavero hasta que borres esa entrada a mano — está detallado en «Retención y borrado».",
+          "Ejercer el borrado significa usar «borrar identidad» dentro de la app: quita la clave del llavero del sistema y después la base de datos y los adjuntos de este dispositivo. Desinstalar en Android se lleva chats y media; en Windows y Linux no. En iOS, Linux y Windows la clave puede quedar en el llavero si no usaste «borrar identidad» — está detallado en «Retención y borrado».",
           "Un matiz, para no prometer de menos ni de más. Hay una cosa que sí está en nuestro poder: si nos escribiste, ese correo. Sobre él podés pedir acceso o supresión y la respuesta será concreta, no «no lo tenemos». La base jurídica de ese tratamiento mínimo es nuestro interés legítimo en contestarte: no hay publicidad, ni perfilado, ni cesión a terceros con fines propios. Y si creés que lo hacemos mal, podés reclamar ante la autoridad de protección de datos que te corresponda: en el Espacio Económico Europeo, la de tu residencia o tu lugar de trabajo; en el Reino Unido, la ICO.",
         ],
       },
@@ -459,7 +461,7 @@ const es: Dictionary = {
         title: "Tus claves son tu responsabilidad",
         blocks: [
           "Tu identidad es un par de claves que solo existe en tu dispositivo. No hay recuperación de cuenta, restablecimiento de contraseña ni copia de respaldo del lado del servidor.",
-          "Perder el dispositivo, borrar los datos de la app, usar «borrar identidad» o desinstalarla elimina de forma irreversible tu historial de conversaciones, y no hay manera de recuperarlo. «Borrar identidad» quita además la clave privada del llavero del sistema; si solo desinstalás, en iOS, Linux y Windows la clave queda ahí hasta que borres esa entrada a mano. Protegé el dispositivo con el bloqueo del sistema operativo y decidí conscientemente qué backups hacés.",
+          "Perder el dispositivo, borrar los datos de la app o usar «borrar identidad» elimina de forma irreversible tu historial, y no hay manera de recuperarlo. Desinstalar no es lo mismo: en Android sí se lleva el historial; en Windows y Linux lo deja. «Borrar identidad» quita además la clave privada del llavero; si solo desinstalás, en iOS, Linux y Windows la clave queda ahí hasta que borres esa entrada a mano. Protegé el dispositivo con el bloqueo del sistema operativo y decidí conscientemente qué backups hacés.",
         ],
       },
       {

@@ -30,7 +30,7 @@ export const TEST_RELEASE_TAG = "pruebas-2026-08-14-barra";
 
 export const TEST_RELEASE_URL = `${GITHUB_REPO}/releases/tag/${TEST_RELEASE_TAG}`;
 
-export type DownloadKind = "apk" | "rpm" | "tarball";
+export type DownloadKind = "apk" | "rpm" | "tarball" | "setup" | "zip";
 
 export type PlatformDownload = {
   href: string;
@@ -61,7 +61,16 @@ export const PLATFORM_DOWNLOADS: Record<PlatformId, PlatformDownload[] | null> =
     },
   ],
   ios: null,
-  windows: null,
+  windows: [
+    {
+      href: releaseAsset("encrypchat-windows-x64-1.0.6-setup.exe"),
+      kind: "setup",
+    },
+    {
+      href: releaseAsset("encrypchat-windows-x64-1.0.6.zip"),
+      kind: "zip",
+    },
+  ],
 };
 
 export const CHECKSUMS_URL = releaseAsset("SHA256SUMS");

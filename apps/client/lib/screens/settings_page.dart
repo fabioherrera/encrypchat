@@ -131,8 +131,12 @@ class SettingsPage extends StatelessWidget {
               'en el mismo prefijo.\n'
               '· Android: el instalador del sistema pide confirmar. Los '
               'datos se conservan si la firma es la misma.\n'
-              '· Windows / iOS: todavía no hay paquete automático; se abre '
-              'la página de descargas.\n\n'
+              '· Windows: se descarga el setup.exe (por usuario, sin admin). '
+              'SmartScreen avisa porque no está firmado. Desinstalar deja '
+              'chats, media e identidad; «borrar identidad» dentro de la '
+              'app es lo que los quita.\n'
+              '· iOS: todavía no hay paquete automático; se abre la '
+              'página de descargas.\n\n'
               'Para saber si hay versión nueva, la app lee '
               'encrypchat.com/latest.json. No envía tu token ni tus chats.',
               style: TextStyle(
