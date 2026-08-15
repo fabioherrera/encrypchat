@@ -17,6 +17,11 @@
       "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-15-relay/encrypchat-linux-x64-1.0.7.tar.gz",
       "sha256": "4a53ee74d8731d26e16eaf2cabda39af67ef63b861d1562789e710416f672dc3",
       "file": "encrypchat-linux-x64-1.0.7.tar.gz"
+    },
+    "windows-setup": {
+      "url": "https://github.com/fabioherrera/encrypchat/releases/download/pruebas-2026-08-15-relay/encrypchat-windows-x64-1.0.7-setup.exe",
+      "sha256": "5ddbd01143984c88903755ce4201f2cdfbfbacba5f0eb610ca4bbd307e0a7840",
+      "file": "encrypchat-windows-x64-1.0.7-setup.exe"
     }
   }
 }
