@@ -10,12 +10,18 @@
 //! into no limit at all. Ignoring it entirely is what produced the bug above. So the header is
 //! honoured **only** when the connection itself comes from an address the operator listed as a
 //! proxy, and only as far back as that list reaches.
+//!
+//! Dokploy's Traefik does not trust cloudflared, so it deletes the `X-Forwarded-For` Cloudflare
+//! sent and starts a new one naming cloudflared. The real client then survives only in
+//! `CF-Connecting-IP`, which Traefik leaves alone. That header can be named in
+//! `ENCRYPCHAT_RELAY_REAL_IP_HEADER`. It is opt-in because, without Cloudflare in front, any
+//! client could write it and choose its own bucket.
 
 use std::net::{IpAddr, SocketAddr};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Mutex;
 
-use axum::http::HeaderMap;
+use axum::http::{HeaderMap, HeaderName};
 
 const XFF: &str = "x-forwarded-for";
 
@@ -142,6 +148,33 @@ pub fn client_ip(peer: SocketAddr, headers: &HeaderMap, trusted: &TrustedProxies
         }
     }
     peer_ip
+}
+
+/// [`client_ip`], preferring the operator's single-value client header when one is configured.
+///
+/// The header counts only from a trusted peer. If it is missing, repeated or not an address,
+/// this falls through to `X-Forwarded-For` and the peer, so a bad value cannot name a bucket.
+pub fn resolve_client_ip(
+    peer: SocketAddr,
+    headers: &HeaderMap,
+    trusted: &TrustedProxies,
+    real_ip_header: Option<&HeaderName>,
+) -> IpAddr {
+    if let Some(name) = real_ip_header {
+        if trusted.contains(peer.ip()) {
+            let mut values = headers.get_all(name).iter();
+            if let (Some(value), None) = (values.next(), values.next()) {
+                if let Some(ip) = value
+                    .to_str()
+                    .ok()
+                    .and_then(|v| v.trim().parse::<IpAddr>().ok())
+                {
+                    return canonical(ip);
+                }
+            }
+        }
+    }
+    client_ip(peer, headers, trusted)
 }
 
 /// Notices the deployment where every request shares one address.
@@ -311,6 +344,60 @@ mod tests {
             client_ip(peer("10.0.0.1"), &xff(&["10.0.0.1"]), &t),
             ip("10.0.0.1")
         );
+    }
+
+    fn cf(values: &[&str]) -> HeaderMap {
+        let mut h = HeaderMap::new();
+        for v in values {
+            h.append("cf-connecting-ip", HeaderValue::from_str(v).unwrap());
+        }
+        h
+    }
+
+    /// The Dokploy chain: Traefik replaced `X-Forwarded-For`, so only this header names the user.
+    #[test]
+    fn real_ip_header_identifies_the_client_behind_a_trusted_peer() {
+        let t = TrustedProxies::parse("10.0.0.0/8").unwrap();
+        let name = HeaderName::from_static("cf-connecting-ip");
+        let mut h = cf(&["203.0.113.9"]);
+        h.append(XFF, HeaderValue::from_static("10.0.1.7"));
+        assert_eq!(
+            resolve_client_ip(peer("10.0.1.5"), &h, &t, Some(&name)),
+            ip("203.0.113.9")
+        );
+        assert_eq!(
+            resolve_client_ip(peer("10.0.1.5"), &cf(&["2001:db8::1"]), &t, Some(&name)),
+            ip("2001:db8::1")
+        );
+    }
+
+    #[test]
+    fn real_ip_header_is_ignored_unless_opted_in_and_from_a_trusted_peer() {
+        let t = TrustedProxies::parse("10.0.0.0/8").unwrap();
+        let name = HeaderName::from_static("cf-connecting-ip");
+        let forged = cf(&["203.0.113.9"]);
+        // A direct client cannot pick its bucket.
+        assert_eq!(
+            resolve_client_ip(peer("198.51.100.7"), &forged, &t, Some(&name)),
+            ip("198.51.100.7")
+        );
+        // Not configured: a self-hosted relay without Cloudflare does not believe it.
+        assert_eq!(
+            resolve_client_ip(peer("10.0.1.5"), &forged, &t, None),
+            ip("10.0.1.5")
+        );
+    }
+
+    #[test]
+    fn broken_real_ip_header_falls_back() {
+        let t = TrustedProxies::parse("10.0.0.0/8").unwrap();
+        let name = HeaderName::from_static("cf-connecting-ip");
+        for h in [cf(&["not-an-ip"]), cf(&["203.0.113.1", "203.0.113.2"])] {
+            assert_eq!(
+                resolve_client_ip(peer("10.0.1.5"), &h, &t, Some(&name)),
+                ip("10.0.1.5")
+            );
+        }
     }
 
     #[test]

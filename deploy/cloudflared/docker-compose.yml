@@ -20,7 +20,8 @@
 # rate limit charges all users to one bucket and one client can lock everyone out with `429`.
 # On the relay service, set the addresses it should believe `X-Forwarded-For` from:
 #
-#   ENCRYPCHAT_RELAY_TRUSTED_PROXIES=127.0.0.1,::1,172.18.0.0/16   # adjust to your network
+#   ENCRYPCHAT_RELAY_TRUSTED_PROXIES=127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12
+#   ENCRYPCHAT_RELAY_REAL_IP_HEADER=cf-connecting-ip
 #
 # and rate-limit at Traefik as well — the relay's limiter is per process and never sees what
 # the proxy already accepted. Details: services/relay/README.md → "Behind a reverse proxy".
@@ -29,7 +30,7 @@
 
 services:
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    image: ${CLOUDFLARED_IMAGE:-docker.io/cloudflare/cloudflared:2026.8.2}
     container_name: encrypchat-cloudflared
     restart: unless-stopped
     command: tunnel --no-autoupdate run

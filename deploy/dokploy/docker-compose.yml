@@ -1,0 +1,56 @@
+# Encrypchat on Dokploy: website and blind relay in one project.
+#
+# Panel:
+#   Create Project → Create Service → Compose
+#   Source: GitHub, branch main, Compose Path: ./deploy/dokploy/docker-compose.yml
+#   Isolated Deployments: OFF (Traefik has to reach both services)
+#
+# Domains (HTTPS off: Cloudflare terminates TLS before the tunnel):
+#   encrypchat.com        → service web,   port 80
+#   www.encrypchat.com    → service web,   port 80
+#   relay.encrypchat.com  → service relay, port 8787
+#
+# Environment: see deploy/dokploy/README.md.
+#
+# No host ports on purpose. The relay trusts CF-Connecting-IP only because Traefik, fed by the
+# tunnel, is the only way in.
+
+services:
+  web:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    expose:
+      - "80"
+    networks:
+      - dokploy-network
+
+  relay:
+    build:
+      context: ../..
+      dockerfile: services/relay/Dockerfile
+    restart: unless-stopped
+    environment:
+      ENCRYPCHAT_RELAY_ADDR: 0.0.0.0:8787
+      ENCRYPCHAT_RELAY_DB: /data/relay.sqlite
+      ENCRYPCHAT_RELAY_TRUSTED_PROXIES: ${ENCRYPCHAT_RELAY_TRUSTED_PROXIES:-127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12}
+      ENCRYPCHAT_RELAY_REAL_IP_HEADER: ${ENCRYPCHAT_RELAY_REAL_IP_HEADER:-cf-connecting-ip}
+      ENCRYPCHAT_RELAY_MAX_TOTAL_BYTES: ${ENCRYPCHAT_RELAY_MAX_TOTAL_BYTES:-8589934592}
+      ENCRYPCHAT_RELAY_TURN_KEY_ID: ${ENCRYPCHAT_RELAY_TURN_KEY_ID:-}
+      ENCRYPCHAT_RELAY_TURN_API_TOKEN: ${ENCRYPCHAT_RELAY_TURN_API_TOKEN:-}
+      RUST_LOG: info
+    volumes:
+      - relay-data:/data
+    expose:
+      - "8787"
+    networks:
+      - dokploy-network
+
+volumes:
+  relay-data:
+
+networks:
+  dokploy-network:
+    external: true
+    name: dokploy-network

@@ -18,9 +18,13 @@
 # (same pattern as encrypchat.com; Traefik routes by Host.)
 #
 # Required env (F-13): the relay sits behind Traefik, so every request looks
-# like it comes from the proxy unless these CIDRs are trusted.
+# like it comes from the proxy unless Traefik's address is trusted.
+# dokploy-network is an overlay network, usually in 10.0.0.0/8, so the default
+# below covers both ranges. Traefik also replaces X-Forwarded-For, which is why
+# the real client is read from CF-Connecting-IP.
 #
-#   ENCRYPCHAT_RELAY_TRUSTED_PROXIES=127.0.0.1,::1,172.16.0.0/12
+# Never publish a host port here. The header is safe only because Traefik, fed
+# by the tunnel, is the only way in.
 #
 # Rate-limit at Traefik as well. See services/relay/README.md.
 #
@@ -37,7 +41,8 @@ services:
     environment:
       ENCRYPCHAT_RELAY_ADDR: 0.0.0.0:8787
       ENCRYPCHAT_RELAY_DB: /data/relay.sqlite
-      ENCRYPCHAT_RELAY_TRUSTED_PROXIES: ${ENCRYPCHAT_RELAY_TRUSTED_PROXIES:-127.0.0.1,::1,172.16.0.0/12}
+      ENCRYPCHAT_RELAY_TRUSTED_PROXIES: ${ENCRYPCHAT_RELAY_TRUSTED_PROXIES:-127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12}
+      ENCRYPCHAT_RELAY_REAL_IP_HEADER: ${ENCRYPCHAT_RELAY_REAL_IP_HEADER:-cf-connecting-ip}
       # Public Encrypchat mailbox (~1000 online). Self-host keeps the binary
       # default (1 GiB) unless you set this.
       ENCRYPCHAT_RELAY_MAX_TOTAL_BYTES: ${ENCRYPCHAT_RELAY_MAX_TOTAL_BYTES:-8589934592}
@@ -45,8 +50,8 @@ services:
       RUST_LOG: info
     volumes:
       - relay-data:/data
-    ports:
-      - "8787:8787"
+    expose:
+      - "8787"
     networks:
       - dokploy-network
 

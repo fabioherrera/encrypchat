@@ -76,9 +76,34 @@ ENCRYPCHAT_RELAY_DB=/var/lib/encrypchat/relay.sqlite \
 cargo run -p encrypchat_relay
 ```
 
+## Live delivery and calls
+
+`GET /v1/ws` opens an authenticated doorbell. The relay sends a `challenge`, the client answers
+with an `auth` frame holding the same proof a pull uses, and the relay replies `ready`. After that
+it sends `{"type":"wake"}` when a blob lands. The frame carries no blob and no sender: the client
+still collects through `/v1/challenge` and `/v1/pull`, so the lease and the PoP stay on one path.
+
+An authenticated client can send `{"type":"turn"}` and gets back `{"type":"turn","ice_servers":[…]}`,
+or `{"type":"turn_unavailable"}` when TURN is not configured or the address is over its budget.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `ENCRYPCHAT_RELAY_TURN_KEY_ID` | unset | Cloudflare Realtime TURN key id |
+| `ENCRYPCHAT_RELAY_TURN_API_TOKEN` | unset | That key's API token. Set both or neither |
+| `ENCRYPCHAT_RELAY_TURN_RPM` | 6 | Credentials per client address, per minute |
+| `ENCRYPCHAT_RELAY_MAX_WS_PER_IP` | 32 | Live sockets per client address |
+| `ENCRYPCHAT_RELAY_MAX_WS_TOTAL` | 20000 | Live sockets on this relay |
+
+A token is free to mint, so anyone can reach TURN credentials and spend the operator's bandwidth
+up to the per-address budget. Set a billing alert on the Cloudflare account.
+
+What this adds to the metadata: while a socket is open, the relay can tell that the holder of that
+token is online and from which address. A polling client already revealed nearly the same thing.
+Nothing here is logged or written to disk.
+
 ## Behind a reverse proxy — required configuration
 
-**If you deploy this behind cloudflared, Traefik, nginx or anything else, you must do both of
+**If you deploy this behind cloudflared, Traefik, nginx or anything else, you must do all of
 these.** The repo's own deployment (`deploy/cloudflared/`) is proxied, so this is the normal
 case, not the exotic one.
 
@@ -88,7 +113,11 @@ case, not the exotic one.
    everyone's budget and get the whole relay answering `429`. The anti-abuse control becomes
    the cheapest denial of service available against you (F-13 in
    [audit-f10.md](../../docs/audit-f10.md)).
-2. **Rate-limit at the proxy too.** The relay's limiter is in-memory and per process: it
+2. **Behind Cloudflare and Dokploy, also set `ENCRYPCHAT_RELAY_REAL_IP_HEADER=cf-connecting-ip`.**
+   Traefik replaces `X-Forwarded-For`, so that header no longer names the user. It is honoured
+   only from a trusted proxy. Leave it unset without Cloudflare, or clients can pick their own
+   bucket, and never publish the relay's port.
+3. **Rate-limit at the proxy too.** The relay's limiter is in-memory and per process: it
    bounds one flood against one instance, not a distributed one, and it cannot see requests
    the proxy has already accepted.
 
@@ -213,7 +242,8 @@ In-memory token bucket per client IP, burstable up to the per-minute budget: `en
 not limited.
 
 Limits are per process and per IP, so they bound a direct flood, not a distributed one. Behind
-a proxy the client address comes from `X-Forwarded-For`, and **only** if the proxy is declared
+a proxy the client address comes from `X-Forwarded-For` or the configured real-IP header, and
+**only** if the proxy is declared
 — see [Behind a reverse proxy](#behind-a-reverse-proxy--required-configuration). A poisoned
 limiter lock fails open: availability over strictness.
 

@@ -1,9 +1,8 @@
 //! Per-IP token bucket for abuse control.
 //!
 //! In-memory and per-process: it bounds a direct flood against one relay, not a
-//! distributed one. Behind a reverse proxy every request shares the proxy IP, so
-//! the proxy must do its own limiting (`X-Forwarded-For` is spoofable and is
-//! deliberately not trusted here).
+//! distributed one. It only charges the address it is given: `client_ip` decides
+//! which one that is behind a reverse proxy.
 
 use std::collections::HashMap;
 use std::net::IpAddr;

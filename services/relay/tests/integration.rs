@@ -7,9 +7,11 @@ use std::time::Duration;
 use base64::engine::general_purpose::STANDARD as B64;
 use base64::Engine;
 use encrypchat_core::{pop_proof, Identity};
-use encrypchat_relay::{router, AppState, RelayConfig, Store, TrustedProxies};
+use encrypchat_relay::{router, AppState, RelayConfig, Store, TrustedProxies, TurnConfig};
+use futures_util::{SinkExt, StreamExt};
 use serde_json::json;
 use tempfile::tempdir;
+use tokio_tungstenite::tungstenite::Message as WsMessage;
 
 async fn serve(state: AppState) -> SocketAddr {
     let app = router(state);
@@ -843,6 +845,244 @@ async fn forwarded_clients_get_separate_buckets() {
     assert_eq!(enqueue_as("203.0.113.1").await, 429);
     // A different client behind the same proxy is unaffected — the bug was that it was not.
     assert_eq!(enqueue_as("203.0.113.2").await, 200);
+}
+
+/// The Dokploy chain through the whole stack: Traefik rewrote `X-Forwarded-For`, so all users
+/// share it, and only the Cloudflare header can tell them apart.
+#[tokio::test]
+async fn cloudflare_clients_get_separate_buckets_when_forwarded_for_is_shared() {
+    let (addr, _dir) = spawn_relay_with(RelayConfig {
+        enqueue_per_min: 1,
+        trusted_proxies: TrustedProxies::parse("127.0.0.1, ::1").expect("proxies"),
+        real_ip_header: Some("cf-connecting-ip".parse().expect("header")),
+        ..RelayConfig::default()
+    })
+    .await;
+    let base = format!("http://{addr}");
+    let client = reqwest::Client::new();
+    let dest = Identity::generate().token().as_str().to_string();
+
+    let enqueue_as = |real_ip: &'static str| {
+        let client = client.clone();
+        let base = base.clone();
+        let dest = dest.clone();
+        async move {
+            client
+                .post(format!("{base}/v1/enqueue"))
+                .header("x-forwarded-for", "127.0.0.1")
+                .header("cf-connecting-ip", real_ip)
+                .json(&json!({ "dest_token": dest, "blob_b64": B64.encode(b"ciphertext") }))
+                .send()
+                .await
+                .unwrap()
+                .status()
+        }
+    };
+
+    assert_eq!(enqueue_as("203.0.113.1").await, 200);
+    assert_eq!(enqueue_as("203.0.113.1").await, 429);
+    assert_eq!(enqueue_as("203.0.113.2").await, 200);
+}
+
+async fn ws_open(
+    addr: SocketAddr,
+) -> tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>> {
+    let (socket, _) = tokio_tungstenite::connect_async(format!("ws://{addr}/v1/ws"))
+        .await
+        .expect("ws connect");
+    socket
+}
+
+async fn ws_json<S>(socket: &mut S) -> serde_json::Value
+where
+    S: futures_util::Stream<Item = Result<WsMessage, tokio_tungstenite::tungstenite::Error>>
+        + Unpin,
+{
+    loop {
+        let next = tokio::time::timeout(Duration::from_secs(5), socket.next())
+            .await
+            .expect("frame in time")
+            .expect("stream open")
+            .expect("frame");
+        if let WsMessage::Text(text) = next {
+            return serde_json::from_str(text.as_str()).expect("json");
+        }
+    }
+}
+
+/// Answers the opening challenge as `identity`.
+fn ws_auth(identity: &Identity, challenge: &serde_json::Value) -> WsMessage {
+    let token = identity.token().as_str().to_string();
+    let nonce = B64
+        .decode(challenge["nonce_b64"].as_str().unwrap())
+        .unwrap();
+    let eph: [u8; 32] = B64
+        .decode(challenge["eph_pubkey_b64"].as_str().unwrap())
+        .unwrap()
+        .try_into()
+        .unwrap();
+    let proof = pop_proof(&identity.to_secret_bytes(), &eph, &nonce, &token).unwrap();
+    WsMessage::Text(
+        json!({
+            "type": "auth",
+            "challenge_id": challenge["challenge_id"],
+            "dest_token": token,
+            "pubkey_b64": B64.encode(identity.public_key_bytes()),
+            "proof_b64": B64.encode(proof),
+        })
+        .to_string()
+        .into(),
+    )
+}
+
+/// The doorbell end to end: only the owner hears it, and the mail itself still takes the pull.
+#[tokio::test]
+async fn socket_wakes_the_owner_when_a_blob_lands() {
+    let (addr, _dir) = spawn_relay().await;
+    let bob = Identity::generate();
+    let mut socket = ws_open(addr).await;
+    let challenge = ws_json(&mut socket).await;
+    assert_eq!(challenge["type"], "challenge");
+    socket.send(ws_auth(&bob, &challenge)).await.unwrap();
+    let ready = ws_json(&mut socket).await;
+    assert_eq!(ready["type"], "ready");
+    assert_eq!(ready["turn"], false);
+
+    let res = reqwest::Client::new()
+        .post(format!("http://{addr}/v1/enqueue"))
+        .json(&json!({
+            "dest_token": bob.token().as_str(),
+            "blob_b64": B64.encode(b"ciphertext"),
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 200);
+    let wake = ws_json(&mut socket).await;
+    assert_eq!(
+        wake,
+        json!({ "type": "wake" }),
+        "no blob and no sender in it"
+    );
+}
+
+#[tokio::test]
+async fn socket_refuses_a_proof_for_someone_elses_mailbox() {
+    let (addr, _dir) = spawn_relay().await;
+    let bob = Identity::generate();
+    let mallory = Identity::generate();
+    let mut socket = ws_open(addr).await;
+    let challenge = ws_json(&mut socket).await;
+    let mut forged: serde_json::Value = match ws_auth(&mallory, &challenge) {
+        WsMessage::Text(t) => serde_json::from_str(t.as_str()).unwrap(),
+        other => panic!("{other:?}"),
+    };
+    forged["dest_token"] = json!(bob.token().as_str());
+    socket
+        .send(WsMessage::Text(forged.to_string().into()))
+        .await
+        .unwrap();
+    let end = tokio::time::timeout(Duration::from_secs(5), socket.next())
+        .await
+        .expect("closed in time");
+    assert!(
+        matches!(end, Some(Ok(WsMessage::Close(_))) | None | Some(Err(_))),
+        "{end:?}"
+    );
+}
+
+#[tokio::test]
+async fn socket_hands_out_turn_credentials_only_when_configured() {
+    use axum::routing::post;
+
+    let app = axum::Router::new().route(
+        "/v1/turn/keys/key-1/credentials/generate-ice-servers",
+        post(|headers: axum::http::HeaderMap| async move {
+            assert_eq!(headers["authorization"], "Bearer api-secret");
+            (
+                axum::http::StatusCode::CREATED,
+                axum::Json(json!({ "iceServers": [{
+                    "urls": ["turn:t:53?transport=udp", "turn:t:3478?transport=udp"],
+                    "username": "u",
+                    "credential": "c",
+                }]})),
+            )
+        }),
+    );
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let api = listener.local_addr().unwrap();
+    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+
+    let (addr, _dir) = spawn_relay_with(RelayConfig {
+        turn: Some(TurnConfig {
+            key_id: "key-1".into(),
+            api_token: "api-secret".into(),
+            api_base: format!("http://{api}"),
+        }),
+        turn_per_min: 1,
+        ..RelayConfig::default()
+    })
+    .await;
+    let alice = Identity::generate();
+    let mut socket = ws_open(addr).await;
+    let challenge = ws_json(&mut socket).await;
+    socket.send(ws_auth(&alice, &challenge)).await.unwrap();
+    assert_eq!(ws_json(&mut socket).await["turn"], true);
+
+    let ask = || WsMessage::Text(json!({ "type": "turn" }).to_string().into());
+    socket.send(ask()).await.unwrap();
+    let reply = ws_json(&mut socket).await;
+    assert_eq!(reply["type"], "turn");
+    assert_eq!(
+        reply["ice_servers"][0]["urls"],
+        json!(["turn:t:3478?transport=udp"])
+    );
+    assert_eq!(reply["ice_servers"][0]["credential"], "c");
+
+    socket.send(ask()).await.unwrap();
+    assert_eq!(
+        ws_json(&mut socket).await["type"],
+        "turn_unavailable",
+        "the per-address ceiling holds"
+    );
+}
+
+#[tokio::test]
+async fn socket_needs_auth_before_it_will_issue_turn() {
+    let (addr, _dir) = spawn_relay().await;
+    let mut socket = ws_open(addr).await;
+    let _ = ws_json(&mut socket).await;
+    socket
+        .send(WsMessage::Text(
+            json!({ "type": "turn" }).to_string().into(),
+        ))
+        .await
+        .unwrap();
+    let end = tokio::time::timeout(Duration::from_secs(5), socket.next())
+        .await
+        .expect("closed in time");
+    assert!(
+        !matches!(&end, Some(Ok(WsMessage::Text(_)))),
+        "unauthenticated socket got an answer: {end:?}"
+    );
+}
+
+/// The largest blob the client may send has to survive the request limit in base64.
+#[tokio::test]
+async fn a_photo_sized_blob_is_accepted() {
+    let (addr, _dir) = spawn_relay().await;
+    let bob = Identity::generate();
+    let blob = vec![7u8; encrypchat_relay::MAX_BLOB_BYTES];
+    let res = reqwest::Client::new()
+        .post(format!("http://{addr}/v1/enqueue"))
+        .json(&json!({
+            "dest_token": bob.token().as_str(),
+            "blob_b64": B64.encode(&blob),
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 200);
 }
 
 /// Upgrading a relay that is already holding mail: the mailbox table predates `leased_until`,

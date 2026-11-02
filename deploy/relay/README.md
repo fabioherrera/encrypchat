@@ -26,8 +26,15 @@ computador, el clone de Dokploy no los ve.
    | HTTPS | off (el TLS lo termina Cloudflare) |
 
    Si dejas puerto **80**, Traefik habla con un puerto vacío y no llega a `/healthz`.
-6. Env: `ENCRYPCHAT_RELAY_TRUSTED_PROXIES=127.0.0.1,::1,172.16.0.0/12`
-7. Deploy.
+5. Env (el compose ya trae estos valores):
+
+   ```
+   ENCRYPCHAT_RELAY_TRUSTED_PROXIES=127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12
+   ENCRYPCHAT_RELAY_REAL_IP_HEADER=cf-connecting-ip
+   ```
+
+   Sin puertos publicados: la única entrada es Traefik por el túnel.
+6. Deploy.
 
 El build usa la **raíz del repo** (`context: ../..`). El `.dockerignore` de
 la raíz no debe listar `crates` ni `services`: si los ignora, Docker copia
@@ -44,13 +51,17 @@ Create Service → **Application** → Dockerfile:
 | Port | `8787` |
 | Domain | `relay.encrypchat.com` |
 
-Volumen persistente: `/data`. Env: la misma `TRUSTED_PROXIES`.
+Volumen persistente: `/data`. Env: las mismas dos variables, sin publicar el puerto.
 
 ## Cloudflare
 
 Mismo túnel que `encrypchat.com`. Public hostname:
 
 `relay.encrypchat.com` → `http://dokploy-traefik:80`
+
+Si Dokploy ya tiene su conector (como el de `vps.elnerd.com`), usa ese túnel y no
+despliegues `deploy/cloudflared`. Al mudarte, el hostname viejo debe salir del túnel
+de Oracle para que el DNS apunte al nuevo.
 
 ## Comprobar
 

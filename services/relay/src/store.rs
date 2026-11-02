@@ -85,6 +85,59 @@ pub enum EnqueueError {
     Db(String),
 }
 
+/// Checks a proof against its challenge and burns the challenge if the proof is good.
+fn consume_challenge(
+    tx: &rusqlite::Transaction<'_>,
+    challenge_id: &str,
+    dest_token: &str,
+    client_pub: &[u8; 32],
+    proof: &[u8; POP_PROOF_LEN],
+    now: &str,
+) -> Result<(), String> {
+    let challenge: Option<ChallengeRow> = tx
+        .query_row(
+            "SELECT eph_secret, nonce FROM challenges
+             WHERE id = ?1 AND expires_at > ?2",
+            params![challenge_id, now],
+            |row| {
+                let secret: Vec<u8> = row.get(0)?;
+                let nonce: Vec<u8> = row.get(1)?;
+                let mut eph_secret = [0u8; 32];
+                let mut nonce_arr = [0u8; POP_NONCE_LEN];
+                if secret.len() != 32 || nonce.len() != POP_NONCE_LEN {
+                    return Err(rusqlite::Error::InvalidQuery);
+                }
+                eph_secret.copy_from_slice(&secret);
+                nonce_arr.copy_from_slice(&nonce);
+                Ok(ChallengeRow {
+                    eph_secret,
+                    nonce: nonce_arr,
+                })
+            },
+        )
+        .optional()
+        .map_err(|e| format!("select challenge: {e}"))?;
+
+    let Some(ch) = challenge else {
+        return Err("no valid challenge".into());
+    };
+
+    let ok = pop_verify(&ch.eph_secret, client_pub, &ch.nonce, dest_token, proof)
+        .map_err(|_| "pop verify error".to_string())?;
+    if !ok {
+        return Err("pop failed".into());
+    }
+
+    // One-shot from here on: the proof was good, so this id must never open a mailbox again even
+    // if someone captured it in transit.
+    tx.execute(
+        "DELETE FROM challenges WHERE id = ?1",
+        params![challenge_id],
+    )
+    .map_err(|e| format!("delete challenge: {e}"))?;
+    Ok(())
+}
+
 /// Fraction of the global ceiling that triggers an operator warning.
 const HIGH_WATER: f64 = 0.9;
 
@@ -290,6 +343,27 @@ impl Store {
         })
     }
 
+    /// Verify a PoP without touching the mailbox: the socket uses this to admit a listener, and
+    /// delivery stays with [`Store::pull_with_pop`]. Consumes the challenge on success only.
+    pub fn verify_pop(
+        &self,
+        challenge_id: &str,
+        dest_token: &str,
+        client_pub: &[u8; 32],
+        proof: &[u8; POP_PROOF_LEN],
+    ) -> Result<(), String> {
+        let now = Utc::now().to_rfc3339();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| "db lock poisoned".to_string())?;
+        let tx = conn
+            .unchecked_transaction()
+            .map_err(|e| format!("begin tx: {e}"))?;
+        consume_challenge(&tx, challenge_id, dest_token, client_pub, proof, &now)?;
+        tx.commit().map_err(|e| format!("commit: {e}"))
+    }
+
     /// Verify the PoP presented with `challenge_id`, then return the destination's deliverable
     /// blobs, leasing the ones delivered for the first time and deleting the ones delivered
     /// for the second.
@@ -358,47 +432,7 @@ impl Store {
             .unchecked_transaction()
             .map_err(|e| format!("begin tx: {e}"))?;
 
-        let challenge: Option<ChallengeRow> = tx
-            .query_row(
-                "SELECT eph_secret, nonce FROM challenges
-                 WHERE id = ?1 AND expires_at > ?2",
-                params![challenge_id, now],
-                |row| {
-                    let secret: Vec<u8> = row.get(0)?;
-                    let nonce: Vec<u8> = row.get(1)?;
-                    let mut eph_secret = [0u8; 32];
-                    let mut nonce_arr = [0u8; POP_NONCE_LEN];
-                    if secret.len() != 32 || nonce.len() != POP_NONCE_LEN {
-                        return Err(rusqlite::Error::InvalidQuery);
-                    }
-                    eph_secret.copy_from_slice(&secret);
-                    nonce_arr.copy_from_slice(&nonce);
-                    Ok(ChallengeRow {
-                        eph_secret,
-                        nonce: nonce_arr,
-                    })
-                },
-            )
-            .optional()
-            .map_err(|e| format!("select challenge: {e}"))?;
-
-        let Some(ch) = challenge else {
-            return Err("no valid challenge".into());
-        };
-
-        let ok = pop_verify(&ch.eph_secret, client_pub, &ch.nonce, dest_token, proof)
-            .map_err(|_| "pop verify error".to_string())?;
-        if !ok {
-            return Err("pop failed".into());
-        }
-
-        // One-shot from here on: the proof was good, so this id must never open a mailbox
-        // again even if someone captured it in transit.
-        tx.execute(
-            "DELETE FROM challenges WHERE id = ?1",
-            params![challenge_id],
-        )
-        .map_err(|e| format!("delete challenge: {e}"))?;
+        consume_challenge(&tx, challenge_id, dest_token, client_pub, proof, &now)?;
 
         let mut stmt = tx
             .prepare(

@@ -56,6 +56,8 @@ async fn main() {
         challenge_rpm = config.challenge_per_min,
         pull_lease_secs = config.pull_lease_secs,
         trusted_proxies = config.trusted_proxies.len(),
+        real_ip_header = config.real_ip_header.is_some(),
+        turn = config.turn.is_some(),
         "abuse limits"
     );
     // The client gives a pull 20 s before it gives up. Under that, the lease can expire while

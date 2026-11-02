@@ -3,7 +3,7 @@
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 
-use axum::extract::{ConnectInfo, State};
+use axum::extract::{ConnectInfo, DefaultBodyLimit, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::routing::{get, post};
 use axum::{Json, Router};
@@ -14,19 +14,24 @@ use serde::{Deserialize, Serialize};
 use tower_http::cors::{Any, CorsLayer};
 use uuid::Uuid;
 
-use crate::client_ip::{client_ip, ProxyWatch};
+use crate::client_ip::{resolve_client_ip, ProxyWatch};
+use crate::hub::Hub;
 use crate::limit::RateLimiter;
 use crate::store::{EnqueueError, Store};
-use crate::{RelayConfig, DEFAULT_TTL_SECS, MAX_BLOB_BYTES, MAX_TTL_SECS};
+use crate::turn::TurnClient;
+use crate::{ws, RelayConfig, DEFAULT_TTL_SECS, MAX_BLOB_BYTES, MAX_REQUEST_BYTES, MAX_TTL_SECS};
 
 #[derive(Clone)]
 pub struct AppState {
     pub store: Arc<Store>,
-    config: Arc<RelayConfig>,
+    pub(crate) config: Arc<RelayConfig>,
     enqueue_limit: Arc<RateLimiter>,
-    challenge_limit: Arc<RateLimiter>,
+    pub(crate) challenge_limit: Arc<RateLimiter>,
     pull_limit: Arc<RateLimiter>,
-    proxy_watch: Arc<ProxyWatch>,
+    pub(crate) turn_limit: Arc<RateLimiter>,
+    pub(crate) proxy_watch: Arc<ProxyWatch>,
+    pub(crate) hub: Arc<Hub>,
+    pub(crate) turn: Option<Arc<TurnClient>>,
 }
 
 impl AppState {
@@ -40,14 +45,23 @@ impl AppState {
         let enqueue_limit = Arc::new(RateLimiter::per_minute(config.enqueue_per_min));
         let challenge_limit = Arc::new(RateLimiter::per_minute(config.challenge_per_min));
         let pull_limit = Arc::new(RateLimiter::per_minute(config.challenge_per_min));
+        let turn_limit = Arc::new(RateLimiter::per_minute(config.turn_per_min));
         let proxy_watch = Arc::new(ProxyWatch::new(!config.trusted_proxies.is_empty()));
+        // A TLS client that cannot be built is a broken host, not a call that should fall back.
+        let turn = config
+            .turn
+            .clone()
+            .map(|c| Arc::new(TurnClient::new(c).expect("TURN client")));
         Self {
             store,
             config: Arc::new(config),
             enqueue_limit,
             challenge_limit,
             pull_limit,
+            turn_limit,
             proxy_watch,
+            hub: Arc::new(Hub::default()),
+            turn,
         }
     }
 }
@@ -60,9 +74,13 @@ pub fn router(state: AppState) -> Router {
 
     Router::new()
         .route("/healthz", get(|| async { StatusCode::OK }))
-        .route("/v1/enqueue", post(enqueue))
+        .route(
+            "/v1/enqueue",
+            post(enqueue).layer(DefaultBodyLimit::max(MAX_REQUEST_BYTES)),
+        )
         .route("/v1/challenge", post(challenge))
         .route("/v1/pull", post(pull))
+        .route("/v1/ws", get(ws::upgrade))
         .layer(cors)
         .with_state(state)
 }
@@ -126,20 +144,29 @@ fn parse_token(raw: &str) -> Result<Token, ApiError> {
 }
 
 /// Resolve who to charge, then charge them. Behind a proxy the peer address is the proxy's,
-/// so `client_ip` is what keeps one bucket from covering every user (F-13).
+/// so `resolve_client_ip` is what keeps one bucket from covering every user (F-13).
 fn rate_limit(
     state: &AppState,
     limiter: &RateLimiter,
     peer: SocketAddr,
     headers: &HeaderMap,
 ) -> Result<IpAddr, ApiError> {
-    let ip = client_ip(peer, headers, &state.config.trusted_proxies);
+    let ip = client_address(state, peer, headers);
     state.proxy_watch.observe(ip);
     if limiter.allow(ip) {
         Ok(ip)
     } else {
         Err(err(StatusCode::TOO_MANY_REQUESTS, "rate limit exceeded"))
     }
+}
+
+pub(crate) fn client_address(state: &AppState, peer: SocketAddr, headers: &HeaderMap) -> IpAddr {
+    resolve_client_ip(
+        peer,
+        headers,
+        &state.config.trusted_proxies,
+        state.config.real_ip_header.as_ref(),
+    )
 }
 
 fn decode_b64_32(label: &str, b64: &str) -> Result<[u8; 32], ApiError> {
@@ -189,6 +216,7 @@ async fn enqueue(
             // No `dest_token` in logs: "who receives and when" is the metadata a blind
             // relay promises not to retain. See README → Log policy.
             tracing::info!(id = %id, bytes = blob.len(), ttl_secs = ttl, "enqueued");
+            state.hub.ring(token.as_str());
             Ok(Json(EnqueueResponse { id }))
         }
         // Dropped, and answered exactly like an acceptance — same status, same shape, an id

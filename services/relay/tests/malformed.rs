@@ -412,15 +412,14 @@ fn generated_bodies_reach_the_handlers() {
 }
 
 /// A body large enough to hurt has to be refused before it is buffered, whatever it contains.
-/// The ceiling is Axum's default request limit rather than anything this crate writes, which
-/// is exactly why it is pinned here: it would disappear silently if the router were rebuilt
-/// without it.
+/// The ceiling is set per route, which is exactly why it is pinned here: it would disappear
+/// silently if the router were rebuilt without it.
 #[test]
 fn an_oversized_body_is_refused_without_being_parsed() {
     let (state, _dir) = relay();
     let huge = serde_json::to_vec(&json!({
         "dest_token": real_token(),
-        "blob_b64": "A".repeat(8 * 1024 * 1024),
+        "blob_b64": "A".repeat(encrypchat_relay::MAX_REQUEST_BYTES),
     }))
     .expect("json");
     let len = huge.len();
