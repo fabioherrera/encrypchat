@@ -38,11 +38,8 @@ without them. Drop the overrides when a `next` release pins the patched versions
 
 Alternative: context `apps/web`, Dockerfile `Dockerfile`.
 
-**Trigger it by hand.** Auto-deploy on push to `main` was configured, but the GitHub
-webhook still points at the address the panel had before it moved to its own
-subdomain, so a push no longer starts a build — verified on 2026-08-13, when
-`/latest.json` stayed missing four minutes after the push. Until the webhook is
-repointed, publishing is: push, then **Deploy** in the Dokploy panel.
+Un push a `main` dispara el deploy en Dokploy. El webhook ya está
+reapuntado (2026-08-15: `latest.json` pasó a 1.0.7 sin Deploy a mano).
 
 `encrypchat.com` does not resolve to the server. Cloudflare fronts it and reaches
 Dokploy's Traefik through a tunnel ([`deploy/cloudflared`](../../deploy/cloudflared/docker-compose.yml)),

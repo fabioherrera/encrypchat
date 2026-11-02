@@ -32,10 +32,10 @@ Deploy web: **Dokploy** construye el `Dockerfile` de la raíz y sirve el export 
 | Capa | Tech |
 | --- | --- |
 | UI | Flutter |
-| Core | Rust + libp2p + E2EE (`crates/core`) |
+| Core | Rust con TCP propio + E2EE (`crates/core`). Solo usa `multiaddr` de libp2p |
 | DB local | **SQLCipher** en el dispositivo (fichero completo, AES-256; clave derivada de `db_key` del almacén seguro del SO) + cuerpos de mensaje y media sellados con AEAD encima. No protege con el dispositivo desbloqueado y el llavero accesible ([audit-f3-storage.md](docs/audit-f3-storage.md)) |
-| A/V | WebRTC P2P |
-| Offline | Relay ciego (`services/relay`) |
+| A/V | WebRTC: directo, o por TURN de Cloudflare si las redes lo impiden |
+| Offline | Relay ciego (`services/relay`) con aviso por WebSocket; también lleva la señalización de llamadas |
 | Web | Next.js (`apps/web`) |
 
 ## Subagentes Cursor

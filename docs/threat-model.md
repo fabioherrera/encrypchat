@@ -1,6 +1,6 @@
 # Modelo de amenazas — Encrypchat
 
-**Última revisión:** 2026-08-12 · **Estado del producto:** pre-beta (F10)
+**Última revisión:** 2026-11-01 · **Estado del producto:** pre-beta (F10)
 **Estado de publicación:** publicable. Lo que bloqueaba este documento era describir dos
 suplantaciones abiertas: F-1 y F-2 están cerradas de punta a punta —EH02 y `ECS1` en el core
 (`0.8.0`), llamadas ya desde el cliente Flutter, con piso de ABI `0.8.0` para que un core viejo
@@ -25,7 +25,8 @@ Un producto de privacidad que no publica sus límites está mintiendo por omisi�
 - Si el otro está desconectado, el mensaje ya cifrado puede quedar en un **relay ciego**: un
   buzón que guarda un blob opaco con TTL y lo borra cuando lo ha entregado —tras una segunda
   entrega de cortesía, o al vencer el TTL (§6.3)—.
-- Las llamadas son WebRTC directo con DTLS-SRTP.
+- Las llamadas son WebRTC con DTLS-SRTP: directas si las redes lo permiten y, si no, por TURN de
+  Cloudflare, que reenvía paquetes cifrados.
 
 ## 2. Qué protegemos
 
@@ -106,12 +107,13 @@ teclado que escribe, la pantalla que muestra, el almacén donde vive la clave y 
 la que descargaste la app.
 
 **No podemos protegerte de ellos y no vamos a decir lo contrario.** Lo que sí hacemos: no
-mandar nada a sus servicios que no haga falta, no usar push (no hay notificaciones push,
-precisamente por eso), y no incluir analítica, SDK de terceros ni crash reporting con
+mandar nada a sus servicios que no haga falta, no usar push (en Android, un servicio en primer
+plano mantiene la conexión con el relay y las notificaciones son locales, precisamente por eso;
+tampoco llevan el texto del mensaje), y no incluir analítica, SDK de terceros ni crash reporting con
 contenido.
 
-Excepción explícita: las llamadas usan servidores **STUN públicos de Google** para descubrir
-tu IP pública.
+Excepción explícita: las llamadas usan **STUN y TURN de Cloudflare**, que está fuera de nuestro
+control y ve las direcciones IP de quienes llaman.
 
 ### 3.5 Un atacante con recursos de estado
 
@@ -187,7 +189,7 @@ No son fallos pendientes: son cosas que Encrypchat **no intenta hacer**.
 | --- | --- | --- |
 | Observador de red (Wi-Fi, ISP) | Que tu IP habla con otra IP; volumen, horarios, y el tamaño de cada mensaje por encima de 512 bytes; que es tráfico de Encrypchat, por los primeros bytes del handshake | Contenido de los mensajes; identidades, ni en el handshake ni en las tramas de una sesión ya establecida, que van cifradas de punta a punta del socket (F-15); la diferencia entre un ACK y un mensaje corto; tokens en la ruta de relay si el relay usa TLS |
 | Operador del relay | Token del destinatario, tamaño del blob, hora de depósito y recogida, IP de ambas puntas | Contenido, token del remitente, nombres de fichero |
-| STUN público de Google | Tu IP pública y el momento de iniciar o recibir una llamada | Con quién hablás, qué decís, tu token |
+| STUN y TURN de Cloudflare | Tu IP pública, el momento de la llamada y, si pasa por TURN, el volumen y la IP del otro extremo | Qué decís, tu token |
 | Tu par | Tu token, tu clave pública, tu IP durante la conexión, todo lo que le enviás | Tus otras conversaciones |
 | Encrypchat (nosotros) | **Nada.** No operamos servidores de contenido, no hay telemetría ni analítica | — |
 | Quien tenga tu dispositivo desbloqueado | Todo | — |
@@ -196,9 +198,10 @@ Notas honestas sobre esa tabla:
 
 - **El relay ve el token del destinatario.** Es inevitable: sin él no sabe a qué buzón dejar el
   blob. Por eso es opcional y por eso preferimos siempre la conexión directa.
-- **El STUN de Google ve tu IP al llamar.** Es un tercero que no controlamos. Está ahí porque
-  sin él las llamadas no atraviesan la mayoría de los NAT domésticos. Si eso no te sirve, no
-  uses llamadas.
+- **Cloudflare ve tu IP al llamar.** Es un tercero que no controlamos. Está ahí porque sin STUN
+  y TURN las llamadas no atraviesan la mayoría de los NAT. Si eso no te sirve, no uses llamadas.
+- **Con el socket abierto, el relay sabe que estás en línea.** Ve el token y la IP mientras dure
+  la conexión. Un cliente que consultaba cada 8 s revelaba casi lo mismo. No se registra.
 - **La correlación es el ataque realista.** Nadie va a romper ChaCha20; van a mirar quién habló
   con quién y cuándo.
 
@@ -316,10 +319,14 @@ cruza la red dos veces (la copia repetida la descarta el cliente por `msg_id`).
 
 ### 6.4 Llamadas
 
-La señalización viaja **solo** por el canal P2P, cifrada como cualquier mensaje, nunca por el
-relay. El medio va punto a punto con DTLS-SRTP. No hay SFU, ni TURN, ni servidor de medios: el
-audio y el vídeo nunca pasan por infraestructura nuestra. Sin TURN, algunas combinaciones de
-NAT no conectan; preferimos que la llamada falle a montar un servidor por el que pase tu voz.
+La señalización va por el canal P2P cuando existe y, si no, sellada por el relay con TTL de dos
+minutos. Al llegar por relay, cada señal debe traer su hora firmada y tener menos de dos minutos,
+así que un timbre guardado no suena horas después. El medio va con DTLS-SRTP, directo o por TURN
+de Cloudflare. TURN reenvía paquetes cifrados: no puede oír ni ver la llamada, pero ve IPs,
+horarios y volumen. No hay SFU ni servidor de medios propio.
+
+Las credenciales de TURN las pide el relay con su token de API, que nunca llega al cliente, y
+solo sobre un socket autenticado. Un token se crea gratis, así que el límite real es por IP.
 
 Micrófono y cámara se piden al aceptar, no al sonar. Una invitación de un token que no está en
 contactos se descarta sin sonar.

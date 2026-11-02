@@ -1,13 +1,9 @@
 name: check
 
+# Manual only: builds and checks run on our own machines, so this never spends Actions minutes
+# on its own. Run `cargo audit` locally before a release.
 on:
-  push:
-    branches: [main, master]
-  pull_request:
-  # Dependency advisories change without anyone touching this repository, so the audit gate
-  # needs a clock of its own. See the `audit` job for why that is not just a convenience.
-  schedule:
-    - cron: "17 4 * * *"
+  workflow_dispatch:
 
 jobs:
   rust:

@@ -77,7 +77,7 @@ const es: Dictionary = {
       "Los mensajes se cifran en tu dispositivo con la clave del destinatario antes de salir. Solo el dispositivo previsto puede descifrarlos.",
     p2pTitle: "Primero peer-to-peer",
     p2pBody:
-      "Se intenta primero un camino directo entre dispositivos. Si no hay ruta, el mensaje ya cifrado puede ir al relay. Las llamadas siguen siendo solo P2P (hoy no hay TURN: en algunas redes no conectan).",
+      "Se intenta primero un camino directo entre dispositivos. Si no hay ruta, el mensaje ya cifrado va al relay. Las llamadas buscan también un camino directo y, si las redes lo impiden, pasan cifradas por TURN de Cloudflare.",
     zeroCloudTitle: "Zero-cloud de contenido",
     zeroCloudBody:
       "El historial y los medios se guardan en tu teléfono o computadora, en una base de datos cifrada con SQLCipher y con los cuerpos sellados encima. No operamos un buzón de mensajes que pueda leer tus conversaciones.",
@@ -95,7 +95,7 @@ const es: Dictionary = {
   download: {
     metaTitle: "Descargar — en pruebas",
     metaDescription:
-      "Encrypchat está en pruebas. APK Android, RPM o tar.gz Linux e instalador Windows, sin firmar. iOS todavía no.",
+      "Encrypchat está en pruebas. APK Android firmado, RPM o tar.gz Linux e instalador Windows sin firma de Microsoft. iOS todavía no.",
     h1: "Descargar",
     testingBadge: "En pruebas",
     testingLead:
@@ -105,15 +105,15 @@ const es: Dictionary = {
     privateNote:
       "El código y estos instaladores están en GitHub. Siguen siendo de prueba: no hay ficha de tienda ni lanzamiento público.",
     unsignedNote:
-      "Nada está firmado. Fedora lo dice al instalar. El APK va con la clave de depuración: sirve para sideload, no para Play Store, y cambiar esa clave más adelante obliga a desinstalar — lo que en Android sí borra la base local. En Windows, SmartScreen avisa; el paso es Más información y luego Ejecutar de todas formas. Eso es lo esperado en un fichero sin firma, no un veredicto de virus. El zip portable tampoco está firmado.",
+      "El APK va firmado con nuestra clave de publicación y las actualizaciones llevan una firma propia que la app verifica. Quien tenga una versión anterior debe instalar esta una vez: cambió la clave. El RPM de Fedora y el instalador de Windows no llevan firma del sistema. En Windows, SmartScreen avisa; el paso es Más información y luego Ejecutar de todas formas. Eso es lo esperado sin un certificado de Microsoft, no un veredicto de virus.",
     androidSideload:
       "En Android el sistema bloquea el APK porque no está en Play Store. Eso es lo esperado. Bájalo, ábrelo desde Archivos o Descargas, y cuando avise «por tu seguridad» o Play Protect: Ajustes → Aplicaciones → Acceso especial → Instalar apps desconocidas → Chrome o Archivos → Permitir. Después «Instalar de todos modos». Solo teléfonos arm64 (casi todos los de los últimos años).",
     upgradeNote:
-      "Si ya tienes Encrypchat instalado, la app te avisa cuando hay una versión nueva. El aviso es explícito: actualiza solo el programa (seguridad, estabilidad y funciones), no hay nada oculto, y tus chats, fotos y claves se quedan en el dispositivo. Si hay paquete para tu sistema, descarga, comprueba el SHA-256 e invoca el instalador (contraseña en Fedora, instalador en Android). En Windows, esta tanda publica el setup.exe en latest.json; la app que ya está en circulación todavía busca el zip portable, así que el aviso puede abrirte esta página en vez del instalador. No se reemplaza el binario en silencio.",
+      "Desde la versión 1.1, Android y Windows se actualizan solos: la app comprueba que el catálogo tenga nuestra firma, descarga el paquete, verifica el SHA-256 e invoca el instalador. Ocurre al abrir la app o cuando no la estás usando, nunca durante una llamada, y se apaga en Ajustes. Android puede pedir confirmación. Solo cambia el programa: tus chats, fotos y claves se quedan en el dispositivo. En Linux la actualización sigue siendo manual.",
     checksums: "Comprobar SHA-256",
     releasePage: "Notas de esta tanda",
     sourceNote:
-      "El instalador de Windows es por usuario (sin admin) y no está firmado. Desinstalar deja chats y media en los datos de la app, y la identidad en el Administrador de credenciales; «borrar identidad» dentro de la app es lo que los quita. El zip portable no instala: descomprimes y corres encrypchat.exe. Borrar esa carpeta no quita chats, media ni la identidad. iOS todavía no tiene paquete aquí. El código está en el mismo repositorio.",
+      "El instalador de Windows es por usuario (sin admin) y no lleva firma de Microsoft. Desinstalar deja chats y media en los datos de la app, y la identidad en el Administrador de credenciales; «borrar identidad» dentro de la app es lo que los quita. iOS todavía no tiene paquete aquí. El código está en el mismo repositorio.",
   },
   faq: {
     metaTitle: "FAQ",
@@ -135,11 +135,11 @@ const es: Dictionary = {
       },
       {
         q: "¿Encrypchat solo funciona en la misma Wi-Fi?",
-        a: "No. Se prefiere P2P directo cuando ambos pueden conectarse. El relay ciego de Encrypchat viene encendido por defecto (relay.encrypchat.com) para que mensajes y solicitudes sellados lleguen por internet. Puedes apagarlo o usar el tuyo. Las llamadas siguen yendo de dispositivo a dispositivo con STUN público; no hay TURN, así que en algunas redes la llamada no conecta.",
+        a: "No. Se prefiere P2P directo cuando ambos pueden conectarse. El relay ciego de Encrypchat viene encendido por defecto (relay.encrypchat.com) para que mensajes, solicitudes y señales de llamada sellados lleguen por internet. Puedes apagarlo o usar el tuyo. Sin relay solo hay ruta directa, en la misma red o con un puerto abierto.",
       },
       {
         q: "¿Qué plataformas soportan?",
-        a: "Android, iOS, Linux (Fedora) y Windows son objetivos de primera clase. Hoy hay APK para Android, RPM o tar.gz para Linux e instalador para Windows, y un zip portable (no instala), como builds de prueba en GitHub Releases. El instalador de Windows no está firmado: SmartScreen avisa; el paso es Más información y Ejecutar de todas formas. iOS todavía no tiene paquete en esa lista. Las tiendas, cuando empiece la publicación.",
+        a: "Android, iOS, Linux (Fedora) y Windows son objetivos de primera clase. Hoy hay APK para Android, RPM o tar.gz para Linux e instalador para Windows, como builds de prueba en GitHub Releases. El instalador de Windows no lleva firma de Microsoft: SmartScreen avisa; el paso es Más información y Ejecutar de todas formas. iOS todavía no tiene paquete en esa lista. Las tiendas, cuando empiece la publicación.",
       },
       {
         q: "¿Cómo agrego un contacto?",
@@ -155,7 +155,7 @@ const es: Dictionary = {
       },
       {
         q: "¿Las llamadas pasan por sus servidores?",
-        a: "No. El audio y el vídeo van directos entre los dos dispositivos con cifrado DTLS-SRTP; no hay SFU ni servidor de media de Encrypchat. Para establecer la conexión se usan servidores STUN públicos de Google, que ven tu dirección IP y el momento de la llamada, no su contenido.",
+        a: "Depende de la red. Primero se intenta un camino directo entre los dos dispositivos. Si no existe, el audio y el vídeo pasan por TURN de Cloudflare, cifrados con DTLS-SRTP: Cloudflare ve las direcciones IP, los horarios y el volumen, no el contenido. No hay SFU ni servidor de media de Encrypchat. Para encontrar el camino se usa STUN de Cloudflare, que ve tu IP y el momento de la llamada.",
       },
       {
         q: "¿Están cifrados mis datos dentro del dispositivo?",
@@ -171,11 +171,11 @@ const es: Dictionary = {
       },
       {
         q: "¿Usan analítica o publicidad?",
-        a: "No. La app no incluye SDK de métricas, crash reporting ni identificadores de publicidad, y encrypchat.com no usa cookies propias ni analítica. Lo único que la app puede pedir a la web es un fichero público de versión (latest.json) para avisarte si hay un paquete nuevo; esa petición no lleva tu token ni tus chats.",
+        a: "No. La app no incluye SDK de métricas, crash reporting ni identificadores de publicidad, y encrypchat.com no usa cookies propias ni analítica. Lo único que la app pide a la web es un fichero público firmado (update-manifest.json) para saber si hay un paquete nuevo; esa petición no lleva tu token ni tus chats.",
       },
       {
         q: "¿La app se actualiza sola si ya la instalé?",
-        a: "Te avisa, no lo hace en silencio. El diálogo dice que la actualización es solo de la aplicación —seguridad, estabilidad y funciones—, que no hay nada oculto y que tus chats, fotos y claves se quedan en este dispositivo. Si hay paquete para tu sistema, descarga, comprueba el SHA-256 e invoca el instalador. En Windows, esta tanda publica el setup.exe sin firmar (SmartScreen avisa). La app actual todavía busca el zip portable: el aviso puede llevarte a Descargar. La consulta lee encrypchat.com/latest.json y no lleva tu token ni tus chats.",
+        a: "En Android y Windows, sí. Desde la 1.1 la app comprueba la firma del catálogo y el SHA-256 del paquete, e instala al abrirse o cuando no la estás usando, nunca durante una llamada. Se apaga en Ajustes. Android puede pedir confirmación, y la primera vez debes permitir que Encrypchat instale apps. En Linux te avisa y la instalación es manual. Tus chats, fotos y claves no se tocan.",
       },
     ],
   },
@@ -187,10 +187,10 @@ const es: Dictionary = {
     metaDescription:
       "Privacidad Encrypchat: chats en tu dispositivo, en base cifrada. Relay ciego por defecto (solo cifrado). Llamadas P2P, sin cuentas ni analítica.",
     h1: "Política de privacidad",
-    updated: "Última actualización: 15 de agosto de 2026 · versión 1.0 (previa a revisión legal)",
+    updated: "Última actualización: 1 de noviembre de 2026 · versión 1.1 (previa a revisión legal)",
     updatedIso: "2026-08-15",
     summary:
-      "Encrypchat no tiene cuentas, no guarda tus conversaciones en la nube y no usa analítica ni publicidad. Tu clave privada, tus chats y tu media viven en tu dispositivo. Lo único que puede tocar un servidor es material cifrado que no podemos leer: el sobre que el relay ciego por defecto guarda hasta la entrega (puedes apagarlo), y los servidores STUN públicos que ayudan a montar una llamada y ven direcciones IP.",
+      "Encrypchat no tiene cuentas, no guarda tus conversaciones en la nube y no usa analítica ni publicidad. Tu clave privada, tus chats y tu media viven en tu dispositivo. Lo único que puede tocar un servidor es material cifrado que no podemos leer: el sobre que el relay ciego por defecto guarda hasta la entrega (puedes apagarlo), y los servicios STUN y TURN de Cloudflare que ayudan a montar una llamada y ven direcciones IP.",
     disclaimer:
       "Este documento describe el comportamiento real del software en su estado actual (pre-1.0). No es asesoría legal, todavía no lo ha revisado un abogado y hay campos pendientes de completar por el operador. Debe cerrarse antes de publicar en Google Play o la App Store.",
     sections: [
@@ -226,7 +226,7 @@ const es: Dictionary = {
           [
             "Sin registro ni cuenta: no pedimos teléfono, correo ni nombre.",
             "Sin agenda: no subimos tus contactos ni operamos un directorio telefónico central.",
-            "Sin analítica ni telemetría en la app: no hay SDK de métricas, ni crash reporting, ni identificadores de publicidad. La consulta de versión a encrypchat.com/latest.json se describe en Actualizaciones de la app.",
+            "Sin analítica ni telemetría en la app: no hay SDK de métricas, ni crash reporting, ni identificadores de publicidad. La consulta de versión a encrypchat.com/update-manifest.json se describe en Actualizaciones de la app.",
             "Sin publicidad y sin venta ni cesión de datos a terceros.",
             "Sin copia de seguridad en la nube: en Android el backup automático del sistema está desactivado para la app.",
           ],
@@ -253,9 +253,9 @@ const es: Dictionary = {
         id: "llamadas",
         title: "Llamadas de audio y vídeo",
         blocks: [
-          "El audio y el vídeo van directos entre los dos dispositivos por WebRTC con cifrado DTLS-SRTP. No hay SFU, mezclador ni servidor de media de Encrypchat: los paquetes no pasan por nosotros. La señalización (invitación, SDP e ICE) viaja cifrada por el canal P2P ya establecido y nunca por el relay.",
-          "Para descubrir la dirección pública de cada extremo se usan servidores STUN públicos de Google (stun.l.google.com y stun1.l.google.com). Google puede ver tu dirección IP y el momento en que intentás una llamada, no el contenido.",
-          "Además, en cualquier conexión P2P tu contacto ve tu IP y vos la suya: es inherente a hablar directo, sin intermediario. Hoy no hay servidor TURN, así que en redes con NAT estricto la llamada puede no establecerse.",
+          "El audio y el vídeo buscan primero un camino directo entre los dos dispositivos por WebRTC, con cifrado DTLS-SRTP. Si las redes no lo permiten, los paquetes pasan por TURN de Cloudflare, cifrados igual: Cloudflare no puede oír ni ver la llamada. No hay SFU, mezclador ni servidor de media de Encrypchat. La señalización (invitación, SDP e ICE) viaja cifrada por la conexión P2P cuando existe y, si no, sellada por el relay con una vida máxima de dos minutos.",
+          "Para descubrir la dirección pública de cada extremo se usa STUN de Cloudflare (stun.cloudflare.com). Cuando la llamada pasa por TURN, Cloudflare puede ver las direcciones IP de los dos extremos, el momento y el volumen de datos, no el contenido. Las credenciales de TURN las pide el relay, que no le dice a Cloudflare quién llama.",
+          "Además, en una conexión directa tu contacto ve tu IP y tú la suya: es inherente a hablar sin intermediario. Si eso te importa, ten en cuenta que hoy la app no permite forzar el paso por TURN.",
           "Sobre quién llama: la identidad del par se verifica al establecer la conexión, así que una llamada entrante viene de quien es dueño de ese token. Una invitación de un token que no está en tus contactos se descarta sin sonar, y el micrófono y la cámara solo se activan si aceptás. Si bloqueás a alguien con la llamada en curso, se corta.",
           "El residual honesto aquí no es de autoría, es de exposición: al establecer la conexión, quien llama se identifica primero ante quien contesta. Quien contesta no revela nada hasta haber verificado a la otra parte, pero alguien que genere una identidad desechable y complete el intercambio puede confirmar que ese token está detrás de esa dirección IP. Cerrarlo del todo exige marcar con la clave pública del destino y no con su token, que es un hash.",
         ],
@@ -280,9 +280,9 @@ const es: Dictionary = {
         id: "actualizaciones",
         title: "Actualizaciones de la app",
         blocks: [
-          "Cuando hay una versión nueva, Encrypchat te lo dice con un diálogo explícito. La actualización es solo de la aplicación (seguridad, estabilidad y mejoras de funciones): no hay nada oculto, y tus chats, fotos y claves privadas no se suben ni se modifican; siguen en este dispositivo. Si aceptas y el catálogo trae un paquete para tu sistema, la app lo descarga, comprueba el SHA-256 e invoca el instalador del sistema (en Fedora puede pedir tu contraseña; en Android, el instalador de paquetes). En Windows, el catálogo de esta tanda nombra el setup.exe; el cliente publicado todavía busca windows-zip, así que el aviso puede abrir la página de descargas en vez del instalador. Nunca reemplaza el binario en silencio.",
-          "Para saber si hay versión nueva, la app consulta un fichero público (https://encrypchat.com/latest.json). Esa petición no lleva tu token, ni tus chats, ni un identificador de dispositivo. Cloudflare y nuestro servidor ven la IP, el user agent y la hora, igual que con cualquier visita a encrypchat.com. La descarga del paquete, si la aceptas, es una segunda petición HTTPS al archivo publicado (hoy, GitHub Releases).",
-          "En Fedora, el RPM nuevo reemplaza los archivos en /usr/lib64/encrypchat y deja tus chats en tu directorio de usuario. En Android, el APK encima conserva los datos si la firma es la misma. En el tarball Linux, se descarga el archivo y hay que correr install.sh. En Windows, el setup.exe instala por usuario en %LOCALAPPDATA%\\Programs\\Encrypchat; no está firmado, así que SmartScreen avisa. Desinstalar deja chats y media en los datos de la app, y la identidad en el Administrador de credenciales. Desinstalar en Android, o cambiar la clave de firma, sí borra la base local.",
+          "Android y Windows se actualizan solos desde la versión 1.1, y puedes apagarlo en Ajustes. La app solo acepta un catálogo con nuestra firma Ed25519, cuya clave pública va dentro del programa, descarga el paquete, comprueba el SHA-256 e invoca el instalador. Ocurre al abrir la app o cuando no la estás usando, nunca durante una llamada. La actualización es solo de la aplicación: tus chats, fotos y claves privadas no se suben ni se modifican. En Android el sistema puede pedir confirmación. En Linux la app avisa y la instalación es manual.",
+          "Para saber si hay versión nueva, la app consulta un fichero público (https://encrypchat.com/update-manifest.json). Esa petición no lleva tu token, ni tus chats, ni un identificador de dispositivo. Cloudflare y nuestro servidor ven la IP, el user agent y la hora, igual que con cualquier visita a encrypchat.com. La descarga del paquete es una segunda petición HTTPS al archivo publicado (hoy, GitHub Releases).",
+          "En Fedora, el RPM nuevo reemplaza los archivos en /usr/lib64/encrypchat y deja tus chats en tu directorio de usuario. En Android, el APK conserva los datos porque la firma es la misma; quien venga de una versión anterior a la 1.1 debe instalar una vez a mano. En el tarball Linux, se descarga el archivo y hay que correr install.sh. En Windows, el setup.exe instala por usuario en %LOCALAPPDATA%\\Programs\\Encrypchat y no lleva firma de Microsoft, así que SmartScreen avisa la primera vez. Desinstalar deja chats y media en los datos de la app, y la identidad en el Administrador de credenciales. Desinstalar en Android sí borra la base local.",
         ],
         links: [{ path: "/download", label: "Descargar" }],
       },
@@ -294,7 +294,7 @@ const es: Dictionary = {
           [
             "Sin cookies propias, sin analítica y sin píxeles de terceros.",
             "Las tipografías se sirven desde nuestro propio dominio: visitar el sitio no genera una petición a Google Fonts.",
-            "encrypchat.com se sirve desde un servidor que administramos nosotros, alojado en Oracle Cloud, en Estados Unidos, con Cloudflare por delante como CDN y proxy.",
+            "encrypchat.com se sirve desde un servidor que administramos nosotros, en Estados Unidos, con Cloudflare por delante como CDN y proxy.",
             "Cloudflare registra logs de acceso estándar (IP, user agent, hora) para servir el sitio y mitigar abuso, sujetos además a su propia política. Nuestro servidor, en cambio, no lleva registro de accesos: tu dirección IP le llega en una cabecera que añade Cloudflare, se usa para responderte y no se escribe en ningún log.",
           ],
           "Si algún día añadimos analítica, se anunciará en esta página antes de activarla.",
@@ -306,10 +306,10 @@ const es: Dictionary = {
         blocks: [
           [
             "Cloudflare: CDN y proxy por delante del sitio web (ve la IP, el user agent y la hora de cada visita).",
-            "Oracle Cloud: proveedor del servidor donde vive el sitio web, en Estados Unidos. En esa máquina solo están las páginas públicas: ni chats, ni media, ni claves.",
-            "GitHub Releases: hospeda los instaladores que la app descarga si aceptás una actualización.",
+            "Servidor propio en Estados Unidos: aloja el sitio web y el relay. Ahí solo están las páginas públicas y los sobres cifrados en tránsito: ni chats legibles, ni media en claro, ni claves.",
+            "GitHub Releases: hospeda los instaladores que descarga la app al actualizarse.",
             "Google Workspace: presta el buzón de info@elnerd.com. Si nos escribís a esa dirección, tu mensaje y tu remitente se tratan en la infraestructura de Google, con lo que decidas contarnos dentro. Ese correo no va cifrado de extremo a extremo: lo lee Google como cualquier correo, así que no mandes ahí nada que no mandarías por correo normal.",
-            "Google STUN: conectividad de llamadas (ve IP y momento de la llamada).",
+            "Cloudflare Realtime (STUN y TURN): conectividad de llamadas. Ve IP, momento y volumen de la llamada, no su contenido.",
             "Encrypchat, como operador del relay por defecto (token de destino, tamaño, tiempos e IP; nunca el contenido). Si pones otro relay, ese operador.",
             "Google Play y App Store cuando la app se publique: gestionan la descarga y sus propios datos de cuenta, fuera de nuestro alcance.",
           ],
@@ -325,7 +325,7 @@ const es: Dictionary = {
           [
             "Cruza: la dirección IP, el user agent y la hora de tus visitas al sitio y de la consulta de versión que hace la app, más la descarga del instalador si aceptás una actualización.",
             "Cruza, si elegís escribirnos: el contenido de ese correo y tu dirección de remitente.",
-            "Cruza, si hacés una llamada: tu dirección IP y el momento, hacia los servidores STUN públicos de Google.",
+            "Cruza, si haces una llamada: tu dirección IP y el momento, hacia STUN de Cloudflare; y, si no hay camino directo, el audio y el vídeo cifrados, hacia TURN de Cloudflare.",
             "Cruza, salvo que apagues el relay: el sobre cifrado, el token de destino, su tamaño, los tiempos y la IP desde la que depositas o consultas, hacia el relay de Encrypchat o el que hayas puesto. El contenido sigue cifrado: lo que cruza es el sobre y su metadato de red.",
             "No cruza: tus chats en claro, tu media en claro y tus claves privadas. No salen de tu dispositivo, y lo máximo que un relay llega a guardar es ese sobre cifrado, nunca lo que hay dentro.",
           ],
@@ -354,7 +354,7 @@ const es: Dictionary = {
         title: "Tus derechos",
         blocks: [
           "Como no operamos un servidor de contenido, no tenemos una copia de tus mensajes que podamos entregarte, rectificar o borrar: esos derechos se ejercen directamente en tu dispositivo, donde tenés control total sobre los datos.",
-          "Las solicitudes de acceso, rectificación, supresión, oposición o portabilidad (RGPD y equivalentes) se atienden en privacy@encrypchat.com. En la práctica, la respuesta será casi siempre que el dato no está en nuestro poder.",
+          "Las solicitudes de acceso, rectificación, supresión, oposición o portabilidad (RGPD y equivalentes) se atienden en info@elnerd.com. En la práctica, la respuesta será casi siempre que el dato no está en nuestro poder.",
           "Ejercer el borrado significa usar «borrar identidad» dentro de la app: quita la clave del llavero del sistema y después la base de datos y los adjuntos de este dispositivo. Desinstalar en Android se lleva chats y media; en Windows y Linux no. En iOS, Linux y Windows la clave puede quedar en el llavero si no usaste «borrar identidad» — está detallado en «Retención y borrado».",
           "Un matiz, para no prometer de menos ni de más. Hay una cosa que sí está en nuestro poder: si nos escribiste, ese correo. Sobre él podés pedir acceso o supresión y la respuesta será concreta, no «no lo tenemos». La base jurídica de ese tratamiento mínimo es nuestro interés legítimo en contestarte: no hay publicidad, ni perfilado, ni cesión a terceros con fines propios. Y si creés que lo hacemos mal, podés reclamar ante la autoridad de protección de datos que te corresponda: en el Espacio Económico Europeo, la de tu residencia o tu lugar de trabajo; en el Reino Unido, la ICO.",
         ],
@@ -396,7 +396,7 @@ const es: Dictionary = {
           "Si encontrás una vulnerabilidad en Encrypchat, escribinos a info@elnerd.com.",
           "Publicamos esa dirección en encrypchat.com, y solo aquí: en esta página, en la página de seguridad y en https://encrypchat.com/.well-known/security.txt. Si la encontraste en otra parte, comprobala en una de las tres antes de escribir.",
           "Pedimos divulgación coordinada: contanos qué encontraste y dejanos un plazo razonable para corregirlo antes de publicarlo. No comprometemos tiempos de respuesta y no hay programa de recompensas. Sí publicamos los hallazgos y en qué estado están, incluidos los que siguen abiertos.",
-          "Es el canal para fallos de seguridad del software. No es soporte y no sirve para denunciar a otro usuario: el informe de abuso de la app es local y no lo recibe nadie. Para privacidad y ejercicio de derechos el buzón es otro, privacy@encrypchat.com.",
+          "Es el canal para fallos de seguridad del software. No es soporte y no sirve para denunciar a otro usuario: el informe de abuso de la app es local y no lo recibe nadie. Para privacidad y ejercicio de derechos el buzón es otro, info@elnerd.com.",
           "Antes de escribir, vale la pena leer el modelo de amenazas: dice de qué protege el producto, de qué no y qué limitaciones ya conocemos y hemos publicado.",
         ],
         links: [
@@ -414,7 +414,7 @@ const es: Dictionary = {
         id: "contacto",
         title: "Contacto y jurisdicción",
         blocks: [
-          "Para privacidad, protección de datos y ejercicio de derechos: privacy@encrypchat.com. Ese buzón está operativo y lo atiende el operador. La dirección que aparecía en un borrador anterior de esta página se retiró en su momento porque nunca llegó a activarse: no publicamos direcciones que no funcionan.",
+          "Para privacidad, protección de datos y ejercicio de derechos: info@elnerd.com. Ese buzón está operativo y lo atiende el operador. La dirección que aparecía en un borrador anterior de esta página se retiró en su momento porque nunca llegó a activarse: no publicamos direcciones que no funcionan.",
           "Entidad legal responsable, domicilio y ley aplicable siguen pendientes de designación. Mientras tanto responde una persona, no una sociedad, y esta página se actualizará cuando eso cambie.",
           "Para reportar un fallo de seguridad hay una dirección distinta: está en «Reportar un fallo de seguridad», más arriba.",
         ],
@@ -782,7 +782,7 @@ const es: Dictionary = {
           "info@elnerd.com — buzón atendido por el operador. Es una dirección de otro dominio, así que está confirmada desde el propio producto en esta página, en la política de privacidad y en https://encrypchat.com/.well-known/security.txt; si la encontraste en cualquier otro sitio, comprobala contra una de esas fuentes. Todavía no hay clave pública para reportes cifrados; si la necesitás, pedila en un primer correo sin detalles.",
           "Que esas fuentes sigan diciendo lo mismo, y que el security.txt no esté caducado, no depende de que alguien se acuerde: una comprobación automática corre en cada build y falla un mes antes de la fecha de caducidad, o en cuanto una de las copias se desvía. Un buzón de seguridad que dejó de existir es peor que no publicar ninguno, porque el que encuentra el fallo cree que avisó.",
           "Pedimos divulgación coordinada: contanos qué encontraste y dejanos un plazo razonable para corregirlo antes de publicarlo. No comprometemos tiempos de respuesta y no hay programa de recompensas. Sí publicamos los hallazgos y su estado junto al código, incluidos los que no hemos cerrado.",
-          "Es el canal para fallos de seguridad del software. No es soporte y no sirve para denunciar a otro usuario: el informe de abuso de la app es local y no lo recibe nadie. Para privacidad y ejercicio de derechos el buzón es otro, privacy@encrypchat.com.",
+          "Es el canal para fallos de seguridad del software. No es soporte y no sirve para denunciar a otro usuario: el informe de abuso de la app es local y no lo recibe nadie. Para privacidad y ejercicio de derechos el buzón es otro, info@elnerd.com.",
         ],
         links: [{ path: "/privacy", hash: "seguridad", label: "Privacidad: reportar un fallo" }],
       },

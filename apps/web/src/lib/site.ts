@@ -7,10 +7,10 @@ export const TAGLINE = "DECENTRALIZED P2P CHAT | ZERO-CLOUD";
 // on a different domain, so all three have to agree.
 export const SECURITY_CONTACT = "info@elnerd.com";
 
-// Data protection and rights requests, deliberately not the security mailbox: one is read by
-// whoever fixes the bug, the other answers a legal deadline. `check-security-txt.sh` holds the
-// policy copy against this value, because the way a published legal channel fails is silently.
-export const PRIVACY_CONTACT = "privacy@encrypchat.com";
+// Data protection and rights requests. encrypchat.com has no mailbox, so this is the one that
+// is read. `check-security-txt.sh` holds the policy copy against this value, because the way a
+// published legal channel fails is silently.
+export const PRIVACY_CONTACT = "info@elnerd.com";
 
 export const PLATFORM_IDS = [
   "android",
@@ -26,7 +26,10 @@ export const GITHUB_REPO = "https://github.com/fabioherrera/encrypchat";
 
 /** Bump this when a new test batch replaces the previous one. Not a `v*` tag:
  *  that pattern starts the Windows CI workflow. */
-export const TEST_RELEASE_TAG = "pruebas-2026-08-15-relay";
+export const TEST_RELEASE_TAG = "release-1.1.0";
+
+/** Linux and Windows stay on their last build until 1.1.0 is built for them. */
+const PREVIOUS_RELEASE = `${GITHUB_REPO}/releases/download/pruebas-2026-08-15-relay`;
 
 export const TEST_RELEASE_URL = `${GITHUB_REPO}/releases/tag/${TEST_RELEASE_TAG}`;
 
@@ -46,17 +49,17 @@ function releaseAsset(name: string): string {
 export const PLATFORM_DOWNLOADS: Record<PlatformId, PlatformDownload[] | null> = {
   android: [
     {
-      href: releaseAsset("encrypchat-android-arm64-1.0.7.apk"),
+      href: releaseAsset("encrypchat-android-arm64-1.1.0.apk"),
       kind: "apk",
     },
   ],
   linux: [
     {
-      href: releaseAsset("encrypchat-1.0.7-1.fc44.x86_64.rpm"),
+      href: `${PREVIOUS_RELEASE}/encrypchat-1.0.7-1.fc44.x86_64.rpm`,
       kind: "rpm",
     },
     {
-      href: releaseAsset("encrypchat-linux-x64-1.0.7.tar.gz"),
+      href: `${PREVIOUS_RELEASE}/encrypchat-linux-x64-1.0.7.tar.gz`,
       kind: "tarball",
     },
   ],
