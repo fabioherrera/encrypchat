@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../core/background_bridge.dart';
 import '../core/core_error.dart';
 import '../core/default_relay.dart';
 import '../core/encrypchat_core.dart';
@@ -25,7 +26,9 @@ class SessionController extends ChangeNotifier {
     MessagingService? messaging,
     CallService? calls,
     FlutterSecureStorage? storage,
-  }) : _core = core,
+    BackgroundBridge background = const BackgroundBridge(),
+  }) : _background = background,
+       _core = core,
        _identity = identity,
        _database = database ?? LocalDatabase(),
        _messagingInjected = messaging,
@@ -36,6 +39,10 @@ class SessionController extends ChangeNotifier {
              aOptions: AndroidOptions(encryptedSharedPreferences: true),
            );
 
+  static const _backgroundKey = 'background_delivery_v1';
+  static const _autoUpdateKey = 'auto_update_v1';
+
+  final BackgroundBridge _background;
   EncrypchatCore? _core;
   IdentityService? _identity;
   final LocalDatabase _database;
@@ -77,6 +84,26 @@ class SessionController extends ChangeNotifier {
   CallService? get calls => _calls;
 
   bool get hasMessaging => _messaging != null;
+
+  bool get supportsBackgroundDelivery => _background.isSupported;
+
+  /// Android only: stay connected with the app closed.
+  bool backgroundDelivery = true;
+
+  /// Install signed updates without asking.
+  bool autoUpdate = true;
+
+  bool _visible = true;
+  bool _ringing = false;
+  bool _callHeld = false;
+
+  /// True during a call, when an update must not close the app.
+  bool get inCall {
+    final phase = _calls?.phase;
+    return phase != null && phase != CallPhase.idle && phase != CallPhase.ended;
+  }
+
+  bool get isVisible => _visible;
 
   Future<void> bootstrap() async {
     phase = AppPhase.loading;
@@ -149,15 +176,100 @@ class SessionController extends ChangeNotifier {
     await _messaging!.loadBlocked();
     await _messaging!.loadRequests();
     _messaging!.addListener(notifyListeners);
+    _messaging!.onInboundMessage = _onInboundMessage;
     _calls = _callsInjected ?? CallService(messaging: _messaging!);
     _calls!.addListener(notifyListeners);
+    _calls!.addListener(_onCallChanged);
     try {
       await _messaging!.startNode();
     } catch (e) {
       debugPrint('node start failed: ${e.runtimeType}');
     }
+    await _loadPreferences();
     phase = AppPhase.ready;
     notifyListeners();
+  }
+
+  Future<void> _loadPreferences() async {
+    try {
+      backgroundDelivery = await _storage.read(key: _backgroundKey) != 'off';
+      autoUpdate = await _storage.read(key: _autoUpdateKey) != 'off';
+    } catch (e) {
+      debugPrint('preferences unreadable: ${e.runtimeType}');
+    }
+    if (_background.isSupported && backgroundDelivery) {
+      await _background.start();
+    }
+  }
+
+  Future<void> setBackgroundDelivery(bool on) async {
+    backgroundDelivery = on;
+    await _storage.write(key: _backgroundKey, value: on ? 'on' : 'off');
+    if (on) {
+      await _background.requestNotifications();
+      await _background.requestBatteryExemption();
+      await _background.start();
+    } else {
+      await _background.stop();
+    }
+    notifyListeners();
+  }
+
+  Future<void> setAutoUpdate(bool on) async {
+    autoUpdate = on;
+    await _storage.write(key: _autoUpdateKey, value: on ? 'on' : 'off');
+    notifyListeners();
+  }
+
+  /// First time the shell is on screen: Android only shows these prompts with an
+  /// activity attached, which a boot in the background does not have.
+  Future<void> requestBackgroundPermissions() async {
+    if (!_background.isSupported || !backgroundDelivery) return;
+    await _background.requestNotifications();
+    await _background.requestBatteryExemption();
+    await _background.start();
+  }
+
+  /// Fed from the app lifecycle.
+  void setVisible(bool visible) {
+    if (_visible == visible) return;
+    _visible = visible;
+    _messaging?.setBackgrounded(!visible);
+    if (visible) {
+      _messaging?.onAppResumed();
+      unawaited(_background.clearMessages());
+    }
+  }
+
+  void _onInboundMessage(String fromToken) {
+    if (_visible) return;
+    unawaited(
+      _background.notifyMessage(contactByToken(fromToken)?.label ?? ''),
+    );
+  }
+
+  void _onCallChanged() {
+    final calls = _calls;
+    if (calls == null) return;
+    final ringing = calls.phase == CallPhase.incoming;
+    if (ringing != _ringing) {
+      _ringing = ringing;
+      if (ringing) {
+        if (!_visible) {
+          unawaited(_background.notifyCall(calls.peer?.label ?? ''));
+        }
+      } else {
+        unawaited(_background.cancelCall());
+      }
+    }
+    final held =
+        calls.phase == CallPhase.outgoing ||
+        calls.phase == CallPhase.connecting ||
+        calls.phase == CallPhase.active;
+    if (held != _callHeld) {
+      _callHeld = held;
+      unawaited(_background.setInCall(held));
+    }
   }
 
   /// Erases this identity and everything it left on the device, then drops the
@@ -187,6 +299,7 @@ class SessionController extends ChangeNotifier {
     _calls = null;
     if (calls != null) {
       calls.removeListener(notifyListeners);
+      calls.removeListener(_onCallChanged);
       // Sent while the node is still up: the peer on the other side gets a
       // hangup instead of a call that goes quiet.
       try {
@@ -203,6 +316,7 @@ class SessionController extends ChangeNotifier {
       await messaging.stopNode();
       messaging.dispose();
     }
+    await _background.stop();
     _identity?.forget();
     contacts = const [];
     await _database.close();
@@ -332,6 +446,7 @@ class SessionController extends ChangeNotifier {
   @override
   void dispose() {
     _calls?.removeListener(notifyListeners);
+    _calls?.removeListener(_onCallChanged);
     _calls?.dispose();
     _messaging?.removeListener(notifyListeners);
     _messaging?.dispose();

@@ -12,17 +12,28 @@ import 'messaging_service.dart';
 
 enum CallPhase { idle, outgoing, incoming, connecting, active, ended }
 
-/// 1:1 WebRTC over Encrypchat E2EE signaling. Media is P2P (STUN only; no SFU).
+/// 1:1 WebRTC over Encrypchat E2EE signaling.
+///
+/// Media tries a direct path first. When both networks refuse one it goes through
+/// Cloudflare TURN, still under WebRTC's own encryption; TURN sees addresses and
+/// traffic volume, not the audio or video.
 class CallService extends ChangeNotifier {
   CallService({required MessagingService messaging}) : _messaging = messaging {
     _messaging.onCallSignal = _onInboundSignal;
     _messaging.onBlockPeer = hangupIfPeer;
   }
 
-  static const stunServers = [
-    {'urls': 'stun:stun.l.google.com:19302'},
-    {'urls': 'stun:stun1.l.google.com:19302'},
+  static const stunServers = <Map<String, dynamic>>[
+    {'urls': 'stun:stun.cloudflare.com:3478'},
   ];
+
+  /// How long a dropped path may stay quiet before an ICE restart. Most
+  /// interruptions, like walking between access points, recover on their own.
+  static const iceGrace = Duration(seconds: 4);
+
+  /// Total time to recover a lost path before giving up on the call.
+  @visibleForTesting
+  Duration iceRecoveryLimit = const Duration(seconds: 25);
 
   /// How late a stamped `invite` may be and still ring, and how far ahead the
   /// caller's clock may run.
@@ -56,8 +67,28 @@ class CallService extends ChangeNotifier {
   final List<RTCIceCandidate> _pendingRemoteIce = [];
   String? _pendingOfferSdp;
   Timer? _idleTimer;
+  Timer? _ringTimer;
   bool _resetting = false;
   bool _disposed = false;
+
+  /// True from the first tap until the call owns the state, which covers the
+  /// permission prompt: a second tap or an incoming ring must not race it.
+  bool _starting = false;
+  Timer? _iceGraceTimer;
+  Timer? _iceRecoveryTimer;
+
+  /// Bumped on every teardown so an in-flight `startCall` / `acceptIncoming`
+  /// stops touching WebRTC after Colgar already dismissed the overlay.
+  int _epoch = 0;
+
+  /// How long "Llamando…" / "Conectando…" may last before we hang up for the
+  /// user. Without this, a call that never gets an answer keeps the screen.
+  @visibleForTesting
+  Duration ringTimeout = const Duration(seconds: 45);
+
+  /// Shown when neither a live session nor the relay can carry the signaling.
+  static const noRouteMessage =
+      'Sin conexión para llamar. Revisa internet o enciende el relay.';
 
   Future<void> ensureRenderers() async {
     if (_renderersReady) return;
@@ -70,14 +101,33 @@ class CallService extends ChangeNotifier {
     required Contact peer,
     required CallMediaMode media,
   }) async {
-    if (phase != CallPhase.idle && phase != CallPhase.ended) {
+    if (_starting || (phase != CallPhase.idle && phase != CallPhase.ended)) {
       throw StateError('Ya hay una llamada en curso');
     }
     if (_messaging.isBlocked(peer.token)) {
       throw StateError('Contacto bloqueado: desbloquéalo para llamarlo.');
     }
-    await ensureRenderers();
-    // OS prompts via getUserMedia (mic/camera manifests declared).
+    if (!_messaging.canSignalCall(peer.token)) {
+      throw StateError(noRouteMessage);
+    }
+    _starting = true;
+    try {
+      await ensureRenderers();
+      // Mic/camera prompts must happen *before* CallPage covers the screen:
+      // on Linux the portal dialog sits behind the fullscreen route and the
+      // user can neither grant permission nor reach Colgar.
+      await _openLocalMedia(media);
+    } finally {
+      _starting = false;
+    }
+    // A call may have rung during the prompt. It is already on screen, so it
+    // wins, and the stream just opened must not stay on.
+    if (phase != CallPhase.idle && phase != CallPhase.ended) {
+      await _releaseLocal();
+      throw StateError('Ya hay una llamada en curso');
+    }
+
+    final epoch = ++_epoch;
     this.peer = peer;
     this.media = media;
     isCaller = true;
@@ -85,9 +135,11 @@ class CallService extends ChangeNotifier {
     phase = CallPhase.outgoing;
     lastError = null;
     notifyListeners();
+    _armRingTimeout();
 
     try {
       await _setupPeerConnection();
+      if (!_sameEpoch(epoch)) return;
       await _messaging.sendCallSignal(
         peer: peer,
         signal: CallSignal(
@@ -96,11 +148,14 @@ class CallService extends ChangeNotifier {
           media: media,
         ),
       );
+      if (!_sameEpoch(epoch)) return;
       final offer = await _pc!.createOffer({
         'offerToReceiveAudio': true,
         'offerToReceiveVideo': media == CallMediaMode.av,
       });
+      if (!_sameEpoch(epoch)) return;
       await _pc!.setLocalDescription(offer);
+      if (!_sameEpoch(epoch)) return;
       await _messaging.sendCallSignal(
         peer: peer,
         signal: CallSignal(
@@ -110,23 +165,47 @@ class CallService extends ChangeNotifier {
           sdp: offer.sdp,
         ),
       );
+      if (!_sameEpoch(epoch)) return;
       phase = CallPhase.connecting;
       notifyListeners();
     } catch (e) {
+      if (!_sameEpoch(epoch)) return;
       lastError = e.toString();
-      await hangup(sendSignal: true);
+      await hangup(sendSignal: true, keepError: true);
       rethrow;
     }
   }
 
   Future<void> acceptIncoming() async {
     if (phase != CallPhase.incoming || peer == null || callId == null) return;
+    if (!_messaging.canSignalCall(peer!.token)) {
+      lastError = noRouteMessage;
+      await hangup(sendSignal: true, keepError: true);
+      throw StateError(noRouteMessage);
+    }
+    final epoch = _epoch;
     await ensureRenderers();
+    if (!_sameEpoch(epoch) || phase != CallPhase.incoming) return;
+    try {
+      await _openLocalMedia(media);
+    } on StateError catch (e) {
+      // Without this the caller keeps ringing until its own timeout, and this
+      // screen stays on a call that can no longer be answered.
+      lastError = e.message;
+      if (_sameEpoch(epoch)) await rejectIncoming();
+      rethrow;
+    }
+    if (!_sameEpoch(epoch) || phase != CallPhase.incoming) {
+      await _releaseLocal();
+      return;
+    }
     isCaller = false;
     phase = CallPhase.connecting;
     notifyListeners();
+    _armRingTimeout();
     try {
       await _setupPeerConnection();
+      if (!_sameEpoch(epoch)) return;
       await _messaging.sendCallSignal(
         peer: peer!,
         signal: CallSignal(
@@ -136,8 +215,9 @@ class CallService extends ChangeNotifier {
         ),
       );
     } catch (e) {
+      if (!_sameEpoch(epoch)) return;
       lastError = e.toString();
-      await hangup(sendSignal: true);
+      await hangup(sendSignal: true, keepError: true);
       rethrow;
     }
   }
@@ -147,28 +227,37 @@ class CallService extends ChangeNotifier {
     final p = peer!;
     final id = callId!;
     final m = media;
-    try {
-      await _messaging.sendCallSignal(
-        peer: p,
-        signal: CallSignal(type: CallSignalType.reject, callId: id, media: m),
-      );
-    } catch (_) {}
+    // Tear down first: Rechazar used to wait for a P2P send, so a dead
+    // session left the banner up and the phone still ringing.
+    final signal = _sendControlBestEffort(
+      peer: p,
+      signal: CallSignal(type: CallSignalType.reject, callId: id, media: m),
+    );
     await _reset();
+    unawaited(signal);
   }
 
-  Future<void> hangup({bool sendSignal = true}) async {
+  Future<void> hangup({bool sendSignal = true, bool keepError = false}) async {
     final p = peer;
     final id = callId;
     final m = media;
-    if (sendSignal && p != null && id != null) {
-      try {
-        await _messaging.sendCallSignal(
-          peer: p,
-          signal: CallSignal(type: CallSignalType.hangup, callId: id, media: m),
-        );
-      } catch (_) {}
-    }
-    await _reset();
+    final shouldSignal = sendSignal && p != null && id != null;
+    // Start the hangup frame *now* (encrypt + queue) so a mid-call block
+    // still has a chance to tell the peer, then drop the overlay without
+    // waiting for the ACK. Waiting was what froze Colgar: the worker is
+    // single-file and may already be inside a 15 s `node_send`.
+    final Future<void>? signal = shouldSignal
+        ? _sendControlBestEffort(
+            peer: p,
+            signal: CallSignal(
+              type: CallSignalType.hangup,
+              callId: id,
+              media: m,
+            ),
+          )
+        : null;
+    await _reset(keepError: keepError);
+    if (signal != null) unawaited(signal);
   }
 
   /// Ends the call if [token] is the identity on the other side.
@@ -201,38 +290,47 @@ class CallService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _onInboundSignal(String fromToken, CallSignal signal) async {
+  Future<void> _onInboundSignal(
+    String fromToken,
+    CallSignal signal, {
+    required bool viaRelay,
+  }) async {
     // MessagingService already drops frames from blocked peers before
     // decrypting; this second check keeps the mic/camera path safe if a future
     // transport ever dispatches signaling from somewhere else.
     if (_messaging.isBlocked(fromToken)) return;
     try {
-      await _handleInboundSignal(fromToken, signal);
+      await _handleInboundSignal(fromToken, signal, viaRelay: viaRelay);
     } catch (e) {
       // SDP/candidates are call content: log the type only, never the exception.
       debugPrint('call signal failed: ${e.runtimeType}');
       lastError = e.toString();
-      await hangup(sendSignal: true);
+      await hangup(sendSignal: true, keepError: true);
     }
   }
 
-  Future<void> _handleInboundSignal(String fromToken, CallSignal signal) async {
+  Future<void> _handleInboundSignal(
+    String fromToken,
+    CallSignal signal, {
+    required bool viaRelay,
+  }) async {
     switch (signal.type) {
       case CallSignalType.invite:
-        if (!_ringworthy(signal)) return;
-        if (phase != CallPhase.idle && phase != CallPhase.ended) {
+        if (!_ringworthy(signal, viaRelay: viaRelay)) return;
+        if (_starting ||
+            (phase != CallPhase.idle && phase != CallPhase.ended)) {
           final contact = _messaging.contactForToken(fromToken);
           if (contact != null) {
-            try {
-              await _messaging.sendCallSignal(
+            unawaited(
+              _sendControlBestEffort(
                 peer: contact,
                 signal: CallSignal(
                   type: CallSignalType.reject,
                   callId: signal.callId,
                   media: signal.media,
                 ),
-              );
-            } catch (_) {}
+              ),
+            );
           }
           return;
         }
@@ -247,6 +345,7 @@ class CallService extends ChangeNotifier {
         isCaller = false;
         phase = CallPhase.incoming;
         notifyListeners();
+        _armIncomingTimeout();
         break;
 
       case CallSignalType.accept:
@@ -289,8 +388,8 @@ class CallService extends ChangeNotifier {
           RTCSessionDescription(signal.sdp, 'answer'),
         );
         await _flushPendingIce();
-        phase = CallPhase.active;
-        notifyListeners();
+        // Active waits for the connection state: an answer only means the other
+        // side picked up, and audio may still never find a path.
         break;
 
       case CallSignalType.ice:
@@ -327,17 +426,15 @@ class CallService extends ChangeNotifier {
   /// Only `invite` is gated: it is the one signal that makes noise on its own,
   /// and the rest are already tied to a live call by `callId` and phase.
   ///
-  /// An **unstamped** invite still rings. The field is new, calls are P2P-only,
-  /// and refusing one would mean a peer on the previous build silently cannot
-  /// reach the user — a worse failure than a late ring, given that the transport
-  /// itself (EH02) is what stops a third party from injecting one. If signaling
-  /// is ever allowed over the relay, absence must become a refusal instead: there
-  /// the blob genuinely can arrive hours later.
-  bool _ringworthy(CallSignal signal) {
+  /// Over a live session an **unstamped** invite still rings: refusing one would
+  /// mean a peer on an older build silently cannot reach the user, and the
+  /// transport itself (EH02) stops a third party from injecting one. Over the
+  /// relay it is refused, because there a blob can genuinely arrive late.
+  bool _ringworthy(CallSignal signal, {required bool viaRelay}) {
     final ts = signal.sentAtUnix;
     if (ts == null) {
       debugPrint('call invite without timestamp (peer on an older build)');
-      return true;
+      return !viaRelay;
     }
     final now = clock().toUtc().millisecondsSinceEpoch ~/ 1000;
     final age = now - ts;
@@ -359,13 +456,18 @@ class CallService extends ChangeNotifier {
       _pendingOfferSdp = sdp;
       return;
     }
+    final epoch = _epoch;
     await _pc!.setRemoteDescription(RTCSessionDescription(sdp, 'offer'));
+    if (!_sameEpoch(epoch)) return;
     await _flushPendingIce();
+    if (!_sameEpoch(epoch)) return;
     final answer = await _pc!.createAnswer({
       'offerToReceiveAudio': true,
       'offerToReceiveVideo': media == CallMediaMode.av,
     });
+    if (!_sameEpoch(epoch)) return;
     await _pc!.setLocalDescription(answer);
+    if (!_sameEpoch(epoch)) return;
     await _messaging.sendCallSignal(
       peer: peer!,
       signal: CallSignal(
@@ -375,8 +477,6 @@ class CallService extends ChangeNotifier {
         sdp: answer.sdp,
       ),
     );
-    phase = CallPhase.active;
-    notifyListeners();
   }
 
   Future<void> _flushPendingIce() async {
@@ -387,9 +487,21 @@ class CallService extends ChangeNotifier {
     _pendingRemoteIce.clear();
   }
 
+  /// STUN alone when the relay cannot issue TURN. Those calls can still connect,
+  /// just not across the strictest networks.
+  Future<List<Map<String, dynamic>>> _iceServers() async {
+    try {
+      return await _messaging.requestIceServers() ?? stunServers;
+    } catch (e) {
+      debugPrint('turn credentials failed: ${e.runtimeType}');
+      return stunServers;
+    }
+  }
+
   Future<void> _setupPeerConnection() async {
+    final iceServers = await _iceServers();
     _pc = await createPeerConnection({
-      'iceServers': stunServers,
+      'iceServers': iceServers,
       'sdpSemantics': 'unified-plan',
     });
 
@@ -415,16 +527,20 @@ class CallService extends ChangeNotifier {
     };
 
     _pc!.onConnectionState = (RTCPeerConnectionState state) {
-      if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
-        phase = CallPhase.active;
-        notifyListeners();
-      } else if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
-          state == RTCPeerConnectionState.RTCPeerConnectionStateDisconnected ||
-          state == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {
-        if (phase == CallPhase.active || phase == CallPhase.connecting) {
-          lastError = 'Conexión WebRTC perdida';
-          unawaited(_reset(keepError: true));
-        }
+      switch (state) {
+        case RTCPeerConnectionState.RTCPeerConnectionStateConnected:
+          _clearIceRecovery();
+          _becomeActive();
+        case RTCPeerConnectionState.RTCPeerConnectionStateDisconnected:
+          onPathLost();
+        case RTCPeerConnectionState.RTCPeerConnectionStateFailed:
+          onPathLost(failed: true);
+        case RTCPeerConnectionState.RTCPeerConnectionStateClosed:
+          if (phase == CallPhase.active || phase == CallPhase.connecting) {
+            _loseCall();
+          }
+        default:
+          break;
       }
     };
 
@@ -435,9 +551,24 @@ class CallService extends ChangeNotifier {
       }
     };
 
+    if (_local != null) {
+      for (final track in _local!.getTracks()) {
+        await _pc!.addTrack(track, _local!);
+      }
+    }
+
+    if (_pendingOfferSdp != null) {
+      final sdp = _pendingOfferSdp!;
+      _pendingOfferSdp = null;
+      await _applyRemoteOffer(sdp);
+    }
+    notifyListeners();
+  }
+
+  Future<void> _openLocalMedia(CallMediaMode mode) async {
     final constraints = <String, dynamic>{
       'audio': true,
-      'video': media == CallMediaMode.av
+      'video': mode == CallMediaMode.av
           ? {'facingMode': 'user', 'width': 640, 'height': 480}
           : false,
     };
@@ -449,22 +580,128 @@ class CallService extends ChangeNotifier {
       );
     }
     localRenderer.srcObject = _local;
-    for (final track in _local!.getTracks()) {
-      await _pc!.addTrack(track, _local!);
-    }
+  }
 
-    if (_pendingOfferSdp != null) {
-      final sdp = _pendingOfferSdp!;
-      _pendingOfferSdp = null;
-      await _applyRemoteOffer(sdp);
+  Future<void> _releaseLocal() async {
+    try {
+      await _local?.dispose();
+    } catch (_) {}
+    _local = null;
+    if (_renderersReady) {
+      localRenderer.srcObject = null;
     }
+  }
+
+  bool _sameEpoch(int epoch) => !_disposed && _epoch == epoch;
+
+  void _armRingTimeout() {
+    _ringTimer?.cancel();
+    _ringTimer = Timer(ringTimeout, () {
+      if (phase == CallPhase.outgoing || phase == CallPhase.connecting) {
+        lastError = 'Nadie contestó';
+        unawaited(hangup(sendSignal: true, keepError: true));
+      }
+    });
+  }
+
+  /// Keeps a call alive through a dropped path. Changing from Wi‑Fi to mobile
+  /// data lands here, so ending the call on the first `disconnected` was hanging
+  /// up on anyone who left the house.
+  ///
+  /// Only the caller restarts ICE, so the two sides cannot send crossing offers.
+  /// The callee just waits for that offer under the same limit.
+  @visibleForTesting
+  void onPathLost({bool failed = false}) {
+    if (phase != CallPhase.active && phase != CallPhase.connecting) return;
+    _iceRecoveryTimer ??= Timer(iceRecoveryLimit, () {
+      _iceRecoveryTimer = null;
+      if (phase == CallPhase.active || phase == CallPhase.connecting) {
+        _loseCall();
+      }
+    });
+    _iceGraceTimer?.cancel();
+    _iceGraceTimer = Timer(failed ? Duration.zero : iceGrace, () {
+      _iceGraceTimer = null;
+      if (isCaller) unawaited(_restartIce());
+    });
+  }
+
+  void _clearIceRecovery() {
+    _iceGraceTimer?.cancel();
+    _iceGraceTimer = null;
+    _iceRecoveryTimer?.cancel();
+    _iceRecoveryTimer = null;
+  }
+
+  void _loseCall() {
+    lastError = 'Conexión perdida';
+    unawaited(hangup(sendSignal: true, keepError: true));
+  }
+
+  Future<void> _restartIce() async {
+    final pc = _pc;
+    final p = peer;
+    final id = callId;
+    if (pc == null || p == null || id == null) return;
+    final epoch = _epoch;
+    try {
+      final offer = await pc.createOffer({'iceRestart': true});
+      if (!_sameEpoch(epoch)) return;
+      await pc.setLocalDescription(offer);
+      if (!_sameEpoch(epoch)) return;
+      await _messaging.sendCallSignal(
+        peer: p,
+        signal: CallSignal(
+          type: CallSignalType.sdpOffer,
+          callId: id,
+          media: media,
+          sdp: offer.sdp,
+        ),
+      );
+    } catch (e) {
+      // The recovery limit still ends the call if nothing else works.
+      debugPrint('ice restart failed: ${e.runtimeType}');
+    }
+  }
+
+  /// Rings stop on their own if the caller's `hangup` never arrives: that signal
+  /// is best effort, and the relay can lose it while the caller is offline.
+  void _armIncomingTimeout() {
+    _ringTimer?.cancel();
+    _ringTimer = Timer(ringTimeout + const Duration(seconds: 15), () {
+      if (phase == CallPhase.incoming) {
+        lastError = 'Llamada perdida';
+        unawaited(_reset(keepError: true));
+      }
+    });
+  }
+
+  void _becomeActive() {
+    _ringTimer?.cancel();
+    _ringTimer = null;
+    phase = CallPhase.active;
     notifyListeners();
+  }
+
+  Future<void> _sendControlBestEffort({
+    required Contact peer,
+    required CallSignal signal,
+  }) async {
+    try {
+      await _messaging
+          .sendCallSignal(peer: peer, signal: signal)
+          .timeout(const Duration(seconds: 3));
+    } catch (_) {}
   }
 
   Future<void> _reset({bool keepError = false}) async {
     // `onConnectionState` fires while closing; without this guard it re-enters.
     if (_resetting) return;
     _resetting = true;
+    _epoch++;
+    _ringTimer?.cancel();
+    _ringTimer = null;
+    _clearIceRecovery();
     try {
       final pc = _pc;
       _pc = null;
@@ -538,6 +775,22 @@ class CallService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Stages an outgoing ring without WebRTC, so the unanswered-call timer
+  /// can be tested on `flutter test`.
+  @visibleForTesting
+  void simulateOutgoingCall({
+    required Contact peer,
+    String callId = 'test-call',
+  }) {
+    this.peer = peer;
+    this.callId = callId;
+    media = CallMediaMode.audio;
+    isCaller = true;
+    phase = CallPhase.outgoing;
+    notifyListeners();
+    _armRingTimeout();
+  }
+
   @override
   void dispose() {
     _disposed = true;
@@ -545,6 +798,9 @@ class CallService extends ChangeNotifier {
     _messaging.onBlockPeer = null;
     _idleTimer?.cancel();
     _idleTimer = null;
+    _ringTimer?.cancel();
+    _ringTimer = null;
+    _clearIceRecovery();
     unawaited(localRenderer.dispose());
     unawaited(remoteRenderer.dispose());
     unawaited(_reset());

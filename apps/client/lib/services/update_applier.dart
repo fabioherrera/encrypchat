@@ -13,7 +13,7 @@ import 'update_checker.dart';
 enum UpdateApplyPhase { idle, downloading, verifying, installing, done, failed }
 
 /// Downloads the catalogued package, checks SHA-256, then hands it to the OS
-/// installer. Never runs without the user having accepted the consent dialog.
+/// installer. The catalog that named it has already passed its signature check.
 class UpdateApplier extends ChangeNotifier {
   UpdateApplier({
     http.Client? client,
@@ -129,9 +129,19 @@ class UpdateApplier extends ChangeNotifier {
         await _linuxRpm(file);
       case UpdateChannel.linuxTarball:
         await _openWith(file.parent.path);
-      case UpdateChannel.windowsZip:
-        await _openWith(file.path);
+      case UpdateChannel.windowsSetup:
+        await _windowsSetup(file);
     }
+  }
+
+  /// The installer replaces this running program, so it has to outlive it: it
+  /// waits for the process to end, installs, and opens the new version.
+  Future<void> _windowsSetup(File file) async {
+    await Process.start(file.path, const [
+      '/S',
+      '/UPDATE',
+    ], mode: ProcessStartMode.detached);
+    exit(0);
   }
 
   Future<void> _linuxRpm(File file) async {

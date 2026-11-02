@@ -14,7 +14,7 @@ abstract final class UpdateCopy {
       'de funciones. No hay nada oculto.\n\n'
       'Tus chats, fotos y claves privadas no se suben ni se tocan: siguen '
       'en este dispositivo.\n\n'
-      'El paquete se descarga del catálogo público y se comprueba su '
+      'El catálogo lleva nuestra firma y el paquete se comprueba con '
       'SHA-256 antes de instalar. El sistema puede pedirte confirmación '
       '(contraseña en Fedora, instalador en Android).';
 

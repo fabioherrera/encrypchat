@@ -57,12 +57,27 @@ class EncrypchatApp extends StatefulWidget {
   State<EncrypchatApp> createState() => _EncrypchatAppState();
 }
 
-class _EncrypchatAppState extends State<EncrypchatApp> {
+class _EncrypchatAppState extends State<EncrypchatApp>
+    with WidgetsBindingObserver {
   late final SessionController _session = widget.session ?? SessionController();
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _session.setVisible(state == AppLifecycleState.resumed);
+  }
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // On Android this also runs from the background service with no screen, and
+    // nothing has been drawn then.
+    final lifecycle = WidgetsBinding.instance.lifecycleState;
+    _session.setVisible(
+      lifecycle == null
+          ? !Platform.isAndroid
+          : lifecycle == AppLifecycleState.resumed,
+    );
     if (widget.session == null) {
       _session.bootstrap();
     }
@@ -75,6 +90,7 @@ class _EncrypchatAppState extends State<EncrypchatApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _session.removeListener(_onSession);
     if (widget.session == null) {
       _session.dispose();

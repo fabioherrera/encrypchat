@@ -145,7 +145,8 @@ void main() {
 
   test('a stranger cannot make the app ring', () async {
     final rung = <String>[];
-    messaging.onCallSignal = (from, signal) => rung.add(from);
+    messaging.onCallSignal = (from, signal, {required viaRelay}) =>
+        rung.add(from);
     final invite = CallSignal(
       type: CallSignalType.invite,
       callId: 'call-1',

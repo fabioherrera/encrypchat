@@ -12,6 +12,7 @@ import '../core/lan_listen.dart';
 import '../core/media_picker.dart';
 import '../models/chat_message.dart';
 import '../models/contact.dart';
+import '../services/call_service.dart';
 import '../services/messaging_service.dart';
 import '../services/relay_client.dart';
 import '../services/session_controller.dart';
@@ -238,6 +239,14 @@ class _ChatPageState extends State<ChatPage> {
   Future<void> _startCall(CallMediaMode media) async {
     final calls = widget.session.calls;
     if (calls == null) return;
+    if (!widget.session.messaging.canSignalCall(widget.peer.token)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(CallService.noRouteMessage)),
+        );
+      }
+      return;
+    }
     try {
       await calls.startCall(peer: widget.peer, media: media);
       // CallOverlayHost / CallPage opened via session.calls listener.
@@ -285,7 +294,17 @@ class _ChatPageState extends State<ChatPage> {
     final messaging = widget.session.messaging;
     final live = messaging.isLivePeer(widget.peer.token);
     final blocked = widget.session.isBlocked(widget.peer.token);
+    final relayReady = messaging.relayReachable && !live && !blocked;
     final route = messaging.routeLabel(widget.peer.token, blocked: blocked);
+    final canCall =
+        !blocked && messaging.canSignalCall(widget.peer.token);
+    final callBlockedReason = blocked
+        ? null
+        : !messaging.nodeRunning
+        ? 'Tu nodo está detenido'
+        : !live
+        ? 'Las llamadas necesitan sesión P2P (punto verde)'
+        : null;
 
     return Scaffold(
       backgroundColor: EncrypchatColors.canvas,
@@ -299,6 +318,7 @@ class _ChatPageState extends State<ChatPage> {
               radius: 18,
               blocked: blocked,
               online: live && !blocked,
+              viaRelay: relayReady,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -317,9 +337,13 @@ class _ChatPageState extends State<ChatPage> {
                     route,
                     style: TextStyle(
                       fontSize: 12,
-                      color: blocked || !live
+                      color: blocked
                           ? EncrypchatColors.offline
-                          : EncrypchatColors.p2p,
+                          : live
+                          ? EncrypchatColors.p2p
+                          : relayReady
+                          ? EncrypchatColors.relay
+                          : EncrypchatColors.offline,
                     ),
                   ),
                 ],
@@ -329,19 +353,15 @@ class _ChatPageState extends State<ChatPage> {
         ),
         actions: [
           RaisedCircleButton(
-            tooltip: 'Videollamada',
-            onPressed: messaging.nodeRunning && !blocked
-                ? () => _startCall(CallMediaMode.av)
-                : null,
+            tooltip: callBlockedReason ?? 'Videollamada',
+            onPressed: canCall ? () => _startCall(CallMediaMode.av) : null,
             icon: Icons.videocam,
             iconColor: EncrypchatColors.navyMid,
           ),
           const SizedBox(width: 8),
           RaisedCircleButton(
-            tooltip: 'Llamada de audio',
-            onPressed: messaging.nodeRunning && !blocked
-                ? () => _startCall(CallMediaMode.audio)
-                : null,
+            tooltip: callBlockedReason ?? 'Llamada de audio',
+            onPressed: canCall ? () => _startCall(CallMediaMode.audio) : null,
             icon: Icons.call,
             iconColor: EncrypchatColors.p2p,
           ),
@@ -1131,7 +1151,12 @@ class InboundDropNotice extends StatelessWidget {
     final reason = messaging.sawForgedSender
         ? InboundDropReason.forged
         : messaging.lastDrop;
-    if (reason == null) return const SizedBox.shrink();
+    // The relay's second delivery (60 s lease) is a replay by design. Showing
+    // it on Chats reads as an attack. The tally stays in ☁.
+    if (reason == null ||
+        (reason == InboundDropReason.replay && !messaging.sawForgedSender)) {
+      return const SizedBox.shrink();
+    }
     final hostile = reason.isHostile;
     final total = messaging.dropCount;
 

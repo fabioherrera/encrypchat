@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/app_version.dart';
 import '../core/legal_links.dart';
+import '../services/auto_updater.dart';
 import '../services/session_controller.dart';
 import '../services/update_applier.dart';
 import '../services/update_checker.dart';
@@ -11,7 +12,7 @@ import 'about_page.dart';
 import 'blocked_page.dart';
 import 'chat_page.dart';
 
-/// Ajustes: versión, actualización con consentimiento y legal/bloqueo.
+/// Ajustes: versión, actualización automática y legal/bloqueo.
 class SettingsPage extends StatelessWidget {
   const SettingsPage({
     super.key,
@@ -97,6 +98,21 @@ class SettingsPage extends StatelessWidget {
               onTap: () => showRelayDialog(context, session),
             ),
           ],
+          if (session.supportsBackgroundDelivery) ...[
+            const _SectionTitle('Con la app cerrada'),
+            SwitchListTile(
+              tileColor: EncrypchatColors.paper,
+              title: const Text('Recibir mensajes y llamadas'),
+              subtitle: const Text(
+                'Mantiene una conexión cifrada con el buzón, sin Google ni '
+                'push. Android muestra un aviso fijo y gasta algo de batería.',
+                style: TextStyle(color: EncrypchatColors.muted),
+              ),
+              value: session.backgroundDelivery,
+              activeThumbColor: EncrypchatColors.relay,
+              onChanged: session.setBackgroundDelivery,
+            ),
+          ],
           const _SectionTitle('Esta instalación'),
           ListTile(
             tileColor: EncrypchatColors.paper,
@@ -136,6 +152,19 @@ class SettingsPage extends StatelessWidget {
                     child: const Text('Buscar'),
                   ),
           ),
+          if (AutoUpdater.supports(updates.channel))
+            SwitchListTile(
+              tileColor: EncrypchatColors.paper,
+              title: const Text('Actualizar automáticamente'),
+              subtitle: const Text(
+                'Instala versiones firmadas al abrir la app o cuando no la '
+                'estás usando. Nunca durante una llamada.',
+                style: TextStyle(color: EncrypchatColors.muted),
+              ),
+              value: session.autoUpdate,
+              activeThumbColor: EncrypchatColors.relay,
+              onChanged: session.setAutoUpdate,
+            ),
           if (info.hasUpdate)
             ListTile(
               tileColor: EncrypchatColors.paper,
@@ -159,21 +188,21 @@ class SettingsPage extends StatelessWidget {
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Text(
-              'La actualización es explícita: aparece un aviso, lees de qué '
-              'se trata y tocas Actualizar la app. Encrypchat descarga el '
-              'paquete, comprueba su SHA-256 e invoca el instalador del '
+              'Encrypchat solo acepta catálogos con nuestra firma, descarga '
+              'el paquete, comprueba su SHA-256 e invoca el instalador del '
               'sistema. No se tocan chats, fotos ni claves: viven en este '
               'dispositivo.\n\n'
               '· Fedora (RPM): el sistema pide tu contraseña y reemplaza '
               'los archivos en /usr/lib64/encrypchat.\n'
               '· Linux portable: se descarga el tar.gz; ejecuta install.sh '
               'en el mismo prefijo.\n'
-              '· Android: el instalador del sistema pide confirmar. Los '
-              'datos se conservan si la firma es la misma.\n'
-              '· Windows / iOS: todavía no hay paquete automático; se abre '
-              'la página de descargas.\n\n'
+              '· Android: se instala sola; el sistema puede pedir confirmar. '
+              'La primera vez debes permitir instalar apps de Encrypchat.\n'
+              '· Windows: se instala sola al abrir la app y vuelve a abrirse.\n'
+              '· iOS: todavía no hay paquete.\n\n'
               'Para saber si hay versión nueva, la app lee '
-              'encrypchat.com/latest.json. No envía tu token ni tus chats.',
+              'encrypchat.com/update-manifest.json. No envía tu token ni tus '
+              'chats.',
               style: TextStyle(
                 color: EncrypchatColors.muted,
                 height: 1.45,

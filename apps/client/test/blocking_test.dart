@@ -123,7 +123,8 @@ void main() {
 
   test('call signaling from a blocked peer never rings', () async {
     final rung = <String>[];
-    messaging.onCallSignal = (from, signal) => rung.add(from);
+    messaging.onCallSignal = (from, signal, {required viaRelay}) =>
+        rung.add(from);
     await messaging.block(bob.token);
 
     final invite = CallSignal(

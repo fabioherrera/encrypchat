@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models/contact.dart';
 import '../services/session_controller.dart';
+import '../services/auto_updater.dart';
 import '../services/update_applier.dart';
 import '../services/update_checker.dart';
 import '../theme/encrypchat_colors.dart';
@@ -41,6 +42,7 @@ class _ShellPageState extends State<ShellPage> {
   Contact? _openPeer;
   late final UpdateChecker _updates;
   late final UpdateApplier _applier;
+  late final AutoUpdater _autoUpdater;
   late final bool _ownsUpdates;
   late final bool _ownsApplier;
   bool _offerShown = false;
@@ -55,7 +57,17 @@ class _ShellPageState extends State<ShellPage> {
     _updates.addListener(_onUpdates);
     _applier.addListener(_onUpdates);
     widget.session.addListener(_onSession);
-    unawaited(_updates.check());
+    _autoUpdater = AutoUpdater(
+      checker: _updates,
+      applier: _applier,
+      isEnabled: () => widget.session.autoUpdate,
+      isBusy: () => widget.session.inCall,
+      isVisible: () => widget.session.isVisible,
+      canInstallSilently: _updates.channel == UpdateChannel.androidApk
+          ? const AndroidUpdateBridge().canInstall
+          : null,
+    )..start();
+    unawaited(widget.session.requestBackgroundPermissions());
   }
 
   void _onUpdates() {
@@ -96,6 +108,7 @@ class _ShellPageState extends State<ShellPage> {
   @override
   void dispose() {
     widget.session.removeListener(_onSession);
+    _autoUpdater.dispose();
     _updates.removeListener(_onUpdates);
     _applier.removeListener(_onUpdates);
     if (_ownsUpdates) _updates.dispose();

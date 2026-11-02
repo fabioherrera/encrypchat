@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../core/app_version.dart';
 import '../core/legal_links.dart';
+import '../core/update_key.dart';
 
 enum UpdateStatus { idle, checking, current, available, failed }
 
@@ -13,14 +15,14 @@ enum UpdateChannel {
   androidApk,
   linuxRpm,
   linuxTarball,
-  windowsZip;
+  windowsSetup;
 
   /// Fedora RPM install puts the binary under `/usr/lib64/encrypchat`.
   /// Anything else on Linux is treated as the portable tarball.
   static UpdateChannel? detect() {
     if (kIsWeb) return null;
     if (Platform.isAndroid) return UpdateChannel.androidApk;
-    if (Platform.isWindows) return UpdateChannel.windowsZip;
+    if (Platform.isWindows) return UpdateChannel.windowsSetup;
     if (Platform.isLinux) {
       if (File('/usr/lib64/encrypchat/encrypchat').existsSync()) {
         return UpdateChannel.linuxRpm;
@@ -48,7 +50,10 @@ class UpdatePackage {
 
 /// Result of comparing this binary to the public catalog on encrypchat.com.
 ///
-/// The catalog is a static JSON file. The request carries no token, no chat
+/// The catalog is a static JSON file, signed with an offline Ed25519 key whose
+/// public half is pinned in this binary. A catalog that fails the check is
+/// treated like an unreachable one, so whoever controls the site or the download
+/// host cannot name a package. The request carries no token, no chat
 /// data, and no device id. Cloudflare and the origin server still see IP /
 /// user-agent / time, as with any visit to the site — see the privacy page,
 /// section actualizaciones.
@@ -83,6 +88,7 @@ class UpdateChecker extends ChangeNotifier {
     this.currentVersion = encrypchatVersion,
     this.catalogUri,
     UpdateChannel? channel,
+    this.publicKeyBase64 = updateSigningPublicKey,
   }) : _client = client ?? http.Client(),
        _ownsClient = client == null,
        channel = channel ?? UpdateChannel.detect();
@@ -92,6 +98,7 @@ class UpdateChecker extends ChangeNotifier {
   final String currentVersion;
   final Uri? catalogUri;
   final UpdateChannel? channel;
+  final String publicKeyBase64;
 
   UpdateInfo _info = const UpdateInfo(
     status: UpdateStatus.idle,
@@ -101,7 +108,8 @@ class UpdateChecker extends ChangeNotifier {
 
   UpdateInfo get info => _info;
 
-  Uri get _uri => catalogUri ?? Uri.parse('${LegalLinks.site}/latest.json');
+  Uri get _uri =>
+      catalogUri ?? Uri.parse('${LegalLinks.site}/update-manifest.json');
 
   /// Widget tests set `FLUTTER_TEST`; a real GET would be slow or flaky.
   static bool get runningInTest =>
@@ -128,8 +136,9 @@ class UpdateChecker extends ChangeNotifier {
         _fail();
         return;
       }
-      final body = jsonDecode(utf8.decode(res.bodyBytes));
-      if (body is! Map) {
+      final body = await verifiedCatalog(res.bodyBytes);
+      if (_disposed) return;
+      if (body == null) {
         _fail();
         return;
       }
@@ -156,6 +165,32 @@ class UpdateChecker extends ChangeNotifier {
     }
   }
 
+  /// The catalog inside a signed envelope, or null if the signature does not
+  /// verify. The signature covers the exact payload bytes, so nothing has to be
+  /// re-serialized before checking it.
+  @visibleForTesting
+  Future<Map<dynamic, dynamic>?> verifiedCatalog(Uint8List raw) async {
+    final envelope = jsonDecode(utf8.decode(raw));
+    if (envelope is! Map) return null;
+    final payloadB64 = envelope['payload'];
+    final signatureB64 = envelope['signature'];
+    if (payloadB64 is! String || signatureB64 is! String) return null;
+    final payload = base64Decode(payloadB64);
+    final valid = await Ed25519().verify(
+      payload,
+      signature: Signature(
+        base64Decode(signatureB64),
+        publicKey: SimplePublicKey(
+          base64Decode(publicKeyBase64),
+          type: KeyPairType.ed25519,
+        ),
+      ),
+    );
+    if (!valid) return null;
+    final catalog = jsonDecode(utf8.decode(payload));
+    return catalog is Map ? catalog : null;
+  }
+
   void _fail() {
     _info = UpdateInfo(
       status: UpdateStatus.failed,
@@ -165,7 +200,7 @@ class UpdateChecker extends ChangeNotifier {
   }
 
   /// Picks the catalog entry for this device. Returns null when the OS has
-  /// no package (iOS, Windows until a zip exists) or the entry lacks a hash.
+  /// no package (iOS) or the entry lacks a hash.
   static UpdatePackage? packageFromCatalog(
     Map<dynamic, dynamic> body,
     UpdateChannel? channel,
@@ -177,7 +212,7 @@ class UpdateChecker extends ChangeNotifier {
       UpdateChannel.androidApk => 'android-apk',
       UpdateChannel.linuxRpm => 'linux-rpm',
       UpdateChannel.linuxTarball => 'linux-tarball',
-      UpdateChannel.windowsZip => 'windows-zip',
+      UpdateChannel.windowsSetup => 'windows-setup',
     };
     final entry = packages[key];
     if (entry is! Map) return null;

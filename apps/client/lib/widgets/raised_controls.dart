@@ -110,19 +110,21 @@ class RaisedFilterChip extends StatelessWidget {
   }
 }
 
-/// Initials avatar with an optional P2P / offline / blocked status dot.
+/// Initials avatar with a P2P / relay / offline / blocked status dot.
 class StatusAvatar extends StatelessWidget {
   const StatusAvatar({
     super.key,
     required this.label,
     this.radius = 22,
     this.online = false,
+    this.viaRelay = false,
     this.blocked = false,
   });
 
   final String label;
   final double radius;
   final bool online;
+  final bool viaRelay;
   final bool blocked;
 
   @override
@@ -133,6 +135,8 @@ class StatusAvatar extends StatelessWidget {
         ? EncrypchatColors.offline
         : online
         ? EncrypchatColors.p2p
+        : viaRelay
+        ? EncrypchatColors.relay
         : EncrypchatColors.offline;
     return SizedBox(
       width: radius * 2,

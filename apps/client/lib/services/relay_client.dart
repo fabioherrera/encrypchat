@@ -106,6 +106,8 @@ class RelayClient {
     required Uint8List blob,
     int ttlSecs = 86400,
   }) async {
+    // A photo at the ceiling over a mobile link needs far longer than a text.
+    final timeout = Duration(seconds: blob.length > 512 * 1024 ? 90 : 15);
     final res = await _http
         .post(
           _uri('/v1/enqueue'),
@@ -116,7 +118,7 @@ class RelayClient {
             'blob_b64': base64Encode(blob),
           }),
         )
-        .timeout(const Duration(seconds: 15));
+        .timeout(timeout);
     if (res.statusCode != 200) {
       throw _httpError('enqueue', res.statusCode);
     }
@@ -182,7 +184,9 @@ class RelayClient {
             'proof_b64': base64Encode(proof),
           }),
         )
-        .timeout(const Duration(seconds: 20));
+        // Stays under the relay's 60 s lease, or both delivery attempts could be
+        // spent on one stalled connection.
+        .timeout(const Duration(seconds: 50));
     if (res.statusCode == 401) {
       throw const RelayAuthException();
     }

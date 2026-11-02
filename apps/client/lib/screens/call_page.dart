@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
@@ -160,9 +162,15 @@ class _CallPageState extends State<CallPage> {
                       ),
                     _RoundBtn(
                       icon: Icons.call_end,
-                      label: 'Colgar',
+                      label:
+                          calls.phase == CallPhase.outgoing ||
+                              calls.phase == CallPhase.connecting
+                          ? 'Cancelar'
+                          : 'Colgar',
                       color: const Color(0xFFC62828),
-                      onTap: () => calls.hangup(),
+                      onTap: () {
+                        unawaited(calls.hangup());
+                      },
                     ),
                   ],
                 ),

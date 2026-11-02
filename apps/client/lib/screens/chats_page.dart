@@ -275,6 +275,11 @@ class _ChatsPageState extends State<ChatsPage> {
                       final live =
                           session.hasMessaging &&
                           session.messaging.isLivePeer(c.token);
+                      final relayReady =
+                          session.hasMessaging &&
+                          session.messaging.relayReachable &&
+                          !live &&
+                          !blocked;
                       return ListTile(
                         selected: selected,
                         selectedTileColor: EncrypchatColors.bubbleOut,
@@ -283,6 +288,7 @@ class _ChatsPageState extends State<ChatsPage> {
                           label: c.label,
                           blocked: blocked,
                           online: live && !blocked,
+                          viaRelay: relayReady,
                         ),
                         title: Text(
                           c.label,

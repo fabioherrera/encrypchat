@@ -22,6 +22,7 @@ import 'identity_service.dart';
 import 'local_database.dart';
 import 'media_store.dart';
 import 'relay_client.dart';
+import 'relay_socket.dart';
 
 /// Why something that arrived never became a message, on either route.
 ///
@@ -52,7 +53,7 @@ enum InboundDropReason {
   /// The same authentic blob arrived twice.
   replay,
 
-  /// Call signaling by relay, which is not enabled.
+  /// A call signal from the relay that was too old or carried no time.
   callSignal,
 
   /// Opened and authenticated, but the payload inside did not parse.
@@ -93,7 +94,7 @@ extension InboundDropCopy on InboundDropReason {
       'Clave del remitente mal codificada',
     InboundDropReason.expired => 'Fuera de la ventana de frescura',
     InboundDropReason.replay => 'Mensaje repetido',
-    InboundDropReason.callSignal => 'Señal de llamada por relay',
+    InboundDropReason.callSignal => 'Señal de llamada caducada',
     InboundDropReason.unreadable => 'Contenido ilegible',
     InboundDropReason.strangerMedia => 'Adjunto de un desconocido',
     InboundDropReason.strangerCall => 'Llamada de un desconocido',
@@ -128,10 +129,10 @@ extension InboundDropCopy on InboundDropReason {
           '(más de 7 días en el buzón, o el reloj de algún dispositivo está '
           'desfasado).',
     InboundDropReason.replay =>
-      'Llegó una copia repetida de un mensaje que ya tenías. Alguien reenvió '
-          'un mensaje capturado, o el relay lo entregó dos veces.',
+      'El relay entregó otra vez un sobre que ya tenías (a los 60 s lo hace '
+          'a propósito). No se duplicó en el chat.',
     InboundDropReason.callSignal =>
-      'Una llamada intentó entrar por el relay. Las llamadas van solo P2P, '
+      'Una señal de llamada llegó tarde por el relay y se descartó: un timbre '
           'así que no suena.',
     InboundDropReason.unreadable =>
       'Un mensaje se descifró bien pero su contenido no se pudo interpretar.',
@@ -234,9 +235,21 @@ class MessagingService extends ChangeNotifier {
   /// the identity can remove it with the rest — see `IdentityWipe`.
   static const relayUrlStorageKey = 'relay_base_url_v1';
 
-  /// Must stay under relay `MAX_BLOB_BYTES` (256 KiB). Applies to the **sealed**
+  /// Must stay under relay `MAX_BLOB_BYTES` (8 MiB). Applies to the **sealed**
   /// blob, which is the payload plus [EncrypchatCore.sealedOverheadBytes].
-  static const relayMaxBlobBytes = 256 * 1024;
+  static const relayMaxBlobBytes = 8 * 1024 * 1024;
+
+  /// Relay lifetime of a call signal. Longer than the ring, so a slow network
+  /// still connects, and short enough that a stored ring cannot outlive a call.
+  static const callSignalTtlSecs = 120;
+
+  /// Oldest call signal accepted from the relay. The blob's TTL is the sender's
+  /// choice, so the receiver enforces its own limit from the signed time.
+  static const callSignalMaxAge = Duration(seconds: 120);
+
+  /// Polling is only the safety net while the doorbell is up. Eight seconds is
+  /// what the app falls back to when the socket is down.
+  static const relayPollWhileConnected = Duration(seconds: 60);
 
   /// How much of a conversation is read at a time, opening a chat and on every
   /// step backwards through its history.
@@ -313,6 +326,14 @@ class MessagingService extends ChangeNotifier {
 
   Timer? _poll;
   Timer? _relayPoll;
+  RelaySocket? _relaySocket;
+  bool _relaySocketLost = false;
+  DateTime? _lastRelayPull;
+  bool _pullAgain = false;
+
+  /// Injected by tests so no real socket is opened.
+  @visibleForTesting
+  RelaySocketConnector? relaySocketConnector;
 
   /// Where the blocking node calls run. `null` when the isolate could not be
   /// spawned, in which case they run here and the interface pays for it.
@@ -381,7 +402,12 @@ class MessagingService extends ChangeNotifier {
   DateTime Function() clock = () => DateTime.now().toUtc();
 
   /// Demux for call signaling (not persisted as chat).
-  void Function(String fromToken, CallSignal signal)? onCallSignal;
+  void Function(String fromToken, CallSignal signal, {required bool viaRelay})?
+  onCallSignal;
+
+  /// A message or a contact request was filed. Used for notifications, so it
+  /// carries the sender and nothing about the content.
+  void Function(String fromToken)? onInboundMessage;
 
   /// Installed by `CallService`. Runs when the user blocks a token, **before**
   /// the block is applied, so a live call with that identity is torn down while
@@ -395,6 +421,18 @@ class MessagingService extends ChangeNotifier {
   bool get nodeRunning => _core.isNodeRunning;
   bool get relayConfigured => _relay.isConfigured;
   String? get relayBaseUrl => _relay.baseUrl;
+
+  /// Authenticated socket open right now. Unlike [relayConfigured], this is a
+  /// fact about the network, so a dead relay stops showing as a route.
+  bool get relayConnected => _relaySocket?.isConnected ?? false;
+
+  /// False once a configured relay has actually been lost. True until the first
+  /// attempt finishes, so the app does not open by announcing a failure.
+  bool get relayReachable =>
+      relayConfigured && (relayConnected || !_relaySocketLost);
+
+  /// Whether a call can reach [token] at all right now.
+  bool canSignalCall(String token) => isLivePeer(token) || relayReachable;
 
   /// True when the compiled Encrypchat relay is the one in use.
   bool get usesDefaultRelay =>
@@ -412,8 +450,9 @@ class MessagingService extends ChangeNotifier {
     if (blocked) return 'Bloqueado';
     if (!nodeRunning) return 'Tu nodo está detenido';
     if (isLivePeer(token)) return 'Sesión P2P';
-    if (relayConfigured) return 'Sin sesión P2P · relay listo';
-    return 'Sin ruta · conecta o usa un relay';
+    if (relayReachable) return 'Por relay';
+    if (relayConfigured) return 'Relay sin conexión · se entregará al volver';
+    return 'Sin ruta · misma Wi‑Fi o enciende el relay';
   }
 
   void rememberDialHints(String token, List<String> hints) {
@@ -675,9 +714,11 @@ class MessagingService extends ChangeNotifier {
     if (trimmed == null || trimmed.isEmpty || trimmed == encrypchatRelayOff) {
       await _storage.write(key: relayUrlStorageKey, value: encrypchatRelayOff);
       _relay.baseUrl = null;
+      await _restartRelaySocket();
     } else {
       await _storage.write(key: relayUrlStorageKey, value: trimmed);
       _relay.baseUrl = trimmed;
+      await _restartRelaySocket();
     }
     // Pointing at a different relay is the usual answer to the fault, so the old
     // verdict must not outlive the address it was about.
@@ -690,6 +731,7 @@ class MessagingService extends ChangeNotifier {
     await _storage.delete(key: relayUrlStorageKey);
     _relay.baseUrl = _defaultRelayUrl;
     _relayPullFault = null;
+    await _restartRelaySocket();
     notifyListeners();
   }
 
@@ -709,11 +751,79 @@ class MessagingService extends ChangeNotifier {
     });
     _relayPoll?.cancel();
     _relayPoll = Timer.periodic(const Duration(seconds: 8), (_) {
-      unawaited(pullFromRelay());
+      unawaited(_pollRelay());
     });
+    await _restartRelaySocket();
     unawaited(pullFromRelay());
     notifyListeners();
   }
+
+  Future<void> _pollRelay() async {
+    final last = _lastRelayPull;
+    if (relayConnected &&
+        last != null &&
+        clock().difference(last) < relayPollWhileConnected) {
+      return;
+    }
+    await pullFromRelay();
+  }
+
+  /// Opens the doorbell for the current relay, replacing any previous one.
+  Future<void> _restartRelaySocket() async {
+    final previous = _relaySocket;
+    _relaySocket = null;
+    _relaySocketLost = false;
+    await previous?.close();
+    final url = _relay.baseUrl;
+    final token = _identity.token;
+    final publicKey = _identity.publicKey;
+    if (url == null || url.trim().isEmpty || token == null) return;
+    if (publicKey == null || !_core.isNodeRunning) return;
+    final socket = RelaySocket(
+      baseUrl: url,
+      token: token,
+      publicKey: publicKey,
+      proof: (ephPubkey, nonce) => _core.popProof(
+        secret: _identity.requireSecret(),
+        ephPubkey: ephPubkey,
+        nonce: nonce,
+        destToken: token,
+      ),
+      onWake: () => unawaited(pullFromRelay()),
+      onStateChanged: _onRelaySocketChanged,
+      connector: relaySocketConnector,
+    );
+    _relaySocket = socket;
+    socket.start();
+  }
+
+  void _onRelaySocketChanged() {
+    _relaySocketLost = !relayConnected;
+    notifyListeners();
+  }
+
+  /// The app came back or the network changed: reconnect now, and catch up on
+  /// what arrived while the socket was down.
+  void onAppResumed() {
+    _relaySocket?.nudge();
+    unawaited(pullFromRelay());
+  }
+
+  /// The node's inbox is only for sessions on this network, so with the screen
+  /// off it does not need checking several times a second. The relay socket is
+  /// event-driven and stays as it is.
+  void setBackgrounded(bool background) {
+    if (_worker == null) return;
+    _poll?.cancel();
+    _poll = Timer.periodic(
+      background ? const Duration(seconds: 5) : const Duration(milliseconds: 400),
+      (_) => unawaited(_drainInbound()),
+    );
+  }
+
+  /// ICE servers with TURN, or null when the relay cannot issue them.
+  Future<List<Map<String, dynamic>>?> requestIceServers() async =>
+      _relaySocket?.requestTurn();
 
   Future<void> stopNode() async {
     await _teardownNode();
@@ -728,6 +838,9 @@ class MessagingService extends ChangeNotifier {
     _poll = null;
     _relayPoll?.cancel();
     _relayPoll = null;
+    final socket = _relaySocket;
+    _relaySocket = null;
+    await socket?.close();
     listenAddr = null;
     lanListenAddrs = const [];
     _livePeers.clear();
@@ -1134,7 +1247,7 @@ class MessagingService extends ChangeNotifier {
     }
   }
 
-  /// Send an image/file (E2EE). Prefers P2P; relay only if ciphertext ≤ 256 KiB.
+  /// Send an image/file (E2EE). Prefers P2P; relay only if ciphertext ≤ 8 MiB.
   Future<ChatMessage> sendMedia({
     required Contact peer,
     required Uint8List bytes,
@@ -1234,7 +1347,7 @@ class MessagingService extends ChangeNotifier {
         status: MessageStatus.error,
         error: switch (e.code) {
           CoreException.peerOffline =>
-            'Peer offline — adjuntos grandes requieren P2P o relay ≤256KiB',
+            'Sin ruta: el relay lleva adjuntos de hasta 8 MiB.',
           CoreException.peerBlocked => blockedMessage,
           _ => e.toString(),
         },
@@ -1270,6 +1383,7 @@ class MessagingService extends ChangeNotifier {
   Future<void> _enqueueSealed({
     required Contact peer,
     required Uint8List plaintext,
+    int? ttlSecs,
   }) async {
     final sealed = _core.sealedSeal(
       senderSecret: _identity.requireSecret(),
@@ -1282,30 +1396,48 @@ class MessagingService extends ChangeNotifier {
         'relay ($relayMaxBlobBytes B). Conecta P2P o envía algo más corto.',
       );
     }
-    await _relay.enqueue(destToken: peer.token, blob: sealed.blob);
+    if (ttlSecs == null) {
+      await _relay.enqueue(destToken: peer.token, blob: sealed.blob);
+    } else {
+      await _relay.enqueue(
+        destToken: peer.token,
+        blob: sealed.blob,
+        ttlSecs: ttlSecs,
+      );
+    }
+  }
+
+  /// A signal from the relay must say when it was sent. The route can hold a blob
+  /// for as long as its TTL, so a missing stamp cannot mean "recent" here.
+  bool _callSignalIsFresh(CallSignal signal) {
+    final sentAt = signal.sentAtUnix;
+    if (sentAt == null) return false;
+    final age = _nowUnix() - sentAt;
+    return age <= callSignalMaxAge.inSeconds &&
+        -age <= sealedFreshnessSkew.inSeconds;
   }
 
   /// E2EE call signaling (not stored in chat DB).
   ///
-  /// **P2P-only, both directions.** Sender authentication is no longer what
-  /// blocks this — sealed sender covers the relay path now — but a stored ring
-  /// is a separate product decision: an `invite` pulled hours later would ring
-  /// for a call nobody is on, and an accepted one would hand over mic and
-  /// camera to a peer that is not even connected. [_acceptPayload] drops
-  /// inbound call signals that arrive by relay for the same reason.
+  /// Uses the live session when there is one, and otherwise the relay, sealed
+  /// and with a short TTL. A stored ring is the risk on that route: an `invite`
+  /// pulled hours later would ring for a call nobody is on. So the TTL bounds it
+  /// on the relay, and [_acceptPayload] and `CallService` bound it again on
+  /// arrival from the authenticated time inside the ciphertext.
   Future<void> sendCallSignal({
     required Contact peer,
     required CallSignal signal,
   }) async {
     _assertNotBlocked(peer.token);
     _assertUsablePeerKey(peer);
-    if (!_core.isNodeRunning) {
-      throw StateError('Nodo P2P no iniciado');
-    }
     // Stamped here so every outbound signal carries one, from the same clock the
     // freshness checks use: the receiver refuses to ring for an `invite` that
     // took too long to arrive.
     final plain = signal.stamped(_nowUnix()).encode();
+    if (!_core.isNodeRunning || !isLivePeer(peer.token)) {
+      await _sendCallSignalByRelay(peer: peer, plain: plain);
+      return;
+    }
     final ciphertext = _core.encrypt(
       recipientPublicKey: peer.publicKey,
       plaintext: plain,
@@ -1316,23 +1448,47 @@ class MessagingService extends ChangeNotifier {
       msgId: _idToBytes(_newId()),
     );
     try {
-      await _sendWithDialRetry(peerToken: peer.token, frame: frame.encode());
+      // Fail fast: a call cannot proceed without a live session, and
+      // `_sendWithDialRetry` would spend up to 10 s per listen addr on the
+      // worker. That queue is single-file, so Colgar sat behind the dial
+      // and the overlay could not dismiss.
+      await _sendFrame(peerToken: peer.token, frame: frame.encode());
       _markLive(peer.token);
     } on CoreException catch (e) {
       if (e.code == CoreException.peerBlocked) throw StateError(blockedMessage);
       if (e.code != CoreException.peerOffline) rethrow;
       _markOffline(peer.token);
-      throw StateError(
-        'Llamadas requieren una sesión P2P. Misma Wi‑Fi: Chats → enlace.',
-      );
+      await _sendCallSignalByRelay(peer: peer, plain: plain);
     }
   }
 
+  Future<void> _sendCallSignalByRelay({
+    required Contact peer,
+    required Uint8List plain,
+  }) async {
+    if (!_relay.isConfigured) {
+      throw StateError(
+        'Sin ruta para llamar. Enciende el relay o conéctate a la misma Wi‑Fi.',
+      );
+    }
+    await _enqueueSealed(
+      peer: peer,
+      plaintext: plain,
+      ttlSecs: callSignalTtlSecs,
+    );
+  }
+
   Future<void> pullFromRelay() async {
-    if (!_relay.isConfigured || _pulling) return;
+    if (!_relay.isConfigured) return;
+    if (_pulling) {
+      // A wake during a pull may name a blob that pull already missed.
+      _pullAgain = true;
+      return;
+    }
     final now = clock();
     if (_relayBackoffUntil != null && now.isBefore(_relayBackoffUntil!)) return;
     _pulling = true;
+    _lastRelayPull = now;
     try {
       List<Uint8List> blobs;
       try {
@@ -1380,6 +1536,10 @@ class MessagingService extends ChangeNotifier {
       debugPrint('relay pull failed: ${e.runtimeType}');
     } finally {
       _pulling = false;
+      if (_pullAgain) {
+        _pullAgain = false;
+        unawaited(pullFromRelay());
+      }
     }
   }
 
@@ -1624,12 +1784,6 @@ class MessagingService extends ChangeNotifier {
     }
     final isMedia = MediaEnvelope.looksLike(payload);
     final isCall = CallSignal.looksLike(payload);
-    if (isCall && viaRelay) {
-      // See [sendCallSignal]: signaling stays P2P-only, so a stored ring is
-      // dropped instead of woken up hours later.
-      _noteDrop(InboundDropReason.callSignal);
-      return _InboundDisposition.settled;
-    }
     if (!isContact(senderToken)) {
       final refusal = await _admitFromUnknown(
         senderToken: senderToken,
@@ -1656,7 +1810,12 @@ class MessagingService extends ChangeNotifier {
       );
     }
     if (isCall) {
-      onCallSignal?.call(senderToken, CallSignal.decode(payload));
+      final signal = CallSignal.decode(payload);
+      if (viaRelay && !_callSignalIsFresh(signal)) {
+        _noteDrop(InboundDropReason.callSignal);
+        return _InboundDisposition.settled;
+      }
+      onCallSignal?.call(senderToken, signal, viaRelay: viaRelay);
       return _InboundDisposition.settled;
     }
     final text = utf8.decode(payload);
@@ -1682,6 +1841,7 @@ class MessagingService extends ChangeNotifier {
     }
     _pushCache(message);
     notifyListeners();
+    onInboundMessage?.call(senderToken);
     return _InboundDisposition.settled;
   }
 
@@ -1925,6 +2085,7 @@ class MessagingService extends ChangeNotifier {
     }
     _pushCache(message);
     notifyListeners();
+    onInboundMessage?.call(peerToken);
     return _InboundDisposition.settled;
   }
 
@@ -2016,6 +2177,9 @@ class MessagingService extends ChangeNotifier {
   void dispose() {
     _poll?.cancel();
     _relayPoll?.cancel();
+    final socket = _relaySocket;
+    _relaySocket = null;
+    unawaited(socket?.close());
     _relay.close();
     if (_core.isNodeRunning) {
       // Not awaited, because `dispose` is synchronous — but the timers are

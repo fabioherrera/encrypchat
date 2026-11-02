@@ -59,13 +59,14 @@ VIAddVersionKey "CompanyName" "${PRODUCT_PUBLISHER}"
 
 !include "MUI2.nsh"
 !include "FileFunc.nsh"
+!include "LogicLib.nsh"
 
 !define MUI_ABORTWARNING
 !define MUI_ICON "${ICON_FILE}"
 !define MUI_UNICON "${ICON_FILE}"
 
 !define MUI_WELCOMEPAGE_TITLE "Encrypchat"
-!define MUI_WELCOMEPAGE_TEXT "Instala el cliente de escritorio. Los chats, las fotos y las claves se quedan en este dispositivo: no hay cuenta. El cifrado ocurre antes de que nada salga del aparato, asi que un relay opcional —solo si el otro lado esta offline— ve ciphertext y nunca plaintext.$\r$\n$\r$\nEsta copia no esta firmada. Windows SmartScreen avisara la primera vez; el paso es Mas informacion y luego Ejecutar de todas formas.$\r$\n$\r$\nDesinstalar quita el programa. No borra tus conversaciones ni la identidad del Administrador de credenciales. Para eso, usa borrar identidad dentro de la app."
+!define MUI_WELCOMEPAGE_TEXT "Instala el cliente de escritorio. Los chats, las fotos y las claves se quedan en este dispositivo: no hay cuenta. El cifrado ocurre antes de que nada salga del aparato, asi que un relay opcional —solo si el otro lado esta offline— ve ciphertext y nunca plaintext.$\r$\n$\r$\nEsta copia no lleva firma de Windows. SmartScreen avisara la primera vez; el paso es Mas informacion y luego Ejecutar de todas formas.$\r$\n$\r$\nDesinstalar quita el programa. No borra tus conversaciones ni la identidad del Administrador de credenciales. Para eso, usa borrar identidad dentro de la app."
 
 !define MUI_FINISHPAGE_RUN "$INSTDIR\encrypchat.exe"
 !define MUI_FINISHPAGE_RUN_TEXT "Abrir Encrypchat"
@@ -81,9 +82,36 @@ VIAddVersionKey "CompanyName" "${PRODUCT_PUBLISHER}"
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_LANGUAGE "Spanish"
 
+Var UpdateRun
+
 Function .onInit
   SetShellVarContext current
   StrCpy $INSTDIR "$LOCALAPPDATA\Programs\${INSTALL_DIR_LEAF}"
+  ${GetParameters} $0
+  ClearErrors
+  ${GetOptions} $0 "/UPDATE" $1
+  ${IfNot} ${Errors}
+    StrCpy $UpdateRun "1"
+  ${EndIf}
+FunctionEnd
+
+; The app starts this installer and then exits, so its files can still be locked
+; for a moment. Copying over them would fail halfway.
+Function WaitForApp
+  StrCpy $0 0
+  retry:
+    IfFileExists "$INSTDIR\encrypchat.exe" 0 done
+    ClearErrors
+    FileOpen $1 "$INSTDIR\encrypchat.exe" a
+    IfErrors locked
+    FileClose $1
+    Goto done
+  locked:
+    Sleep 500
+    IntOp $0 $0 + 1
+    IntCmp $0 40 0 retry 0
+    Abort "Encrypchat sigue abierta; no se actualizo."
+  done:
 FunctionEnd
 
 Function un.onInit
@@ -95,6 +123,7 @@ Section "Encrypchat" SecApp
   SectionIn RO
   SetShellVarContext current
   StrCpy $INSTDIR "$LOCALAPPDATA\Programs\${INSTALL_DIR_LEAF}"
+  Call WaitForApp
   SetOutPath "$INSTDIR"
   File /r "${BUNDLE_DIR}\*"
 
@@ -123,6 +152,9 @@ Section "Encrypchat" SecApp
   ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2
   IntFmt $0 "0x%08X" $0
   WriteRegDWORD HKCU "${PRODUCT_UNINST_KEY}" "EstimatedSize" "$0"
+
+  StrCmp $UpdateRun "1" 0 +2
+    Exec '"$INSTDIR\encrypchat.exe"'
 SectionEnd
 
 Section "Uninstall"

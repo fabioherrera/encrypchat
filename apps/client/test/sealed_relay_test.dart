@@ -691,19 +691,52 @@ void main() {
     expect(await database.seenSealedCount(), 0);
   });
 
-  test('call signaling by relay does not ring', () async {
-    final rung = <String>[];
-    messaging.onCallSignal = (from, signal) => rung.add(from);
-    final invite = CallSignal(
+  group('call signaling by relay', () {
+    CallSignal invite({int? sentAtUnix}) => CallSignal(
       type: CallSignalType.invite,
       callId: 'call-1',
       media: CallMediaMode.av,
+      sentAtUnix: sentAtUnix,
     );
+    int nowUnix() => DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
 
-    await messaging.handleRelayBlob(sealFromBob(invite.encode()));
+    test('a recent signal from a contact rings', () async {
+      final rung = <bool>[];
+      messaging.onCallSignal = (from, signal, {required viaRelay}) =>
+          rung.add(viaRelay);
 
-    expect(rung, isEmpty);
-    expect(messaging.inboundDrops, {InboundDropReason.callSignal: 1});
+      await messaging.handleRelayBlob(
+        sealFromBob(invite(sentAtUnix: nowUnix()).encode()),
+      );
+
+      expect(rung, [true]);
+      expect(messaging.inboundDrops, isEmpty);
+    });
+
+    test('an unstamped signal does not ring', () async {
+      final rung = <String>[];
+      messaging.onCallSignal = (from, signal, {required viaRelay}) =>
+          rung.add(from);
+
+      await messaging.handleRelayBlob(sealFromBob(invite().encode()));
+
+      expect(rung, isEmpty);
+      expect(messaging.inboundDrops, {InboundDropReason.callSignal: 1});
+    });
+
+    test('a signal older than the ring does not ring', () async {
+      final rung = <String>[];
+      messaging.onCallSignal = (from, signal, {required viaRelay}) =>
+          rung.add(from);
+      final stale = nowUnix() - MessagingService.callSignalMaxAge.inSeconds - 5;
+
+      await messaging.handleRelayBlob(
+        sealFromBob(invite(sentAtUnix: stale).encode()),
+      );
+
+      expect(rung, isEmpty);
+      expect(messaging.inboundDrops, {InboundDropReason.callSignal: 1});
+    });
   });
 
   test('seen ids are pruned once the window has passed', () async {

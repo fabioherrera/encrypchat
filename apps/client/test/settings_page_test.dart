@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:cryptography/cryptography.dart';
 import 'package:encrypchat/core/update_copy.dart';
 import 'package:encrypchat/screens/settings_page.dart';
 import 'package:encrypchat/services/session_controller.dart';
@@ -11,13 +14,19 @@ import 'package:http/testing.dart';
 
 void main() {
   testWidgets('Ajustes offers an explicit in-app update', (tester) async {
-    final client = MockClient((request) async {
-      return http.Response('{"version":"9.9.9"}', 200);
+    final key = await Ed25519().newKeyPair();
+    final payload = utf8.encode('{"version":"9.9.9"}');
+    final signature = await Ed25519().sign(payload, keyPair: key);
+    final body = jsonEncode({
+      'payload': base64Encode(payload),
+      'signature': base64Encode(signature.bytes),
     });
+    final client = MockClient((request) async => http.Response(body, 200));
     final updates = UpdateChecker(
+      publicKeyBase64: base64Encode((await key.extractPublicKey()).bytes),
       client: client,
       currentVersion: '1.0.0',
-      catalogUri: Uri.parse('https://encrypchat.com/latest.json'),
+      catalogUri: Uri.parse('https://encrypchat.com/update-manifest.json'),
       channel: UpdateChannel.linuxRpm,
     );
     await updates.check();

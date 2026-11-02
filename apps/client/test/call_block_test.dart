@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:encrypchat/core/call_signal.dart';
@@ -209,6 +210,83 @@ void main() {
 
     expect(calls.phase, CallPhase.ended);
   });
+
+  test('startCall refuses when no route can carry the signaling', () async {
+    await expectLater(
+      calls.startCall(peer: bob, media: CallMediaMode.audio),
+      throwsA(
+        isA<StateError>().having(
+          (e) => e.message,
+          'message',
+          CallService.noRouteMessage,
+        ),
+      ),
+    );
+    expect(calls.phase, CallPhase.idle);
+    expect(calls.peer, isNull);
+  });
+
+  test('a lost path gives recovery a chance before ending the call', () async {
+    final stream = _FakeMediaStream();
+    calls.iceRecoveryLimit = const Duration(milliseconds: 30);
+    calls.simulateActiveCall(peer: bob, localStream: stream);
+
+    calls.onPathLost();
+
+    expect(calls.phase, CallPhase.active, reason: 'a blip must not hang up');
+    await Future<void>.delayed(const Duration(milliseconds: 60));
+    expect(calls.phase, isNot(CallPhase.active));
+    expect(calls.lastError, 'Conexión perdida');
+  });
+
+  test('hangup ends the call without waiting for the hangup signal', () async {
+    final hanging = _HangingMessaging(
+      core: core,
+      identity: identity,
+      database: database,
+    );
+    hanging.setContacts([bob]);
+    final hangingCalls = CallService(messaging: hanging);
+    addTearDown(hangingCalls.dispose);
+
+    final stream = _FakeMediaStream();
+    hangingCalls.simulateActiveCall(peer: bob, localStream: stream);
+
+    await hangingCalls.hangup().timeout(const Duration(milliseconds: 200));
+
+    expect(hangingCalls.phase, CallPhase.ended);
+    expect(stream.disposed, isTrue);
+    expect(hanging.released, isFalse);
+  });
+
+  test('an unanswered outgoing call ends on its own', () async {
+    calls.ringTimeout = const Duration(milliseconds: 20);
+    calls.simulateOutgoingCall(peer: bob);
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+
+    expect(calls.phase, CallPhase.ended);
+    expect(calls.lastError, 'Nadie contestó');
+  });
+}
+
+/// `sendCallSignal` that never completes: Colgar used to await it, so the
+/// overlay stayed up for the whole worker queue (dial + ACK).
+class _HangingMessaging extends MessagingService {
+  _HangingMessaging({
+    required super.core,
+    required super.identity,
+    required super.database,
+  });
+
+  final Completer<void> _gate = Completer<void>();
+
+  bool get released => _gate.isCompleted;
+
+  @override
+  Future<void> sendCallSignal({
+    required Contact peer,
+    required CallSignal signal,
+  }) => _gate.future;
 }
 
 /// Minimal stand-in for the stream `getUserMedia` hands over: the teardown only
