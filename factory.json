@@ -10,5 +10,9 @@
   "health": "/",
   "stack": {
     "data": "sqlite"
+  },
+  "deploy": {
+    "dokploy": "xeon",
+    "app": "encrypchat/encrypchat"
   }
 }
