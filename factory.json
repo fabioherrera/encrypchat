@@ -1,0 +1,18 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fabioherrera/elnerd-factory/main/plantillas/factory.schema.json",
+  "version": 1,
+  "key": "encrypchat",
+  "name": "EncrypChat",
+  "vertical": "app-interna",
+  "owner": "elnerd",
+  "repo": "fabioherrera/encrypchat",
+  "origin": "https://encrypchat.com",
+  "health": "/",
+  "stack": {
+    "data": "sqlite"
+  },
+  "deploy": {
+    "dokploy": "xeon",
+    "app": "encrypchat/encrypchat"
+  }
+}

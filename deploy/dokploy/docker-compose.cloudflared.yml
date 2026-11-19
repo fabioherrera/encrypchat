@@ -1,0 +1,21 @@
+# Conector de Cloudflare Tunnel para Encrypchat en el Dokploy del Xeon.
+#
+# Dokploy: proyecto `encrypchat` → servicio Compose `cloudflared`, misma rama, Compose Path
+# ./deploy/dokploy/docker-compose.cloudflared.yml. En Environment: TUNNEL_TOKEN=<token del túnel>.
+# En Cloudflare (Zero Trust → Networks → Tunnels → ese túnel → Public Hostname), los tres hostnames
+# apuntan a http://dokploy-traefik:80 con «HTTP Host Header» = el mismo hostname. Traefik reparte
+# a `web` y `relay` según los dominios configurados en el servicio `encrypchat`.
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:2026.10.4
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "run"]
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?Pega el token del túnel en Environment}
+    networks:
+      - dokploy-network
+
+networks:
+  dokploy-network:
+    external: true
+    name: dokploy-network

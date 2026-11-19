@@ -8,7 +8,10 @@ Web y relay en un solo proyecto, detrás del túnel de Cloudflare. Sin IP públi
 todo funciona menos las llamadas entre las redes más estrictas. Pon una alerta de facturación:
 incluye 1 000 GB al mes y luego cuesta $0.05/GB.
 
-**Túnel.** Usa el conector que ya tiene ese Dokploy. No despliegues `deploy/cloudflared`.
+**Túnel.** En el Xeon se usa el túnel del propio Dokploy (`vps.elnerd.com`), que ya está en la red
+`dokploy-network` y llega a Traefik: no hace falta otro conector. Si algún día el proyecto necesita
+su túnel aparte, está `docker-compose.cloudflared.yml` (Compose `cloudflared` con `TUNNEL_TOKEN` en
+Environment). No despliegues `deploy/cloudflared` (era el de Oracle).
 En Zero Trust → Networks → Tunnels → ese túnel → Public Hostname:
 
 | Hostname | Servicio | HTTP Host Header |
@@ -22,7 +25,7 @@ Si Cloudflare dice que el DNS ya existe, primero quita esos hostnames del túnel
 ## 2. Dokploy
 
 1. Create Project `encrypchat` → Create Service → **Compose**.
-2. Provider GitHub, repo `fabioherrera/encrypchat`, branch `main`.
+2. Provider GitHub, repo `fabioherrera/encrypchat`, branch `release/1.1.0` (hasta que 1.1.0 pase a `main`).
 3. Compose Path: `./deploy/dokploy/docker-compose.yml`.
 4. Isolated Deployments: **apagado**.
 5. Environment:
