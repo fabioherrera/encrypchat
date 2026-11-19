@@ -1,13 +1,13 @@
 # Blind relay — build from the monorepo root.
 # Dokploy: context `.`, Dockerfile `services/relay/Dockerfile`, port 8787.
-FROM rust:1-bookworm AS build
+FROM rust:1-slim-trixie AS build
 WORKDIR /src
 COPY Cargo.toml Cargo.lock ./
 COPY crates/core ./crates/core
 COPY services/relay ./services/relay
 RUN cargo build --release -p encrypchat_relay
 
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates wget \
     && rm -rf /var/lib/apt/lists/* \
