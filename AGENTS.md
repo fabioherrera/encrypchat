@@ -67,3 +67,37 @@ Perfiles: [`.cursor/agents/`](.cursor/agents/).
 4. Datos en el dispositivo  
 5. Claims honestos  
 6. Paridad Android / iOS / Linux / Windows  
+
+## Cursor Cloud specific instructions
+
+Preinstalled toolchains (baked into the VM image): Rust stable, Node 22, and
+Flutter 3.44.9 / Dart 3.12.2 at `$HOME/flutter` (on `PATH` via `~/.bashrc`).
+The startup update script only refreshes project dependencies
+(`npm ci` in `apps/web`, `cargo fetch`, `flutter pub get` in `apps/client`).
+
+Three dev-relevant products; use the `make` targets — they already handle the
+non-obvious wiring (FFI `.so`, isolated `HOME`/`PUB_CACHE`, `ENCRYPCHAT_CORE_LIB`):
+
+| Product | Lint / test / build | Run |
+| --- | --- | --- |
+| Rust core + relay (`crates/core`, `services/relay`) | `make check-rust` (fmt, clippy, tests, build) | `make run-relay` → listens `0.0.0.0:8787` (`ENCRYPCHAT_RELAY_ADDR` to change; API in [services/relay/README.md](services/relay/README.md)) |
+| Web landing (`apps/web`) | `make check-web` | `make dev-web` → `localhost:3000` (locales `/en`, `/es`) |
+| Flutter client (`apps/client`) | `make check-client` (pub get, `dart format`, `flutter test`) + `flutter analyze --no-fatal-infos` | GUI needs system deps — see caveat below |
+
+Non-obvious caveats:
+
+- **Rust must be ≥ 1.85 (stable).** A transitive dep needs `edition2024`; the
+  older 1.83 that shipped in the base image fails clippy/build. The image's
+  default `rustup` toolchain was bumped to current stable for this reason.
+- **`flutter test` needs the core `.so`.** `make check-client` / `dev-client`
+  build it first (`make build-ffi` → `apps/client/native/libencrypchat_core.so`)
+  and set `ENCRYPCHAT_CORE_LIB`. Running `flutter test` by hand without that lib
+  fails at FFI load.
+- **Flutter desktop GUI does not run here.** `make build-client-linux` /
+  `dev-client` (and any live GUI) need GTK dev headers, `ninja`, `pkg-config`,
+  etc. that are **not** installed (Phase 8 / [docs/how-to-test.md](docs/how-to-test.md)).
+  In this environment the client is validated via `flutter test` + `analyze`
+  only, matching CI (`.github/workflows/check.yml`). `flutter analyze` runs with
+  `--no-fatal-infos`, so info-level lints are expected and non-blocking.
+- **Don't run `make check-web` while `make dev-web` is up:** both own `.next`
+  and the build fails intermittently. Stop the dev server first.
