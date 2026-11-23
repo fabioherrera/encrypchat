@@ -63,11 +63,11 @@ export const PLATFORM_DOWNLOADS: Record<PlatformId, PlatformDownload[] | null> =
   ios: null,
   windows: [
     {
-      href: `${GITHUB_REPO}/releases/download/pruebas-2026-08-14-barra/encrypchat-windows-x64-1.0.6-setup.exe`,
+      href: releaseAsset("encrypchat-windows-x64-1.0.7-setup.exe"),
       kind: "setup",
     },
     {
-      href: `${GITHUB_REPO}/releases/download/pruebas-2026-08-14-barra/encrypchat-windows-x64-1.0.6.zip`,
+      href: releaseAsset("encrypchat-windows-x64-1.0.7.zip"),
       kind: "zip",
     },
   ],

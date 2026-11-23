@@ -129,7 +129,7 @@ class UpdateApplier extends ChangeNotifier {
         await _linuxRpm(file);
       case UpdateChannel.linuxTarball:
         await _openWith(file.parent.path);
-      case UpdateChannel.windowsZip:
+      case UpdateChannel.windowsSetup:
         await _openWith(file.path);
     }
   }
